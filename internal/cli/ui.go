@@ -42,17 +42,13 @@ func Run(keyword string, sources []string, outDir string, number int) {
 	// --- 1. 默认源设置逻辑 ---
 	// 如果用户没有指定源，默认使用所有支持的音乐源 (显式排除 bilibili)
 	if len(sources) == 0 {
-		sources = []string{
-			"netease",  // 网易云
-			"qq",       // QQ音乐
-			"kugou",    // 酷狗
-			"kuwo",     // 酷我
-			"migu",     // 咪咕
-			"fivesing", // 5sing
-			"jamendo",  // Jamendo
-			"joox",     // Joox
-			"qianqian", // 千千音乐
-			"soda",     // Soda
+		// 使用 core.GetAllSourceNames() 获取固定顺序的源列表，然后排除 bilibili
+		allSources := core.GetAllSourceNames()
+		sources = []string{}
+		for _, src := range allSources {
+			if src != "bilibili" {
+				sources = append(sources, src)
+			}
 		}
 	}
 

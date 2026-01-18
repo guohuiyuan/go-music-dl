@@ -43,13 +43,22 @@ var SourceMap = map[string]SearchFunc{
 	"soda":     soda.Search,
 }
 
-// GetAllSourceNames 获取所有源的名称列表
+// GetAllSourceNames 获取所有源的名称列表（固定顺序）
 func GetAllSourceNames() []string {
-	keys := make([]string, 0, len(SourceMap))
-	for k := range SourceMap {
-		keys = append(keys, k)
+	// 返回固定的源顺序，确保 Web 界面和 CLI 的一致性
+	return []string{
+		"netease",  // 网易云音乐
+		"qq",       // QQ音乐
+		"kugou",    // 酷狗音乐
+		"kuwo",     // 酷我音乐
+		"migu",     // 咪咕音乐
+		"fivesing", // 5sing
+		"jamendo",  // Jamendo
+		"joox",     // JOOX
+		"qianqian", // 千千音乐
+		"soda",     // Soda音乐
+		"bilibili", // Bilibili（放在最后，通常不推荐使用）
 	}
-	return keys
 }
 
 // SearchAndFilter 支持指定源搜索 + 并发处理
@@ -63,6 +72,7 @@ func SearchAndFilter(keyword string, selectedSources []string) ([]model.Song, er
 		selectedSources = GetAllSourceNames()
 	}
 
+	// 按照固定顺序处理源，确保结果的一致性
 	for _, sourceName := range selectedSources {
 		searchFunc, exists := SourceMap[sourceName]
 		if !exists {
