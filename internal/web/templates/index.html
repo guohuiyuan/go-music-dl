@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Hub - 聚合搜索</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --secondary-text: #666;
+            --border-radius: 12px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* 搜索区域样式 */
+        .search-box {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 { margin-top: 0; color: var(--primary-color); }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus { border-color: var(--primary-color); }
+
+        button {
+            padding: 12px 30px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover { background-color: #357abd; }
+
+        /* 源选择器样式 */
+        .source-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--secondary-text);
+            user-select: none;
+        }
+
+        .checkbox-label input { margin-right: 6px; }
+
+        /* 结果列表样式 */
+        .result-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .song-card {
+            background: var(--card-bg);
+            margin-bottom: 15px;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .song-card:hover { transform: translateY(-2px); }
+
+        .song-info h3 { margin: 0 0 5px 0; font-size: 18px; }
+        .song-info p { margin: 0; color: var(--secondary-text); font-size: 14px; }
+        
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e1ecf4;
+            color: #39739d;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 8px;
+            text-transform: uppercase;
+        }
+
+        .download-btn {
+            text-decoration: none;
+            background-color: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .download-btn:hover { background-color: #218838; }
+
+        .vip-badge {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 12px;
+            background: #e6fffa;
+            padding: 5px 10px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .meta-info {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-box">
+        <h1>🎵 Music Search</h1>
+        <form action="/search" method="get">
+            <div class="input-group">
+                <input type="text" name="q" value="{{.Keyword}}" placeholder="输入歌名、歌手..." required>
+                <button type="submit">搜索</button>
+            </div>
+
+            <div class="source-selector">
+                <label style="width: 100%; margin-bottom: 10px; color: #888;">搜索源选择 (默认全选)</label>
+                {{ range $source := .AllSources }}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="sources" value="{{ $source }}" 
+                        {{ if $.Selected }}{{ range $.Selected }}{{ if eq . $source }}checked{{ end }}{{ end }}
+                        {{ else }}checked{{ end }}> 
+                    {{ $source }}
+                </label>
+                {{ end }}
+            </div>
+        </form>
+    </div>
+
+    {{ if .Result }}
+        <div style="text-align: center;">
+            <span class="vip-badge">✨ 已自动过滤 VIP 收费资源，结果均可下载</span>
+        </div>
+        <ul class="result-list">
+            {{ range .Result }}
+            <li class="song-card">
+                <div class="song-info">
+                    <h3>{{ .Name }}</h3>
+                    <p>
+                        <span class="tag">{{ .Source }}</span>
+                        👤 {{ .Artist }}
+                    </p>
+                    <div class="meta-info">
+                        {{ if .Album }}<span>💿 {{ .Album }}</span>{{ end }}
+                        {{ if .FormatDuration }}<span>⏱ {{ .FormatDuration }}</span>{{ end }}
+                        {{ if .FormatSize }}<span>📦 {{ .FormatSize }}</span>{{ end }}
+                    </div>
+                </div>
+                <a href="/download?id={{ .ID }}&source={{ .Source }}&name={{ .Name }}&artist={{ .Artist }}" 
+                   class="download-btn" 
+                   target="_blank" 
+                   download="{{ .Artist }} - {{ .Name }}.mp3">
+                    ⬇ 下载 MP3
+                </a>
+            </li>
+            {{ end }}
+        </ul>
+    {{ else if .Keyword }}
+        <div class="no-results">
+            <p>未找到符合条件的免费资源，请尝试更换关键词或选择其他搜索源。</p>
+        </div>
+    {{ end }}
+</div>
+
+<script>
+    // 简单的 JS 用于处理"全选/反选"逻辑
+    document.addEventListener('DOMContentLoaded', function() {
+        // 可以在这里添加全选/反选功能
+        // 例如：添加一个"全选"按钮
+        const sourceSelector = document.querySelector('.source-selector');
+        if (sourceSelector) {
+            const selectAllBtn = document.createElement('button');
+            selectAllBtn.type = 'button';
+            selectAllBtn.textContent = '全选';
+            selectAllBtn.style.cssText = 'background: #6c757d; padding: 4px 12px; font-size: 12px; margin-left: 10px;';
+            selectAllBtn.onclick = function() {
+                const checkboxes = sourceSelector.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = true);
+            };
+            
+            const selectNoneBtn = document.createElement('button');
+            selectNoneBtn.type = 'button';
+            selectNoneBtn.textContent = '清空';
+            selectNoneBtn.style.cssText = 'background: #6c757d; padding: 4px 12px; font-size: 12px; margin-left: 5px;';
+            selectNoneBtn.onclick = function() {
+                const checkboxes = sourceSelector.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = false);
+            };
+            
+            const label = sourceSelector.querySelector('label[style*="width: 100%"]');
+            if (label) {
+                label.appendChild(selectAllBtn);
+                label.appendChild(selectNoneBtn);
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
