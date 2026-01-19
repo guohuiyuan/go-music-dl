@@ -50,6 +50,13 @@ jobs:
           # 确保在项目根目录
           pwd
           ls -la
+          # 检查 cmd/music-dl 目录是否存在
+          if [ ! -d "./cmd/music-dl" ]; then
+            echo "::error:: 缺少 cmd/music-dl 目录，请检查代码提交"
+            echo "当前目录内容:"
+            find . -type f -name "*.go" | head -20
+            exit 1
+          fi
           # 初始化 Go 模块并下载依赖
           go mod tidy
           go mod download
