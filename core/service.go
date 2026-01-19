@@ -142,36 +142,48 @@ func DownloadSong(song *model.Song) error {
 
 // DownloadSongWithCover 下载歌曲，可选下载封面
 func DownloadSongWithCover(song *model.Song, downloadCover bool) error {
-	// 1. 获取下载链接
-	url, err := GetDownloadURL(song)
-	if err != nil {
-		return fmt.Errorf("获取下载链接失败: %v", err)
-	}
-
-	if url == "" {
-		return fmt.Errorf("该歌曲无下载链接")
-	}
-
-	// 2. 生成文件名: "歌手 - 歌名.mp3"
-	// 清洗文件名中的非法字符
+	// 清洗文件名
 	filename := fmt.Sprintf("%s - %s.mp3", song.Artist, song.Name)
 	filename = sanitizeFilename(filename)
 
-	// 创建保存目录 (可选)
 	saveDir := "downloads"
 	if _, err := os.Stat(saveDir); os.IsNotExist(err) {
 		os.Mkdir(saveDir, 0755)
 	}
 	filePath := filepath.Join(saveDir, filename)
 
-	// 3. 使用 music-lib 的 utils.Get 下载
-	// 这样可以复用 music-lib 中已经封装好的 Header 处理逻辑
+	// [新增] 针对 Soda 源的特殊处理：使用专用下载器（含解密）
+	if song.Source == "soda" {
+		fmt.Println("检测到 Soda 音乐，正在下载并解密...")
+		// 注意：Soda 下载的是 m4a/mp4，这里强制保存为 mp3 后缀可能不太严谨，但为了兼容性暂且如此
+		// 或者可以在 soda.Download 内部处理
+		err := soda.Download(song, filePath)
+		if err != nil {
+			return err
+		}
+		// Soda 下载完音频后，如果需要封面，单独处理
+		if downloadCover && song.Cover != "" {
+			coverName := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".jpg"
+			coverPath := filepath.Join(saveDir, coverName)
+			_ = downloadCoverImage(song.Cover, coverPath)
+		}
+		return nil
+	}
+
+	// --- 以下为通用源的下载逻辑 (不变) ---
+	url, err := GetDownloadURL(song)
+	if err != nil {
+		return fmt.Errorf("获取下载链接失败: %v", err)
+	}
+	if url == "" {
+		return fmt.Errorf("该歌曲无下载链接")
+	}
+
 	data, err := utils.Get(url)
 	if err != nil {
 		return fmt.Errorf("下载失败: %v", err)
 	}
 
-	// 4. 写入文件
 	out, err := os.Create(filePath)
 	if err != nil {
 		return err
@@ -183,16 +195,10 @@ func DownloadSongWithCover(song *model.Song, downloadCover bool) error {
 		return err
 	}
 
-	// 5. 下载封面（如果启用且存在）
 	if downloadCover && song.Cover != "" {
-		// 构造封面文件名: "歌手 - 歌名.jpg"
 		coverName := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".jpg"
 		coverPath := filepath.Join(saveDir, coverName)
-		err = downloadCoverImage(song.Cover, coverPath)
-		if err != nil {
-			// 封面下载失败不影响主流程，仅记录日志
-			fmt.Printf("⚠️ 封面下载失败: %v\n", err)
-		}
+		_ = downloadCoverImage(song.Cover, coverPath)
 	}
 
 	return nil

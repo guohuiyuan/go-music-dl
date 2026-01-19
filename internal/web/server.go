@@ -1,16 +1,21 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/music-lib/model"
+	// [新增] 引入 soda 包
+	"github.com/guohuiyuan/music-lib/soda"
 )
 
 //go:embed templates/*
@@ -77,9 +82,8 @@ func Start(port string) {
 		})
 	})
 
-	// 下载接口：统一文件名逻辑
+	// 下载/播放接口
 	r.GET("/download", func(c *gin.Context) {
-		// 获取参数
 		id := c.Query("id")
 		source := c.Query("source")
 		songName := c.Query("name")
@@ -90,15 +94,53 @@ func Start(port string) {
 			return
 		}
 
-		// 创建临时歌曲对象
-		tempSong := &model.Song{
-			ID:     id,
-			Source: source,
-			Name:   songName,
-			Artist: artist,
+		if songName == "" { songName = "Unknown" }
+		if artist == "" { artist = "Unknown" }
+		filename := generateFilename(songName, artist)
+		encodedFilename := url.QueryEscape(filename)
+		encodedFilename = strings.ReplaceAll(encodedFilename, "+", "%20")
+		contentDisposition := fmt.Sprintf("attachment; filename=\"music.mp3\"; filename*=utf-8''%s", encodedFilename)
+
+		// [新增] Soda 音乐特殊处理：内存下载 -> 解密 -> 播放
+		if source == "soda" {
+			// 1. 获取包含 Auth 的信息
+			tempSong := &model.Song{ID: id, Source: source}
+			info, err := soda.GetDownloadInfo(tempSong)
+			if err != nil {
+				c.String(http.StatusInternalServerError, "获取Soda信息失败: %v", err)
+				return
+			}
+
+			// 2. 下载加密文件
+			resp, err := http.Get(info.URL)
+			if err != nil {
+				c.String(http.StatusBadGateway, "下载源文件失败: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+			
+			encryptedData, err := io.ReadAll(resp.Body)
+			if err != nil {
+				c.String(http.StatusInternalServerError, "读取数据失败: %v", err)
+				return
+			}
+
+			// 3. 解密
+			decryptedData, err := soda.DecryptAudio(encryptedData, info.PlayAuth)
+			if err != nil {
+				c.String(http.StatusInternalServerError, "解密失败: %v", err)
+				return
+			}
+
+			// 4. 返回解密后的数据 (支持 Range)
+			c.Header("Content-Disposition", contentDisposition)
+			// 使用 http.ServeContent 自动处理 Range/Content-Length/MIME
+			http.ServeContent(c.Writer, c.Request, filename, time.Now(), bytes.NewReader(decryptedData))
+			return
 		}
 
-		// 获取下载链接
+		// --- 以下为通用源代理逻辑 (不变) ---
+		tempSong := &model.Song{ID: id, Source: source, Name: songName, Artist: artist}
 		downloadUrl, err := core.GetDownloadURL(tempSong)
 		if err != nil {
 			c.String(http.StatusInternalServerError, "获取下载链接失败: %v", err)
@@ -110,23 +152,7 @@ func Start(port string) {
 			return
 		}
 
-		// 如果歌名或歌手为空，使用默认值
-		if songName == "" {
-			songName = "Unknown"
-		}
-		if artist == "" {
-			artist = "Unknown"
-		}
-
-		// 1. 构建文件名: "歌手 - 歌名.mp3"
-		filename := generateFilename(songName, artist)
-
-		// 2. 处理 URL 编码 (解决中文乱码的关键)
-		// QueryEscape 会把空格转为 +，为了美观我们把 + 换回 %20
-		encodedFilename := url.QueryEscape(filename)
-		encodedFilename = strings.ReplaceAll(encodedFilename, "+", "%20")
-
-		// 3. 获取远程文件流 (代理下载)
+		// 获取远程文件流 (代理下载)
 		resp, err := http.Get(downloadUrl)
 		if err != nil {
 			c.String(http.StatusInternalServerError, "获取源文件失败: %v", err)
@@ -134,17 +160,12 @@ func Start(port string) {
 		}
 		defer resp.Body.Close()
 
-		// 4. 设置强制下载 Header (最强兼容性写法)
-		// filename="..." 兼容旧浏览器
-		// filename*=utf-8''... 兼容现代浏览器并支持中文
-		contentDisposition := fmt.Sprintf("attachment; filename=\"music.mp3\"; filename*=utf-8''%s", encodedFilename)
-		
 		c.Header("Content-Description", "File Transfer")
 		c.Header("Content-Type", "application/octet-stream")
 		c.Header("Content-Disposition", contentDisposition)
 		c.Header("Content-Transfer-Encoding", "binary")
 		
-		// 5. 将流传输给用户
+		// 将流传输给用户
 		// 【关键修改】：第二个参数 (contentLength) 必须传 -1
 		// 传 -1 会告诉 Gin 使用 "Transfer-Encoding: chunked"
 		// 浏览器就会乖乖接收所有数据，直到连接正常关闭，而不会去核对字节数
