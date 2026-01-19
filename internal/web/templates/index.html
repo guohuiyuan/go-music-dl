@@ -197,16 +197,63 @@
             font-size: 16px;
         }
 
-        /* [核心修改] Live2D 看板娘定位调整 */
+        /* Live2D 看板娘定位调整 */
         #waifu {
-            left: auto !important;       /* 取消默认的左侧定位 */
-            right: 20px !important;      /* 改为右侧定位 */
-            bottom: 100px !important;    /* 保持在播放器上方 (播放器高约90px) */
-            z-index: 999;                /* 确保不被其他内容遮挡 */
+            left: auto !important;       
+            right: 20px !important;      
+            bottom: 100px !important;    
+            z-index: 999;                
         }
         
         @media (max-width: 768px) {
-            #waifu { display: none; } /* 移动端隐藏 */
+            #waifu { display: none; } 
+        }
+
+        /* [关键修改] APlayer 歌词美化样式 - 修复版 */
+        
+        /* 1. 调整歌词容器 */
+        .aplayer.aplayer-fixed .aplayer-lrc {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); 
+            margin-bottom: 10px; 
+            padding-bottom: 10px; /* 增加底部空间 */
+            overflow: visible !important; /* 尝试允许内容溢出，防止切边 */
+        }
+
+        /* 2. 普通歌词样式 (未播放行) */
+        .aplayer .aplayer-lrc p {
+            font-size: 16px !important;       
+            color: #ccc !important;           /*稍微改亮一点，防切边看不清*/
+            line-height: 30px !important;     /* [修复] 增加行高，防止拥挤 */
+            font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+            opacity: 0.8;                     
+            transition: all 0.3s ease;
+            padding: 0 !important;            /* 重置 padding */
+            margin: 0 !important;             /* 重置 margin */
+        }
+
+        /* 3. 当前播放行样式 (高亮) */
+        .aplayer .aplayer-lrc p.aplayer-lrc-current {
+            font-size: 24px !important;       /* [修复] 直接加大字号，不使用 scale */
+            color: #4a90e2 !important;        
+            font-weight: 800 !important;      
+            opacity: 1 !important;            
+            text-shadow: 0 2px 10px rgba(74, 144, 226, 0.6); 
+            line-height: 40px !important;     /* [修复] 给高亮行足够的行高，防止底部被切 */
+            margin: 10px 0 !important;        
+            padding: 5px 0 !important;        /* [修复] 增加内边距，容纳阴影 */
+            transform: none !important;       /* [修复] 移除缩放，防止渲染层裁切 */
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .aplayer .aplayer-lrc p {
+                font-size: 14px !important;
+                line-height: 24px !important;
+            }
+            .aplayer .aplayer-lrc p.aplayer-lrc-current {
+                font-size: 18px !important;
+                line-height: 32px !important;
+            }
         }
     </style>
 </head>
@@ -328,18 +375,23 @@
         volume: 0.7,
         listFolded: false,
         listMaxHeight: 90,
+        lrcType: 3, 
         audio: []
     });
 
     function playMusic(id, source, name, artist, cover) {
         const streamUrl = `/download?id=${encodeURIComponent(id)}&source=${source}`;
+        const lrcUrl = `/lyric?id=${encodeURIComponent(id)}&source=${source}`;
+
         const audioInfo = {
             name: name,
             artist: artist,
             url: streamUrl,
             cover: cover || 'https://via.placeholder.com/150?text=Music',
+            lrc: lrcUrl, 
             theme: '#4a90e2'
         };
+
         ap.list.clear();
         ap.list.add(audioInfo);
         ap.play();
