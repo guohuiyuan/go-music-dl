@@ -13,7 +13,7 @@ const js = `{
   "RT_GROUP_ICON": {
     "APP": {
       "0000": [
-        "icon.png"
+        "icon_256x256.png"
       ]
     }
   },
