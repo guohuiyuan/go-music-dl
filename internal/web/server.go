@@ -24,6 +24,11 @@ func Start(port string) {
 	tmpl := template.Must(template.New("").ParseFS(templateFS, "templates/*.html"))
 	r.SetHTMLTemplate(tmpl)
 
+	// 服务 favicon 图标
+	r.GET("/icon.png", func(c *gin.Context) {
+		c.FileFromFS("templates/icon.png", http.FS(templateFS))
+	})
+
 	// 首页：传递所有可用源给前端，用于生成复选框
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", gin.H{
