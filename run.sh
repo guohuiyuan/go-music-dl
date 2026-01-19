@@ -25,6 +25,5 @@ echo "  1. 直接运行: ./music-dl"
 echo "  2. 搜索歌曲: ./music-dl -k \"周杰伦\""
 echo "  3. 启动Web服务: ./music-dl web"
 echo ""
-read -p "按回车键运行程序..."
 
-./music-dl web
+./music-dl web -p 8080

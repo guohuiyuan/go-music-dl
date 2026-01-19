@@ -24,8 +24,6 @@ echo   1. 直接运行: music-dl.exe
 echo   2. 搜索歌曲: music-dl.exe -k "周杰伦"
 echo   3. 启动Web服务: music-dl.exe web
 echo.
-echo 按任意键运行程序...
-pause
 
-music-dl.exe web
+music-dl.exe web -p 8080
 pause
