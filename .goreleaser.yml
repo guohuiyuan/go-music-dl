@@ -7,6 +7,7 @@ before:
     - go mod tidy
     - go generate ./...
     - go install github.com/tc-hib/go-winres@latest
+    - go-winres make --in ./winres/winres.json --out ./cmd/music-dl/rsrc
 builds:
   - id: nowin
     env:
@@ -44,9 +45,6 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-    hooks:
-      pre:
-        - go-winres make --in ./winres/winres.json --out ./cmd/music-dl/rsrc
 
 checksum:
   name_template: "go-music-dl_checksums.txt"
