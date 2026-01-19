@@ -47,6 +47,13 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           IS_PR: ${{ !!github.head_ref }}
         run: |
+          # 确保在项目根目录
+          pwd
+          ls -la
+          # 初始化 Go 模块并下载依赖
+          go mod tidy
+          go mod download
+          # 生成 Windows 资源文件
           GOOS= GOARCH= go generate ./...
           if [ $GOOS = "windows" ]; then export BINARY_SUFFIX="$BINARY_SUFFIX.exe"; fi
           if $IS_PR ; then echo $PR_PROMPT; fi

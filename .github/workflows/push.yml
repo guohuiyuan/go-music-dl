@@ -22,7 +22,12 @@ jobs:
 
       - name: Tidy Modules
         run: |
+          # 调试信息
+          pwd
+          ls -la
+          # 初始化 Go 模块
           go mod tidy
+          go mod download
           go generate ./...
 
       - name: Run Lint
