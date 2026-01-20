@@ -87,30 +87,6 @@ go build -o music-dl ./cmd/music-dl
 ./music-dl --version
 ```
 
-### 使用 Nix 安装（实验性）
-
-项目支持 Nix 包管理器，提供可重复的构建环境：
-
-```bash
-# 使用 Nix Flakes
-nix run github:guohuiyuan/go-music-dl
-
-# 或从本地克隆构建
-git clone https://github.com/guohuiyuan/go-music-dl.git
-cd go-music-dl
-nix build
-```
-
-### 作为库使用
-
-```bash
-go get github.com/guohuiyuan/go-music-dl
-```
-
-### 自动依赖更新
-
-项目使用 gomod2nix 管理 Nix 依赖。当 `go.mod` 或 `go.sum` 更新时，GitHub Actions 会自动运行 `gomod2nix` 更新 `gomod2nix.toml` 文件。
-
 ## 使用指南
 
 ### CLI 模式
