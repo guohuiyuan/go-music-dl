@@ -51,7 +51,7 @@
             box-shadow: var(--shadow);
             margin-bottom: 30px;
             border: 1px solid rgba(255,255,255,0.5);
-            position: relative; /* 确保层级正确 */
+            position: relative; 
             z-index: 10;
         }
 
@@ -159,7 +159,7 @@
             box-shadow: var(--shadow); display: flex; align-items: center;
             transition: all 0.2s ease;
             position: relative;
-            z-index: 5; /* 确保列表在下层装饰之上 */
+            z-index: 5;
         }
         .song-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-active); }
 
@@ -182,7 +182,7 @@
             width: 40px; height: 40px; border-radius: 50%; border: none;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: all 0.2s; text-decoration: none;
-            position: relative; z-index: 10; /* 确保按钮可点击 */
+            position: relative; z-index: 10;
         }
         .btn-play { background: var(--primary-gradient); color: white; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3); }
         .btn-play:hover { transform: scale(1.1); }
@@ -191,16 +191,14 @@
 
         .no-results { text-align: center; padding: 60px; color: var(--text-sub); }
 
-        /* --- [修复] APlayer & 歌词样式 --- */
+        /* --- APlayer & 歌词 --- */
         .aplayer.aplayer-fixed .aplayer-lrc {
             margin-bottom: 20px; 
             padding-bottom: 20px; 
             text-shadow: none !important;
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
             mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
-            
-            /* [关键修复] 让鼠标点击“穿透”歌词层，避免挡住下面的按钮 */
-            pointer-events: none !important;
+            pointer-events: none !important; /* 歌词穿透点击 */
         }
         
         .aplayer .aplayer-lrc p {
@@ -218,17 +216,23 @@
             background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
-        /* --- [修复] Live2D 人物位置 --- */
+        /* --- [关键修改] Live2D 交互修复 --- */
         #waifu {
-            right: 20px !important;
+            left: 20px !important;
             bottom: 90px !important;
             z-index: 99999 !important;
-            
-            /* [关键修复] 只有人物本身(canvas)可点击，外层容器不阻挡点击 */
+            /* 1. 容器本身必须穿透，否则会挡住网页 */
             pointer-events: none !important;
         }
-        #waifu canvas {
-            pointer-events: auto !important; /* 恢复人物交互 */
+
+        /* 2. 单独恢复 内部元素 的点击事件 */
+        /* 人物本体 */
+        #waifu canvas,
+        /* 工具栏图标 (你提到的“旁边的帮助”) */
+        #waifu-tool,
+        /* 气泡提示 */
+        #waifu-tips {
+            pointer-events: auto !important; 
         }
 
         /* 移动端适配 */

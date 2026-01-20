@@ -5,7 +5,7 @@
 ## 特性
 
 - **双模式运行**: 支持命令行交互模式和 Web 服务模式
-- **多源搜索**: 支持网易云、QQ音乐、酷狗、酷我、咪咕、5sing、Jamendo、JOOX、千千音乐、Soda 等多个音乐源（默认排除 Bilibili 源）
+- **多源搜索**: 支持网易云、QQ音乐、酷狗、酷我、咪咕、5sing、Jamendo、JOOX、千千音乐、Soda 等多个音乐源
 - **现代化界面**: 
   - CLI: 使用 Bubble Tea 提供交互式表格界面
   - Web: 使用 Gin + Tailwind CSS 提供美观的网页界面
