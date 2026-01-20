@@ -92,7 +92,7 @@ func GetSourceDescription(source string) string {
 		"jamendo":  "Jamendo - 国际免费音乐平台，提供 Creative Commons 许可的音乐",
 		"joox":     "JOOX - 腾讯在东南亚推出的音乐流媒体服务",
 		"qianqian": "千千音乐 - 百度旗下音乐平台，前身为千千静听",
-		"soda":     "Soda音乐 - 新兴音乐平台，提供高品质音乐流媒体服务",
+		"soda":     "Soda音乐 - 抖音旗下音乐平台，提供高品质音乐流媒体服务",
 		"bilibili": "Bilibili - 中国知名视频弹幕网站，包含大量用户上传的音乐内容",
 	}
 	
