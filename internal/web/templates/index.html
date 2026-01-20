@@ -25,7 +25,6 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: #eef2f5;
-            /* 动态背景纹理 */
             background-image: 
                 radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
                 radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
@@ -131,7 +130,7 @@
             line-height: 1.2; font-weight: 400;
         }
 
-        /* 选中状态设计 */
+        /* 选中状态 */
         .source-checkbox:checked + .source-card {
             border-color: var(--primary-color);
             background: #eff3ff;
@@ -188,26 +187,41 @@
 
         .no-results { text-align: center; padding: 60px; color: var(--text-sub); }
 
-        /* APlayer & 歌词样式 */
+        /* --- [关键修改] APlayer & 歌词样式 --- */
         .aplayer.aplayer-fixed .aplayer-lrc {
-            margin-bottom: 20px; padding-bottom: 20px; text-shadow: none !important;
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+            margin-bottom: 20px; 
+            padding-bottom: 20px; 
+            text-shadow: none !important;
+            /* [修改点 1] 下方透明度去除：从透明到黑色(15%)再到完全黑色(100%) */
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
         }
+        
         .aplayer .aplayer-lrc p {
             font-size: 16px !important; line-height: 32px !important;
             color: #000 !important; opacity: 0.1 !important; filter: blur(1px);
             transform: scale(0.95); transition: all 0.5s !important;
             margin: 0 !important; font-family: "PingFang SC", sans-serif !important;
         }
+        
         .aplayer .aplayer-lrc p.aplayer-lrc-current ~ p { opacity: 0.5 !important; filter: blur(0px); }
+        
         .aplayer .aplayer-lrc p.aplayer-lrc-current {
             font-size: 24px !important; opacity: 1 !important; filter: blur(0px);
             font-weight: 800 !important; margin: 15px 0 !important; transform: scale(1.05);
             background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
+        /* --- [关键修改] Live2D 人物位置 --- */
+        #waifu {
+            right: 20px !important;
+            bottom: 90px !important;
+            z-index: 99999 !important; /* 提高层级，确保不被遮挡 */
+        }
+
         /* 移动端适配 */
         @media (max-width: 768px) {
+            #waifu { display: none; } /* 手机端隐藏人物 */
             .container { padding: 0; }
             .search-box { padding: 20px; border-radius: 0 0 20px 20px; }
             .source-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
