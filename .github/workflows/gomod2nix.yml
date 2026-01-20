@@ -2,7 +2,7 @@ name: 自动更新 nix 依赖
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'go.mod'
       - 'go.sum'

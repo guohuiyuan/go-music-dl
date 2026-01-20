@@ -6,7 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/tabwriter"
+
+	"github.com/olekukonko/tablewriter" // 引入第三方库
+	"github.com/olekukonko/tablewriter/tw"
 
 	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/go-music-dl/pkg/models"
@@ -15,10 +17,10 @@ import (
 func RunInteractive() {
 	reader := bufio.NewReader(os.Stdin)
 
-	// 1. 获取默认源（排除 bilibili, joox, jamendo, fivesing）
+	// 1. 获取默认源
 	defaultSources := core.GetDefaultSourceNames()
 	fmt.Printf(">> 命令行模式已启动\n>> 当前启用源: %v (已排除 bilibili, joox, jamendo, fivesing)\n", defaultSources)
-	
+
 	// 显示所有支持的源及其描述
 	fmt.Println("\n支持的音乐源简介:")
 	allSources := core.GetAllSourceNames()
@@ -54,26 +56,55 @@ func RunInteractive() {
 			continue
 		}
 
-		// 3. 打印表格
+		// 3. 打印表格 (适配 tablewriter v1.1.3)
 		fmt.Printf("\n找到 %d 条结果:\n", len(songs))
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-		// 表头中文化
-		fmt.Fprintln(w, "序号\t歌名\t歌手\t来源\t时长/大小")
-		fmt.Fprintln(w, "----\t----\t----\t----\t---------")
+
+		// 使用 NewTable 并传入配置选项
+		rendition := tw.Rendition{
+			Borders: tw.BorderNone,
+			Symbols: tw.NewSymbols(tw.StyleNone),
+			Settings: tw.Settings{
+				Separators: tw.SeparatorsNone,
+				Lines:      tw.LinesNone,
+			},
+		}
+		table := tablewriter.NewTable(os.Stdout,
+			tablewriter.WithHeader([]string{"序号", "歌名", "歌手", "来源", "时长/大小"}),
+			tablewriter.WithHeaderAlignment(tw.AlignLeft),
+			tablewriter.WithRowAlignment(tw.AlignLeft),
+			tablewriter.WithPadding(tw.PaddingNone),
+			tablewriter.WithHeaderAutoFormat(tw.Off),
+			tablewriter.WithRowAutoFormat(tw.Off),
+			tablewriter.WithHeaderAutoWrap(tw.WrapTruncate),
+			tablewriter.WithRowAutoWrap(tw.WrapTruncate),
+			tablewriter.WithTrimSpace(tw.On),
+			tablewriter.WithRendition(rendition),
+		)
+
 		for i, s := range songs {
 			info := models.FormatDurationSeconds(s.Duration)
 			if s.Size > 0 {
 				info += fmt.Sprintf(" (%.2fMB)", float64(s.Size)/1024/1024)
 			}
-			fmt.Fprintf(w, "[%d]\t%s\t%s\t%s\t%s\n", i+1, s.Name, s.Artist, s.Source, info)
-		}
-		w.Flush()
 
+			row := []string{
+				fmt.Sprintf("[%d]", i+1),
+				s.Name,
+				s.Artist,
+				s.Source,
+				info,
+			}
+			table.Append(row)
+		}
+
+		table.Render()
+
+		// ... (省略后面的下载代码，保持不变) ...
 		// 4. 选择下载
 		fmt.Print("\n[下载] 请输入序号 (例如: 1-3 5 7): ")
 		selectionInput, _ := reader.ReadString('\n')
 		selectionInput = strings.TrimSpace(selectionInput)
-		
+
 		if selectionInput == "" {
 			continue
 		}
@@ -85,14 +116,11 @@ func RunInteractive() {
 		}
 
 		for i, index := range selectedIndices {
-			// 获取歌曲对象
 			targetSong := songs[index-1]
-			
 			fmt.Printf("\n--> 正在下载 [%d/%d]: %s - %s ...\n", i+1, len(selectedIndices), targetSong.Artist, targetSong.Name)
-			
-			// 调用 Core 下载
+
 			err := core.DownloadSong(&targetSong)
-			
+
 			if err != nil {
 				fmt.Printf("    ❌ 失败: %v\n", err)
 			} else {
@@ -103,7 +131,7 @@ func RunInteractive() {
 	}
 }
 
-// 辅助函数保持不变
+// ... 辅助函数 parseSelection 等保持不变 ...
 func parseSelection(input string, maxIndex int) []int {
 	var result []int
 	input = strings.ReplaceAll(input, ",", " ")
@@ -117,9 +145,15 @@ func parseSelection(input string, maxIndex int) []int {
 				start, err1 := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
 				end, err2 := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
 				if err1 == nil && err2 == nil && start > 0 && end > 0 && start <= end {
-					if start > maxIndex { start = maxIndex }
-					if end > maxIndex { end = maxIndex }
-					if start > end { continue }
+					if start > maxIndex {
+						start = maxIndex
+					}
+					if end > maxIndex {
+						end = maxIndex
+					}
+					if start > end {
+						continue
+					}
 					for i := start; i <= end; i++ {
 						result = append(result, i)
 					}

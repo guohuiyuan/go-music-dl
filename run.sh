@@ -26,4 +26,4 @@ echo "  2. 搜索歌曲: ./music-dl -k \"周杰伦\""
 echo "  3. 启动Web服务: ./music-dl web"
 echo ""
 
-./music-dl web -p 8080
+./music-dl
