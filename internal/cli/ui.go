@@ -94,54 +94,90 @@ func (m *CookieManager) Get(source string) string {
 func getSearchFunc(source string) func(string) ([]model.Song, error) {
 	c := cm.Get(source)
 	switch source {
-	case "netease": return netease.New(c).Search
-	case "qq": return qq.New(c).Search
-	case "kugou": return kugou.New(c).Search
-	case "kuwo": return kuwo.New(c).Search
-	case "migu": return migu.New(c).Search
-	case "soda": return soda.New(c).Search
-	case "bilibili": return bilibili.New(c).Search
-	case "fivesing": return fivesing.New(c).Search
-	case "jamendo": return jamendo.New(c).Search
-	case "joox": return joox.New(c).Search
-	case "qianqian": return qianqian.New(c).Search
-	default: return nil
+	case "netease":
+		return netease.New(c).Search
+	case "qq":
+		return qq.New(c).Search
+	case "kugou":
+		return kugou.New(c).Search
+	case "kuwo":
+		return kuwo.New(c).Search
+	case "migu":
+		return migu.New(c).Search
+	case "soda":
+		return soda.New(c).Search
+	case "bilibili":
+		return bilibili.New(c).Search
+	case "fivesing":
+		return fivesing.New(c).Search
+	case "jamendo":
+		return jamendo.New(c).Search
+	case "joox":
+		return joox.New(c).Search
+	case "qianqian":
+		return qianqian.New(c).Search
+	default:
+		return nil
 	}
 }
 
 func getDownloadFunc(source string) func(*model.Song) (string, error) {
 	c := cm.Get(source)
 	switch source {
-	case "netease": return netease.New(c).GetDownloadURL
-	case "qq": return qq.New(c).GetDownloadURL
-	case "kugou": return kugou.New(c).GetDownloadURL
-	case "kuwo": return kuwo.New(c).GetDownloadURL
-	case "migu": return migu.New(c).GetDownloadURL
-	case "soda": return soda.New(c).GetDownloadURL
-	case "bilibili": return bilibili.New(c).GetDownloadURL
-	case "fivesing": return fivesing.New(c).GetDownloadURL
-	case "jamendo": return jamendo.New(c).GetDownloadURL
-	case "joox": return joox.New(c).GetDownloadURL
-	case "qianqian": return qianqian.New(c).GetDownloadURL
-	default: return nil
+	case "netease":
+		return netease.New(c).GetDownloadURL
+	case "qq":
+		return qq.New(c).GetDownloadURL
+	case "kugou":
+		return kugou.New(c).GetDownloadURL
+	case "kuwo":
+		return kuwo.New(c).GetDownloadURL
+	case "migu":
+		return migu.New(c).GetDownloadURL
+	case "soda":
+		return soda.New(c).GetDownloadURL
+	case "bilibili":
+		return bilibili.New(c).GetDownloadURL
+	case "fivesing":
+		return fivesing.New(c).GetDownloadURL
+	case "jamendo":
+		return jamendo.New(c).GetDownloadURL
+	case "joox":
+		return joox.New(c).GetDownloadURL
+	case "qianqian":
+		return qianqian.New(c).GetDownloadURL
+	default:
+		return nil
 	}
 }
 
 func getLyricFunc(source string) func(*model.Song) (string, error) {
 	c := cm.Get(source)
 	switch source {
-	case "netease": return netease.New(c).GetLyrics
-	case "qq": return qq.New(c).GetLyrics
-	case "kugou": return kugou.New(c).GetLyrics
-	case "kuwo": return kuwo.New(c).GetLyrics
-	case "migu": return migu.New(c).GetLyrics
-	case "soda": return soda.New(c).GetLyrics
-	case "bilibili": return bilibili.New(c).GetLyrics
-	case "fivesing": return fivesing.New(c).GetLyrics
-	case "jamendo": return jamendo.New(c).GetLyrics
-	case "joox": return joox.New(c).GetLyrics
-	case "qianqian": return qianqian.New(c).GetLyrics
-	default: return nil
+	case "netease":
+		return netease.New(c).GetLyrics
+	case "qq":
+		return qq.New(c).GetLyrics
+	case "kugou":
+		return kugou.New(c).GetLyrics
+	case "kuwo":
+		return kuwo.New(c).GetLyrics
+	case "migu":
+		return migu.New(c).GetLyrics
+	case "soda":
+		return soda.New(c).GetLyrics
+	case "bilibili":
+		return bilibili.New(c).GetLyrics
+	case "fivesing":
+		return fivesing.New(c).GetLyrics
+	case "jamendo":
+		return jamendo.New(c).GetLyrics
+	case "joox":
+		return joox.New(c).GetLyrics
+	case "qianqian":
+		return qianqian.New(c).GetLyrics
+	default:
+		return nil
 	}
 }
 
@@ -330,11 +366,17 @@ func (m modelState) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selected[m.cursor] = struct{}{}
 			}
 		case "a":
-			for i := range m.songs {
-				m.selected[i] = struct{}{}
+			// 如果当前已经是全选状态，则清空（实现“按两下全不选”）
+			if len(m.selected) == len(m.songs) && len(m.songs) > 0 {
+				m.selected = make(map[int]struct{})
+				m.statusMsg = "已取消全部选择"
+			} else {
+				// 否则全选
+				for i := range m.songs {
+					m.selected[i] = struct{}{}
+				}
+				m.statusMsg = fmt.Sprintf("已选中全部 %d 首歌曲", len(m.songs))
 			}
-		case "n":
-			m.selected = make(map[int]struct{})
 		case "q":
 			return m, tea.Quit
 		case "esc", "b":
@@ -441,8 +483,10 @@ func searchCmd(keyword string, sources []string) tea.Cmd {
 				defer wg.Done()
 				res, err := f(keyword)
 				if err == nil && len(res) > 0 {
-					for i := range res { res[i].Source = s } // 确保 Source 字段正确
-					
+					for i := range res {
+						res[i].Source = s
+					} // 确保 Source 字段正确
+
 					// 限制单源结果数量，避免刷屏
 					if len(res) > 10 {
 						res = res[:10]
@@ -480,7 +524,7 @@ func downloadSongWithCookie(song *model.Song, outDir string, withCover bool, wit
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return err
 	}
-	
+
 	fileName := fmt.Sprintf("%s - %s", utils.SanitizeFilename(song.Artist), utils.SanitizeFilename(song.Name))
 	filePath := filepath.Join(outDir, fileName+".mp3")
 
@@ -492,41 +536,61 @@ func downloadSongWithCookie(song *model.Song, outDir string, withCover bool, wit
 		cookie := cm.Get("soda")
 		sodaInst := soda.New(cookie)
 		info, err := sodaInst.GetDownloadInfo(song)
-		if err != nil { return err }
-		
+		if err != nil {
+			return err
+		}
+
 		req, _ := http.NewRequest("GET", info.URL, nil)
 		req.Header.Set("User-Agent", UA_Common)
 		resp, err := (&http.Client{}).Do(req)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer resp.Body.Close()
-		
+
 		encryptedData, _ := io.ReadAll(resp.Body)
 		finalData, err = soda.DecryptAudio(encryptedData, info.PlayAuth)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 	} else {
 		// 常规源处理
 		dlFunc := getDownloadFunc(song.Source)
 		if dlFunc == nil {
 			return fmt.Errorf("不支持的源: %s", song.Source)
 		}
-		
+
 		urlStr, err := dlFunc(song)
-		if err != nil { return err }
-		if urlStr == "" { return fmt.Errorf("下载链接为空") }
+		if err != nil {
+			return err
+		}
+		if urlStr == "" {
+			return fmt.Errorf("下载链接为空")
+		}
 
 		// 下载二进制流
 		req, _ := http.NewRequest("GET", urlStr, nil)
 		req.Header.Set("User-Agent", UA_Common)
-		if song.Source == "bilibili" { req.Header.Set("Referer", "https://www.bilibili.com/") }
-		if song.Source == "qq" { req.Header.Set("Referer", "http://y.qq.com") }
-		if song.Source == "migu" { req.Header.Set("Referer", "http://music.migu.cn/") }
+		if song.Source == "bilibili" {
+			req.Header.Set("Referer", "https://www.bilibili.com/")
+		}
+		if song.Source == "qq" {
+			req.Header.Set("Referer", "http://y.qq.com")
+		}
+		if song.Source == "migu" {
+			req.Header.Set("Referer", "http://music.migu.cn/")
+		}
 
 		resp, err := (&http.Client{}).Do(req)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer resp.Body.Close()
-		
+
 		finalData, err = io.ReadAll(resp.Body)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 	}
 
 	// 3. 写入文件
@@ -588,14 +652,16 @@ func (m modelState) View() string {
 		s.WriteString(m.textInput.View())
 		s.WriteString(fmt.Sprintf("\n\n(当前源: %v)", getSourceDisplay(m.sources)))
 		s.WriteString("\n(按 Enter 搜索, Ctrl+C 退出)")
-		// 提示 Cookie 状态
-		cookieCount := 0
 		cm.mu.RLock()
-		cookieCount = len(cm.cookies)
-		cm.mu.RUnlock()
-		if cookieCount > 0 {
-			s.WriteString(lipgloss.NewStyle().Foreground(greenColor).Render(fmt.Sprintf("\n(已加载 %d 个源的 Cookie)", cookieCount)))
+		if len(cm.cookies) > 0 {
+			var loadedSources []string
+			for k := range cm.cookies {
+				loadedSources = append(loadedSources, k)
+			}
+			cookieHint := fmt.Sprintf("\n(已加载 Cookie: %s)", strings.Join(loadedSources, ", "))
+			s.WriteString(lipgloss.NewStyle().Foreground(greenColor).Render(cookieHint))
 		}
+		cm.mu.RUnlock()
 
 		if m.err != nil {
 			s.WriteString(lipgloss.NewStyle().Foreground(redColor).Render(fmt.Sprintf("\n\n❌ %v", m.err)))
@@ -608,7 +674,7 @@ func (m modelState) View() string {
 		statusStyle := lipgloss.NewStyle().Foreground(subtleColor)
 		s.WriteString(statusStyle.Render(m.statusMsg))
 		s.WriteString("\n\n")
-		s.WriteString(statusStyle.Render("↑/↓: 移动 • 空格: 选择 • Enter: 下载 • a: 全选 • b: 返回搜索 • q: 退出"))
+		s.WriteString(statusStyle.Render("↑/↓: 移动 • 空格: 选择 • a: 全选/清空 • Enter: 下载 • b: 返回 • q: 退出"))
 	case stateDownloading:
 		s.WriteString("\n")
 		s.WriteString(m.progress.View() + "\n\n")
