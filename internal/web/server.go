@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os/exec" // [新增] 用于执行系统命令
+	"runtime" // [新增] 用于判断操作系统
 	"strings"
 	"time"
 
@@ -23,7 +25,7 @@ import (
 	"github.com/guohuiyuan/music-lib/qianqian"
 	"github.com/guohuiyuan/music-lib/qq"
 	"github.com/guohuiyuan/music-lib/soda"
-	"github.com/guohuiyuan/music-lib/utils" // 引入 utils 以便使用 Get 方法
+	"github.com/guohuiyuan/music-lib/utils" // 保持用于 HTTP 请求
 )
 
 //go:embed templates/*
@@ -36,6 +38,24 @@ const (
 	Ref_Bilibili = "https://www.bilibili.com/"
 	Ref_Migu     = "http://music.migu.cn/"
 )
+
+// [新增] 本地辅助函数：打开浏览器
+func openBrowser(url string) {
+	var cmd string
+	var args []string
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = "cmd"
+		args = []string{"/c", "start"}
+	case "darwin": // macOS
+		cmd = "open"
+	default: // linux
+		cmd = "xdg-open"
+	}
+	args = append(args, url)
+	_ = exec.Command(cmd, args...).Start()
+}
 
 func Start(port string) {
 	gin.SetMode(gin.ReleaseMode)
@@ -85,8 +105,8 @@ func Start(port string) {
 		for _, song := range songs {
 			formattedSongs = append(formattedSongs, SongWithFormat{
 				Song:           song,
-				FormatDuration: formatDuration(song.Duration),
-				FormatSize:     formatSize(song.Size),
+				FormatDuration: song.FormatDuration(),
+				FormatSize:     song.FormatSize(),
 			})
 		}
 
@@ -122,7 +142,7 @@ func Start(port string) {
 		c.String(http.StatusOK, lrc)
 	})
 
-	// [新增] 下载歌词文件 (.lrc)
+	// 下载歌词文件 (.lrc)
 	r.GET("/download_lrc", func(c *gin.Context) {
 		id := c.Query("id")
 		source := c.Query("source")
@@ -140,7 +160,7 @@ func Start(port string) {
 		c.String(http.StatusOK, lrc)
 	})
 
-	// [新增] 下载封面图片 (.jpg)
+	// 下载封面图片 (.jpg)
 	r.GET("/download_cover", func(c *gin.Context) {
 		coverUrl := c.Query("url")
 		songName := c.Query("name")
@@ -175,12 +195,16 @@ func Start(port string) {
 			return
 		}
 
-		if songName == "" { songName = "Unknown" }
-		if artist == "" { artist = "Unknown" }
-		
+		if songName == "" {
+			songName = "Unknown"
+		}
+		if artist == "" {
+			artist = "Unknown"
+		}
+
 		tempSong := &model.Song{ID: id, Source: source, Name: songName, Artist: artist}
 		filename := tempSong.Filename()
-		
+
 		var finalData []byte
 
 		if source == "soda" {
@@ -250,7 +274,16 @@ func Start(port string) {
 		http.ServeContent(c.Writer, c.Request, filename, time.Now(), bytes.NewReader(finalData))
 	})
 
-	fmt.Printf("Web started at http://localhost:%s\n", port)
+	urlStr := "http://localhost:" + port
+	fmt.Printf("Web started at %s\n", urlStr)
+
+	// [新增] 启动 Goroutine 自动打开浏览器
+	go func() {
+		time.Sleep(500 * time.Millisecond) // 稍微等待服务器启动
+		fmt.Println("正在尝试自动打开浏览器...")
+		openBrowser(urlStr)
+	}()
+
 	r.Run(":" + port)
 }
 
@@ -269,29 +302,26 @@ func fetchLyrics(id, source string) (string, error) {
 	song := &model.Song{ID: id, Source: source}
 
 	switch source {
-	case "soda": lrc, err = soda.GetLyrics(song)
-	case "kuwo": lrc, err = kuwo.GetLyrics(song)
-	case "netease": lrc, err = netease.GetLyrics(song)
-	case "qq": lrc, err = qq.GetLyrics(song)
-	case "kugou": lrc, err = kugou.GetLyrics(song)
-	case "qianqian": lrc, err = qianqian.GetLyrics(song)
-	case "migu": lrc, err = migu.GetLyrics(song)
-	case "joox": lrc, err = joox.GetLyrics(song)
-	case "fivesing": lrc, err = fivesing.GetLyrics(song)
-	default: return "", nil
+	case "soda":
+		lrc, err = soda.GetLyrics(song)
+	case "kuwo":
+		lrc, err = kuwo.GetLyrics(song)
+	case "netease":
+		lrc, err = netease.GetLyrics(song)
+	case "qq":
+		lrc, err = qq.GetLyrics(song)
+	case "kugou":
+		lrc, err = kugou.GetLyrics(song)
+	case "qianqian":
+		lrc, err = qianqian.GetLyrics(song)
+	case "migu":
+		lrc, err = migu.GetLyrics(song)
+	case "joox":
+		lrc, err = joox.GetLyrics(song)
+	case "fivesing":
+		lrc, err = fivesing.GetLyrics(song)
+	default:
+		return "", nil
 	}
 	return lrc, err
-}
-
-func formatDuration(seconds int) string {
-	if seconds == 0 { return "-" }
-	min := seconds / 60
-	sec := seconds % 60
-	return fmt.Sprintf("%02d:%02d", min, sec)
-}
-
-func formatSize(size int64) string {
-	if size == 0 { return "-" }
-	mb := float64(size) / 1024 / 1024
-	return fmt.Sprintf("%.2f MB", mb)
 }
