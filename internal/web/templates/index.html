@@ -42,7 +42,7 @@
 
         .container { width: 100%; max-width: 900px; z-index: 1; }
 
-        /* --- 搜索区域 --- */
+        /* Search Box */
         .search-box {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -63,7 +63,6 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* 搜索框 */
         .input-group { display: flex; gap: 10px; margin-bottom: 25px; }
         
         input[type="text"] {
@@ -85,13 +84,12 @@
         }
         .search-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4); }
 
-        /* --- 搜索源选择器 (卡片式) --- */
+        /* Source Selector */
         .source-header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #edf2f7;
         }
         .source-title { font-weight: 700; color: var(--text-sub); font-size: 0.9rem; }
-        
         .ctrl-btn {
             background: none; border: none; color: var(--text-sub);
             font-size: 12px; cursor: pointer; padding: 4px 8px;
@@ -99,146 +97,121 @@
         }
         .ctrl-btn:hover { background: #edf2f7; color: var(--primary-color); }
 
-        /* Grid 布局 */
         .source-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 12px;
         }
-
         .source-checkbox { display: none; }
-
-        /* 源卡片样式 */
         .source-card {
-            background: #fff;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 10px 8px;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
+            background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 10px 8px;
+            cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
         }
-
-        .source-name { 
-            font-size: 14px; font-weight: 700; color: #4a5568; margin-bottom: 3px;
-        }
-        .source-desc { 
-            font-size: 11px; color: #a0aec0; 
-            line-height: 1.2; font-weight: 400;
-        }
-
-        /* 选中状态 */
+        .source-name { font-size: 14px; font-weight: 700; color: #4a5568; margin-bottom: 3px; }
+        .source-desc { font-size: 11px; color: #a0aec0; line-height: 1.2; font-weight: 400; }
         .source-checkbox:checked + .source-card {
-            border-color: var(--primary-color);
-            background: #eff3ff;
+            border-color: var(--primary-color); background: #eff3ff;
             box-shadow: 0 4px 6px rgba(102, 126, 234, 0.15);
         }
         .source-checkbox:checked + .source-card .source-name { color: var(--primary-color); }
         .source-checkbox:checked + .source-card .source-desc { color: #7f9cf5; }
 
-        .source-checkbox:checked + .source-card::after {
-            content: '✓';
-            position: absolute; top: 0; right: 0;
-            background: var(--primary-color); color: white;
-            font-size: 10px; width: 20px; height: 20px;
-            border-bottom-left-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: bold;
-        }
-
-        /* --- 结果列表 --- */
+        /* Results */
         .result-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 15px; }
-
         .song-card {
             background: #fff; padding: 15px; border-radius: 16px;
             box-shadow: var(--shadow); display: flex; align-items: center;
-            transition: all 0.2s ease;
-            position: relative;
-            z-index: 5;
+            transition: all 0.2s ease; position: relative; z-index: 5;
         }
         .song-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-active); }
-
         .cover-wrapper {
             width: 64px; height: 64px; border-radius: 10px; overflow: hidden;
             flex-shrink: 0; margin-right: 15px; background: #eee;
         }
         .cover-wrapper img { width: 100%; height: 100%; object-fit: cover; }
-
         .song-info { flex: 1; min-width: 0; margin-right: 10px; }
         .song-info h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
         .artist-line { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; }
         .tags { display: flex; gap: 6px; }
         .tag { font-size: 10px; padding: 3px 8px; border-radius: 6px; background: #edf2f7; color: #718096; font-weight: 600; }
         .tag-src { background: #ebf8ff; color: #3182ce; text-transform: uppercase; }
+        
+        .tag-loading { color: #d69e2e; } 
+        .tag-success { color: #38a169; }
+        .tag-fail { color: #e53e3e; }
 
-        .actions { display: flex; gap: 10px; }
+        .actions { display: flex; gap: 8px; }
         .btn-circle {
-            width: 36px; height: 36px; /* 稍微调小一点 */
-            border-radius: 50%; border: none;
+            width: 36px; height: 36px; border-radius: 50%; border: none;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: all 0.2s; text-decoration: none;
-            position: relative; z-index: 10;
-            font-size: 14px;
+            position: relative; z-index: 10; font-size: 14px;
         }
         .btn-play { background: var(--primary-gradient); color: white; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3); }
         .btn-play:hover { transform: scale(1.1); }
-        
         .btn-dl { background: #f7fafc; color: var(--text-sub); border: 1px solid #e2e8f0; }
         .btn-dl:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        /* btn-disabled Removed */
 
         .no-results { text-align: center; padding: 60px; color: var(--text-sub); }
 
-        /* --- APlayer & 歌词 --- */
+        /* Cookie Modal */
+        .settings-float {
+            position: absolute; top: 30px; right: 30px;
+            background: white; border-radius: 50%; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            color: var(--text-sub); transition: 0.2s; z-index: 20;
+        }
+        .settings-float:hover { color: var(--primary-color); transform: rotate(90deg); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 1000; display: none;
+            align-items: center; justify-content: center; backdrop-filter: blur(5px);
+        }
+        .modal {
+            background: white; padding: 25px; border-radius: 20px;
+            width: 90%; max-width: 450px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .cookie-list { max-height: 400px; overflow-y: auto; margin: 15px 0; }
+        .cookie-item { margin-bottom: 10px; }
+        .cookie-item label { display: block; font-size: 12px; color: #718096; margin-bottom: 4px; font-weight: 600; }
+        .cookie-item input {
+            width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 12px; box-sizing: border-box;
+        }
+        .btn-save {
+            width: 100%; padding: 10px; background: var(--primary-gradient);
+            color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;
+        }
+
+        /* APlayer Fix - Original Style */
         .aplayer.aplayer-fixed .aplayer-lrc {
             margin-bottom: 20px; 
             padding-bottom: 20px; 
             text-shadow: none !important;
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
             mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
-            pointer-events: none !important; /* 歌词穿透点击 */
+            pointer-events: none !important;
         }
-        
         .aplayer .aplayer-lrc p {
             font-size: 16px !important; line-height: 32px !important;
             color: #000 !important; opacity: 0.1 !important; filter: blur(1px);
             transform: scale(0.95); transition: all 0.5s !important;
             margin: 0 !important; font-family: "PingFang SC", sans-serif !important;
         }
-        
         .aplayer .aplayer-lrc p.aplayer-lrc-current ~ p { opacity: 0.5 !important; filter: blur(0px); }
-        
         .aplayer .aplayer-lrc p.aplayer-lrc-current {
             font-size: 24px !important; opacity: 1 !important; filter: blur(0px);
             font-weight: 800 !important; margin: 15px 0 !important; transform: scale(1.05);
             background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
+        #waifu { left: 20px !important; bottom: 90px !important; z-index: 99999 !important; pointer-events: none !important; }
+        #waifu canvas, #waifu-tool, #waifu-tips { pointer-events: auto !important; }
 
-        /* --- [关键修改] Live2D 交互修复 --- */
-        #waifu {
-            left: 20px !important;
-            bottom: 90px !important;
-            z-index: 99999 !important;
-            /* 1. 容器本身必须穿透，否则会挡住网页 */
-            pointer-events: none !important;
-        }
-
-        /* 2. 单独恢复 内部元素 的点击事件 */
-        /* 人物本体 */
-        #waifu canvas,
-        /* 工具栏图标 (你提到的“旁边的帮助”) */
-        #waifu-tool,
-        /* 气泡提示 */
-        #waifu-tips {
-            pointer-events: auto !important; 
-        }
-
-        /* 移动端适配 */
         @media (max-width: 768px) {
             #waifu { display: none; }
             .container { padding: 0; }
@@ -248,10 +221,15 @@
             .source-name { font-size: 12px; }
             .source-desc { font-size: 9px; transform: scale(0.9); }
             .song-card { border-radius: 12px; margin: 0 15px 15px; }
+            .settings-float { top: 20px; right: 20px; }
         }
     </style>
 </head>
 <body>
+
+<div class="settings-float" onclick="openCookieModal()" title="Cookie 设置">
+    <i class="fa-solid fa-gear"></i>
+</div>
 
 <div class="container">
     <div class="search-box">
@@ -261,6 +239,7 @@
                 <input type="text" name="q" value="{{.Keyword}}" placeholder="搜索歌曲、歌手、专辑..." required autocomplete="off">
                 <button type="submit" class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
             </div>
+
             <div class="source-selector">
                 <div class="source-header">
                     <span class="source-title">搜索源设置</span>
@@ -279,7 +258,6 @@
                             {{ else }}
                                 {{ range $.DefaultSources }}{{ if eq . $source }}checked{{ end }}{{ end }}
                             {{ end }}> 
-                        
                         <div class="source-card">
                             <div class="source-name">{{ $source }}</div>
                             <div class="source-desc">{{ index $.SourceDescriptions $source }}</div>
@@ -294,10 +272,16 @@
     {{ if .Result }}
         <ul class="result-list">
             {{ range .Result }}
-            <li class="song-card">
+            <li class="song-card" 
+                data-id="{{.ID}}" 
+                data-source="{{.Source}}" 
+                data-duration="{{.Duration}}" 
+                data-name="{{.Name}}" 
+                data-artist="{{.Artist}}">
+                
                 <div class="cover-wrapper">
                     {{ if .Cover }}
-                        <img src="{{ .Cover }}" alt="{{ .Name }}" loading="lazy" referrerpolicy="no-referrer">
+                        <img src="{{ .Cover }}" alt="{{ .Name }}" loading="lazy" onerror="this.src='https://via.placeholder.com/150?text=Music'" >
                     {{ else }}
                         <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:24px;">🎵</div>
                     {{ end }}
@@ -311,8 +295,8 @@
                     <div class="tags">
                         <span class="tag tag-src">{{ .Source }}</span>
                         {{ if .FormatDuration }}<span class="tag">{{ .FormatDuration }}</span>{{ end }}
-                        {{ if .FormatSize }}<span class="tag">{{ .FormatSize }}</span>{{ end }}
-                        {{ if .FormatBitrate }}<span class="tag">{{ .FormatBitrate }}</span>{{ end }}
+                        <span class="tag tag-loading" id="size-{{.ID}}"><i class="fa fa-spinner fa-spin"></i></span>
+                        <span class="tag tag-loading" id="bitrate-{{.ID}}"><i class="fa fa-circle-notch fa-spin"></i></span>
                     </div>
                 </div>
                 
@@ -322,13 +306,13 @@
                         <i class="fa-solid fa-play"></i>
                     </button>
                     
-                    <a href="/download?id={{ .ID }}&source={{ .Source }}&name={{ .Name }}&artist={{ .Artist }}" 
-                       class="btn-circle btn-dl" title="下载歌曲" target="_blank">
+                    <a href="/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}" 
+                       id="dl-{{.ID}}" class="btn-circle btn-dl" title="下载歌曲" target="_blank">
                         <i class="fa-solid fa-download"></i>
                     </a>
 
-                    <a href="/download_lrc?id={{ .ID }}&source={{ .Source }}&name={{ .Name }}&artist={{ .Artist }}" 
-                       class="btn-circle btn-dl" title="下载歌词" target="_blank">
+                    <a href="/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}" 
+                       id="lrc-{{.ID}}" class="btn-circle btn-dl" title="下载歌词" target="_blank">
                         <i class="fa-solid fa-file-lines"></i>
                     </a>
 
@@ -350,6 +334,22 @@
     {{ end }}
 </div>
 
+<div id="cookieModal" class="modal-overlay">
+    <div class="modal">
+        <h3 style="margin-top:0; text-align:center;">设置 Cookies</h3>
+        <div class="cookie-list">
+            {{ range $source := .AllSources }}
+            <div class="cookie-item">
+                <label>{{ $source }}</label>
+                <input type="text" id="cookie-{{$source}}" placeholder="在此粘贴 Cookie...">
+            </div>
+            {{ end }}
+        </div>
+        <button class="btn-save" onclick="saveCookies()">保存设置</button>
+        <div style="text-align:center; margin-top:10px; font-size:12px; color:#718096; cursor:pointer;" onclick="document.getElementById('cookieModal').style.display='none'">关闭</div>
+    </div>
+</div>
+
 <div id="aplayer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
@@ -360,27 +360,77 @@
         const checkboxes = document.querySelectorAll('.source-checkbox');
         document.getElementById('btn-all').onclick = () => checkboxes.forEach(cb => cb.checked = true);
         document.getElementById('btn-none').onclick = () => checkboxes.forEach(cb => cb.checked = false);
+
+        // 自动检测 (仅用于显示音质标签，不影响按钮状态)
+        const cards = document.querySelectorAll('.song-card');
+        cards.forEach((card, index) => {
+            setTimeout(() => inspectSong(card), index * 100);
+        });
     });
+
+    function inspectSong(card) {
+        const id = card.dataset.id;
+        const source = card.dataset.source;
+        const duration = card.dataset.duration;
+
+        fetch(`/inspect?id=${encodeURIComponent(id)}&source=${source}&duration=${duration}`)
+            .then(r => r.json())
+            .then(data => {
+                const sizeTag = document.getElementById(`size-${id}`);
+                const bitrateTag = document.getElementById(`bitrate-${id}`);
+
+                if (data.valid) {
+                    sizeTag.textContent = data.size;
+                    sizeTag.className = "tag";
+                    bitrateTag.textContent = data.bitrate;
+                    bitrateTag.className = "tag";
+                } else {
+                    sizeTag.textContent = "无效";
+                    sizeTag.className = "tag tag-fail";
+                    bitrateTag.textContent = "-";
+                    bitrateTag.className = "tag";
+                }
+            })
+            .catch(() => {
+                document.getElementById(`size-${id}`).textContent = "检测失败";
+            });
+    }
+
+    // Cookie Logic
+    function openCookieModal() {
+        document.getElementById('cookieModal').style.display = 'flex';
+        fetch('/cookies').then(r => r.json()).then(data => {
+            for (const [k, v] of Object.entries(data)) {
+                const el = document.getElementById(`cookie-${k}`);
+                if(el) el.value = v;
+            }
+        });
+    }
+
+    function saveCookies() {
+        const data = {};
+        document.querySelectorAll('input[id^="cookie-"]').forEach(input => {
+            if (input.value) data[input.id.replace('cookie-', '')] = input.value;
+        });
+        fetch('/cookies', {
+            method: 'POST', 
+            body: JSON.stringify(data)
+        }).then(() => {
+            alert('保存成功！');
+            document.getElementById('cookieModal').style.display = 'none';
+        });
+    }
 
     const ap = new APlayer({
         container: document.getElementById('aplayer'),
-        fixed: true,
-        autoplay: true,
-        theme: '#667eea',
-        loop: 'all',
-        order: 'list',
-        preload: 'auto',
-        volume: 0.7,
-        listFolded: false,
-        lrcType: 3, 
-        audio: []
+        fixed: true, autoplay: true, theme: '#667eea',
+        loop: 'all', order: 'list', preload: 'auto', volume: 0.7, listFolded: false, lrcType: 3, audio: []
     });
 
     function playMusic(id, source, name, artist, cover) {
         ap.list.clear();
         ap.list.add({
-            name: name,
-            artist: artist,
+            name: name, artist: artist,
             url: `/download?id=${encodeURIComponent(id)}&source=${source}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}`,
             cover: cover || 'https://via.placeholder.com/150?text=Music',
             lrc: `/lyric?id=${encodeURIComponent(id)}&source=${source}`,
