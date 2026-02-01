@@ -130,12 +130,23 @@
 
         /* Results */
         .result-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 15px; }
+        
         .song-card {
             background: #fff; padding: 15px; border-radius: 16px;
             box-shadow: var(--shadow); display: flex; align-items: center;
             transition: all 0.2s ease; position: relative; z-index: 5;
+            border: 2px solid transparent;
         }
         .song-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-active); }
+        
+        /* 播放中高亮样式 */
+        .song-card.playing-active {
+            border-color: var(--primary-color);
+            background: #eff3ff;
+            transform: scale(1.01);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.25);
+        }
+
         .cover-wrapper {
             width: 64px; height: 64px; border-radius: 10px; overflow: hidden;
             flex-shrink: 0; margin-right: 15px; background: #eee;
@@ -219,14 +230,24 @@
             font-weight: 800 !important; margin: 15px 0 !important; transform: scale(1.05);
             background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        #waifu { left: 20px !important; bottom: 90px !important; z-index: 99999 !important; pointer-events: none !important; }
+        
+        /* 【修改】移动看板娘到右下角 */
+        #waifu {
+            left: auto !important; /* 重置左侧定位 */
+            right: 20px !important; /* 设置右侧定位 */
+            bottom: 90px !important;
+            z-index: 99999 !important;
+            pointer-events: none !important;
+        }
         #waifu canvas, #waifu-tool, #waifu-tips { pointer-events: auto !important; }
 
         /* =========================================
            MOBILE ADAPTATION
            ========================================= */
         @media (max-width: 768px) {
+            /* 移动端隐藏看板娘 */
             #waifu { display: none; }
+            
             body { padding: 0 0 100px 0; background-size: 100% 400px; }
             .container { padding: 0; width: 100%; }
 
@@ -325,6 +346,7 @@
                         <img src="{{ .Cover }}" alt="{{ .Name }}" loading="lazy" onerror="this.src='https://via.placeholder.com/150?text=Music'" >
                     {{ else }}
                         <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:24px;">🎵</div>
+                        <img src="https://via.placeholder.com/150?text=Music" style="display:none;">
                     {{ end }}
                 </div>
                 <div class="song-info">
@@ -343,7 +365,7 @@
                 
                 <div class="actions">
                     <button type="button" class="btn-circle btn-play" title="播放"
-                            onclick="playMusic('{{.ID}}', '{{.Source}}', '{{.Name}}', '{{.Artist}}', '{{.Cover}}')">
+                            onclick="playAllAndJumpTo(this)">
                         <i class="fa-solid fa-play"></i>
                     </button>
                     
@@ -404,7 +426,7 @@
         document.getElementById('btn-all').onclick = () => checkboxes.forEach(cb => cb.checked = true);
         document.getElementById('btn-none').onclick = () => checkboxes.forEach(cb => cb.checked = false);
 
-        // 自动检测 (仅用于显示音质标签，不影响按钮状态)
+        // 自动检测
         const cards = document.querySelectorAll('.song-card');
         cards.forEach((card, index) => {
             setTimeout(() => inspectSong(card), index * 100);
@@ -435,7 +457,8 @@
                 }
             })
             .catch(() => {
-                document.getElementById(`size-${id}`).textContent = "检测失败";
+                const el = document.getElementById(`size-${id}`);
+                if(el) el.textContent = "检测失败";
             });
     }
 
@@ -464,22 +487,81 @@
         });
     }
 
+    // APlayer Config
     const ap = new APlayer({
         container: document.getElementById('aplayer'),
-        fixed: true, autoplay: true, theme: '#667eea',
-        loop: 'all', order: 'list', preload: 'auto', volume: 0.7, listFolded: false, lrcType: 3, audio: []
+        fixed: true, 
+        autoplay: true, 
+        theme: '#667eea',
+        loop: 'all', 
+        order: 'list', 
+        preload: 'auto', 
+        volume: 0.7, 
+        listFolded: false, 
+        lrcType: 3, 
+        audio: []
     });
 
-    function playMusic(id, source, name, artist, cover) {
+    // 监听播放切换事件，高亮当前列表项
+    ap.on('listswitch', (e) => {
+        const index = e.index;
+        const newAudio = ap.list.audios[index];
+        if (newAudio && newAudio.custom_id) {
+            highlightCard(newAudio.custom_id);
+        }
+    });
+
+    // 辅助：高亮函数
+    function highlightCard(targetId) {
+        document.querySelectorAll('.song-card').forEach(c => c.classList.remove('playing-active'));
+        const target = document.querySelector(`.song-card[data-id="${targetId}"]`);
+        if (target) {
+            target.classList.add('playing-active');
+        }
+    }
+
+    // 【修改】新的播放逻辑：添加所有歌曲，并跳转到点击的那一首
+    function playAllAndJumpTo(btn) {
+        const currentCard = btn.closest('.song-card');
+        const allCards = Array.from(document.querySelectorAll('.song-card'));
+        // 找到点击的歌曲在所有卡片中的索引
+        const clickedIndex = allCards.indexOf(currentCard);
+
+        if (clickedIndex === -1) return;
+
+        // 清空现有列表
         ap.list.clear();
-        ap.list.add({
-            name: name, artist: artist,
-            url: `/download?id=${encodeURIComponent(id)}&source=${source}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}`,
-            cover: cover || 'https://via.placeholder.com/150?text=Music',
-            lrc: `/lyric?id=${encodeURIComponent(id)}&source=${source}`,
-            theme: '#667eea'
+
+        const playlist = [];
+
+        // 遍历所有卡片添加到播放列表
+        allCards.forEach(card => {
+            const ds = card.dataset;
+            let coverUrl = '';
+            const imgEl = card.querySelector('.cover-wrapper img');
+            if (imgEl) coverUrl = imgEl.src;
+
+            playlist.push({
+                name: ds.name,
+                artist: ds.artist,
+                url: `/download?id=${encodeURIComponent(ds.id)}&source=${ds.source}&name=${encodeURIComponent(ds.name)}&artist=${encodeURIComponent(ds.artist)}`,
+                cover: coverUrl,
+                lrc: `/lyric?id=${encodeURIComponent(ds.id)}&source=${ds.source}`,
+                theme: '#667eea',
+                // 保存自定义ID用于反向高亮
+                custom_id: ds.id 
+            });
         });
+
+        // 添加到播放器
+        ap.list.add(playlist);
+        
+        // 【关键】切换到点击的那首歌曲进行播放
+        ap.list.switch(clickedIndex);
         ap.play();
+        
+        // APlayer的listswitch有时候会有延迟，手动触发一次高亮
+        highlightCard(currentCard.dataset.id);
     }
 </script>
 
