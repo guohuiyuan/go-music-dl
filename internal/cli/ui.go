@@ -53,9 +53,12 @@ var (
 			Foreground(lipgloss.Color("#FAFAFA")).
 			Background(secondaryColor).
 			Bold(true).
-			Padding(0, 1)
+			Padding(0, 1).
+			Border(lipgloss.HiddenBorder(), false, false, false, true) // 保持对齐
 
-	rowStyle = lipgloss.NewStyle().Padding(0, 1)
+	rowStyle = lipgloss.NewStyle().
+			Padding(0, 1).
+			Border(lipgloss.HiddenBorder(), false, false, false, true) // 占位隐藏边框，确保对齐
 
 	selectedRowStyle = lipgloss.NewStyle().
 				Foreground(primaryColor).
@@ -209,6 +212,69 @@ func getParseFunc(source string) func(string) (*model.Song, error) {
 	}
 }
 
+// 新增：歌单搜索工厂
+func getPlaylistSearchFunc(source string) func(string) ([]model.Playlist, error) {
+	c := cm.Get(source)
+	switch source {
+	case "netease":
+		return netease.New(c).SearchPlaylist
+	case "qq":
+		return qq.New(c).SearchPlaylist
+	case "kugou":
+		return kugou.New(c).SearchPlaylist
+	case "kuwo":
+		return kuwo.New(c).SearchPlaylist
+	case "soda":
+		return soda.New(c).SearchPlaylist
+	case "fivesing":
+		return fivesing.New(c).SearchPlaylist
+	default:
+		return nil
+	}
+}
+
+// 新增：歌单详情工厂
+func getPlaylistDetailFunc(source string) func(string) ([]model.Song, error) {
+	c := cm.Get(source)
+	switch source {
+	case "netease":
+		return netease.New(c).GetPlaylistSongs
+	case "qq":
+		return qq.New(c).GetPlaylistSongs
+	case "kugou":
+		return kugou.New(c).GetPlaylistSongs
+	case "kuwo":
+		return kuwo.New(c).GetPlaylistSongs
+	case "soda":
+		return soda.New(c).GetPlaylistSongs
+	case "fivesing":
+		return fivesing.New(c).GetPlaylistSongs
+	default:
+		return nil
+	}
+}
+
+// 新增：歌单解析工厂
+func getParsePlaylistFunc(source string) func(string) (*model.Playlist, []model.Song, error) {
+	c := cm.Get(source)
+	switch source {
+	case "netease":
+		return netease.New(c).ParsePlaylist
+	case "qq":
+		return qq.New(c).ParsePlaylist
+	case "kugou":
+		return kugou.New(c).ParsePlaylist
+	case "kuwo":
+		return kuwo.New(c).ParsePlaylist
+	case "soda":
+		return soda.New(c).ParsePlaylist
+	case "fivesing":
+		return fivesing.New(c).ParsePlaylist
+	default:
+		return nil
+	}
+}
+
 // 新增：自动检测链接来源
 func detectSource(link string) string {
 	if strings.Contains(link, "163.com") {
@@ -245,10 +311,11 @@ func detectSource(link string) string {
 type sessionState int
 
 const (
-	stateInput       sessionState = iota // 输入搜索词
-	stateLoading                         // 搜索中
-	stateList                            // 结果列表 & 选择
-	stateDownloading                     // 下载中
+	stateInput          sessionState = iota // 输入搜索词
+	stateLoading                            // 搜索中
+	stateList                               // 歌曲结果列表 & 选择
+	statePlaylistResult                     // 歌单结果列表
+	stateDownloading                        // 下载中
 )
 
 // --- 主模型 ---
@@ -258,9 +325,11 @@ type modelState struct {
 	spinner   spinner.Model   // 加载动画
 	progress  progress.Model  // 进度条组件
 
-	songs    []model.Song     // 搜索结果
-	selected map[int]struct{} // 已选中的索引集合 (多选)
-	cursor   int              // 当前光标位置
+	searchType string           // "song" or "playlist"
+	songs      []model.Song     // 歌曲结果
+	playlists  []model.Playlist // 歌单结果
+	selected   map[int]struct{} // 已选中的索引集合 (多选)
+	cursor     int              // 当前光标位置
 
 	// 配置参数
 	sources    []string // 指定搜索源
@@ -285,7 +354,7 @@ func StartUI(initialKeyword string, sources []string, outDir string, withCover b
 	cm.Load()
 
 	ti := textinput.New()
-	ti.Placeholder = "输入歌名、歌手或粘贴分享链接..."
+	ti.Placeholder = "输入歌名、歌手或粘贴分享链接 (Tab 切换搜歌单)..."
 	ti.Focus()
 	ti.CharLimit = 256
 	ti.Width = 50
@@ -304,6 +373,7 @@ func StartUI(initialKeyword string, sources []string, outDir string, withCover b
 
 	m := modelState{
 		state:      initialState,
+		searchType: "song",
 		textInput:  ti,
 		spinner:    sp,
 		progress:   prog,
@@ -324,7 +394,7 @@ func (m modelState) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, textinput.Blink)
 	if m.state == stateLoading {
-		cmds = append(cmds, m.spinner.Tick, searchCmd(m.textInput.Value(), m.sources))
+		cmds = append(cmds, m.spinner.Tick, searchCmd(m.textInput.Value(), m.searchType, m.sources))
 	}
 	return tea.Batch(cmds...)
 }
@@ -351,6 +421,8 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateLoading(msg)
 	case stateList:
 		return m.updateList(msg)
+	case statePlaylistResult: // 新增
+		return m.updatePlaylistResult(msg)
 	case stateDownloading:
 		return m.updateDownloading(msg)
 	}
@@ -364,13 +436,24 @@ func (m modelState) updateInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyTab: // 切换搜索类型
+			if m.searchType == "song" {
+				m.searchType = "playlist"
+				m.textInput.Placeholder = "输入歌单关键词或粘贴歌单链接..."
+			} else {
+				m.searchType = "song"
+				m.textInput.Placeholder = "输入歌名、歌手或粘贴分享链接 (Tab 切换)..."
+			}
 		case tea.KeyEnter:
 			val := m.textInput.Value()
 			if strings.TrimSpace(val) != "" {
 				m.state = stateLoading
 				// 重新加载 Cookie 以防外部文件变动
 				cm.Load()
-				return m, tea.Batch(m.spinner.Tick, searchCmd(val, m.sources))
+				// 清空旧数据
+				m.songs = nil
+				m.playlists = nil
+				return m, tea.Batch(m.spinner.Tick, searchCmd(val, m.searchType, m.sources))
 			}
 		case tea.KeyEsc:
 			return m, tea.Quit
@@ -382,6 +465,7 @@ func (m modelState) updateInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // --- 2. 加载状态逻辑 ---
 type searchResultMsg []model.Song
+type playlistResultMsg []model.Playlist
 type searchErrorMsg error
 
 func (m modelState) updateLoading(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -395,20 +479,64 @@ func (m modelState) updateLoading(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateList
 		m.cursor = 0
 		m.selected = make(map[int]struct{})
-		
+
 		// 如果是单曲解析（通常通过 URL），自动选中
 		if len(m.songs) == 1 && strings.HasPrefix(m.textInput.Value(), "http") {
 			m.selected[0] = struct{}{}
 			m.statusMsg = fmt.Sprintf("解析成功: %s。按回车下载。", m.songs[0].Name)
 		} else {
-			m.statusMsg = fmt.Sprintf("找到 %d 首歌曲。空格选择，回车下载。", len(m.songs))
+			if m.searchType == "playlist" { // 从歌单进入
+				m.statusMsg = fmt.Sprintf("歌单解析完成，包含 %d 首歌曲。空格选择，回车下载。", len(m.songs))
+			} else {
+				m.statusMsg = fmt.Sprintf("找到 %d 首歌曲。空格选择，回车下载。", len(m.songs))
+			}
 		}
 		return m, nil
-	case searchErrorMsg:
-		m.err = msg
-		m.state = stateInput
-		m.statusMsg = fmt.Sprintf("操作失败: %v", msg)
+	case playlistResultMsg:
+		m.playlists = msg
+		m.state = statePlaylistResult
+		m.cursor = 0
+		m.statusMsg = fmt.Sprintf("找到 %d 个歌单。回车查看详情。", len(m.playlists))
 		return m, textinput.Blink
+	case searchErrorMsg:
+		m.state = stateInput
+		m.statusMsg = fmt.Sprintf("搜索失败: %v", msg)
+		return m, textinput.Blink
+	}
+	return m, nil
+}
+
+// --- 3.5 歌单结果逻辑 ---
+func (m modelState) updatePlaylistResult(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.playlists)-1 {
+				m.cursor++
+			}
+		case "q":
+			return m, tea.Quit
+		case "esc", "b":
+			m.state = stateInput
+			m.textInput.SetValue("")
+			m.textInput.Focus()
+			return m, textinput.Blink
+		case "enter":
+			if len(m.playlists) > 0 {
+				target := m.playlists[m.cursor]
+				m.state = stateLoading
+				m.statusMsg = fmt.Sprintf("正在获取歌单 [%s] 详情...", target.Name)
+				return m, tea.Batch(
+					m.spinner.Tick,
+					fetchPlaylistSongsCmd(target.ID, target.Source),
+				)
+			}
+		}
 	}
 	return m, nil
 }
@@ -578,8 +706,27 @@ func probeSongDetails(song *model.Song) {
 	}
 }
 
+// 批量并发探测
+func probeSongsBatch(songs []model.Song) {
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 5) // 限制并发数为 5
+
+	for i := range songs {
+		if songs[i].Size == 0 {
+			wg.Add(1)
+			go func(s *model.Song) {
+				defer wg.Done()
+				sem <- struct{}{}        // 获取令牌
+				defer func() { <-sem }() // 释放令牌
+				probeSongDetails(s)
+			}(&songs[i])
+		}
+	}
+	wg.Wait()
+}
+
 // 异步搜索/解析命令 (修改版)
-func searchCmd(keyword string, sources []string) tea.Cmd {
+func searchCmd(keyword string, searchType string, sources []string) tea.Cmd {
 	return func() tea.Msg {
 		// 1. 链接解析模式
 		if strings.HasPrefix(keyword, "http") {
@@ -587,31 +734,71 @@ func searchCmd(keyword string, sources []string) tea.Cmd {
 			if src == "" {
 				return searchErrorMsg(fmt.Errorf("不支持该链接的解析，或无法识别来源"))
 			}
-			parseFn := getParseFunc(src)
-			if parseFn == nil {
-				return searchErrorMsg(fmt.Errorf("暂不支持 %s 平台的链接解析", src))
-			}
-			song, err := parseFn(keyword)
-			if err != nil {
-				return searchErrorMsg(fmt.Errorf("解析失败: %v", err))
-			}
-			
-			// 解析成功后，立即探测文件大小和码率
-			probeSongDetails(song)
 
-			return searchResultMsg([]model.Song{*song})
+			// 优先尝试单曲解析
+			parseFn := getParseFunc(src)
+			if parseFn != nil {
+				if song, err := parseFn(keyword); err == nil {
+					probeSongDetails(song)
+					return searchResultMsg([]model.Song{*song})
+				}
+			}
+
+			// 尝试歌单解析
+			parsePlFn := getParsePlaylistFunc(src)
+			if parsePlFn != nil {
+				if _, songs, err := parsePlFn(keyword); err == nil && len(songs) > 0 {
+					probeSongsBatch(songs)
+					return searchResultMsg(songs)
+				}
+			}
+
+			return searchErrorMsg(fmt.Errorf("解析失败: 暂不支持 %s 平台的此链接类型或解析出错", src))
 		}
 
 		// 2. 关键词搜索模式
 		targetSources := sources
 		if len(targetSources) == 0 {
-			targetSources = core.GetDefaultSourceNames()
+			if searchType == "playlist" {
+				targetSources = core.GetPlaylistSourceNames()
+			} else {
+				targetSources = core.GetDefaultSourceNames()
+			}
 		}
 
 		var wg sync.WaitGroup
-		var allSongs []model.Song
 		var mu sync.Mutex
 
+		// 2.1 歌单搜索
+		if searchType == "playlist" {
+			var allPlaylists []model.Playlist
+			for _, src := range targetSources {
+				fn := getPlaylistSearchFunc(src)
+				if fn == nil {
+					continue
+				}
+				wg.Add(1)
+				go func(s string, f func(string) ([]model.Playlist, error)) {
+					defer wg.Done()
+					if res, err := f(keyword); err == nil {
+						for i := range res {
+							res[i].Source = s
+						}
+						mu.Lock()
+						allPlaylists = append(allPlaylists, res...)
+						mu.Unlock()
+					}
+				}(src, fn)
+			}
+			wg.Wait()
+			if len(allPlaylists) == 0 {
+				return searchErrorMsg(fmt.Errorf("未找到歌单"))
+			}
+			return playlistResultMsg(allPlaylists)
+		}
+
+		// 2.2 单曲搜索
+		var allSongs []model.Song
 		for _, src := range targetSources {
 			fn := getSearchFunc(src)
 			if fn == nil {
@@ -625,7 +812,7 @@ func searchCmd(keyword string, sources []string) tea.Cmd {
 				if err == nil && len(res) > 0 {
 					for i := range res {
 						res[i].Source = s
-					} 
+					}
 					if len(res) > 10 {
 						res = res[:10]
 					}
@@ -641,6 +828,27 @@ func searchCmd(keyword string, sources []string) tea.Cmd {
 			return searchErrorMsg(fmt.Errorf("未找到结果"))
 		}
 		return searchResultMsg(allSongs)
+	}
+}
+
+func fetchPlaylistSongsCmd(id, source string) tea.Cmd {
+	return func() tea.Msg {
+		fn := getPlaylistDetailFunc(source)
+		if fn == nil {
+			return searchErrorMsg(fmt.Errorf("Go source %s not support playlist detail", source))
+		}
+		songs, err := fn(id)
+		if err != nil {
+			return searchErrorMsg(err)
+		}
+		if len(songs) == 0 {
+			return searchErrorMsg(fmt.Errorf("歌单为空"))
+		}
+
+		// 批量探测详情
+		probeSongsBatch(songs)
+
+		return searchResultMsg(songs)
 	}
 }
 
@@ -812,6 +1020,13 @@ func (m modelState) View() string {
 		s.WriteString(statusStyle.Render(m.statusMsg))
 		s.WriteString("\n\n")
 		s.WriteString(statusStyle.Render("↑/↓: 移动 • 空格: 选择 • a: 全选/清空 • Enter: 下载 • b: 返回 • q: 退出"))
+	case statePlaylistResult: // 新增
+		s.WriteString(m.renderPlaylistTable())
+		s.WriteString("\n")
+		statusStyle := lipgloss.NewStyle().Foreground(subtleColor)
+		s.WriteString(statusStyle.Render(m.statusMsg))
+		s.WriteString("\n\n")
+		s.WriteString(statusStyle.Render("↑/↓: 移动 • Enter: 查看详情 • b: 返回 • q: 退出"))
 	case stateDownloading:
 		s.WriteString("\n")
 		s.WriteString(m.progress.View() + "\n\n")
@@ -886,6 +1101,66 @@ func (m modelState) renderTable() string {
 			renderCell(dur, colDur, style),
 			renderCell(size, colSize, style),
 			renderCell(bitrate, colBit, style),
+			renderCell(src, colSrc, style),
+		)
+		b.WriteString(row + "\n")
+	}
+	return b.String()
+}
+
+func (m modelState) renderPlaylistTable() string {
+	const (
+		colIdx     = 4
+		colTitle   = 40
+		colCount   = 10
+		colCreator = 20
+		colSrc     = 10
+	)
+	var b strings.Builder
+	header := lipgloss.JoinHorizontal(lipgloss.Left,
+		headerStyle.Width(colIdx).Render("ID"),
+		headerStyle.Width(colTitle).Render("歌单名称"),
+		headerStyle.Width(colCount).Render("歌曲数"),
+		headerStyle.Width(colCreator).Render("创建者"),
+		headerStyle.Width(colSrc).Render("来源"),
+	)
+	b.WriteString(header + "\n")
+
+	height := 15
+	start := 0
+	end := len(m.playlists)
+	if len(m.playlists) > height {
+		if m.cursor >= height {
+			start = m.cursor - height + 1
+		}
+		end = start + height
+		if end > len(m.playlists) {
+			end = len(m.playlists)
+		}
+	}
+
+	for i := start; i < end; i++ {
+		pl := m.playlists[i]
+		isCursor := (m.cursor == i)
+
+		idxStr := fmt.Sprintf("%d", i+1)
+		title := truncate(pl.Name, colTitle-2)
+		count := fmt.Sprintf("%d", pl.TrackCount)
+		creator := truncate(pl.Creator, colCreator-2)
+		src := pl.Source
+
+		style := rowStyle
+		if isCursor {
+			style = selectedRowStyle
+		}
+		renderCell := func(text string, width int, style lipgloss.Style) string {
+			return style.Width(width).MaxHeight(1).Render(text)
+		}
+		row := lipgloss.JoinHorizontal(lipgloss.Left,
+			renderCell(idxStr, colIdx, style),
+			renderCell(title, colTitle, style),
+			renderCell(count, colCount, style),
+			renderCell(creator, colCreator, style),
 			renderCell(src, colSrc, style),
 		)
 		b.WriteString(row + "\n")
