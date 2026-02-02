@@ -88,6 +88,31 @@ func (m *CookieManager) SetAll(c map[string]string) {
 	}
 }
 
+func buildSourceRequest(method, urlStr, source, rangeHeader string) (*http.Request, error) {
+	req, err := http.NewRequest(method, urlStr, nil)
+	if err != nil {
+		return nil, err
+	}
+	if rangeHeader != "" {
+		req.Header.Set("Range", rangeHeader)
+	}
+	req.Header.Set("User-Agent", UA_Common)
+	if source == "bilibili" {
+		req.Header.Set("Referer", Ref_Bilibili)
+	}
+	if source == "migu" {
+		req.Header.Set("User-Agent", UA_Mobile)
+		req.Header.Set("Referer", Ref_Migu)
+	}
+	if source == "qq" {
+		req.Header.Set("Referer", "http://y.qq.com")
+	}
+	if cookie := cm.Get(source); cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+	return req, nil
+}
+
 // --- 工厂函数 ---
 
 func getSearchFunc(source string) func(string) ([]model.Song, error) {
@@ -132,6 +157,8 @@ func getPlaylistSearchFunc(source string) func(string) ([]model.Playlist, error)
 		return kugou.New(c).SearchPlaylist
 	case "kuwo":
 		return kuwo.New(c).SearchPlaylist
+	case "bilibili":
+		return bilibili.New(c).SearchPlaylist
 	case "soda":
 		return soda.New(c).SearchPlaylist
 	case "fivesing":
@@ -153,6 +180,8 @@ func getPlaylistDetailFunc(source string) func(string) ([]model.Song, error) {
 		return kugou.New(c).GetPlaylistSongs
 	case "kuwo":
 		return kuwo.New(c).GetPlaylistSongs
+	case "bilibili":
+		return bilibili.New(c).GetPlaylistSongs
 	case "soda":
 		return soda.New(c).GetPlaylistSongs
 	case "fivesing":
@@ -260,6 +289,8 @@ func getParsePlaylistFunc(source string) func(string) (*model.Playlist, []model.
 		return kugou.New(c).ParsePlaylist
 	case "kuwo":
 		return kuwo.New(c).ParsePlaylist
+	case "bilibili":
+		return bilibili.New(c).ParsePlaylist
 	case "soda":
 		return soda.New(c).ParsePlaylist
 	case "fivesing":
@@ -486,18 +517,10 @@ func Start(port string) {
 			}
 		}
 
-		req, _ := http.NewRequest("GET", urlStr, nil)
-		req.Header.Set("Range", "bytes=0-1")
-		req.Header.Set("User-Agent", UA_Common)
-		if src == "bilibili" {
-			req.Header.Set("Referer", Ref_Bilibili)
-		}
-		if src == "migu" {
-			req.Header.Set("User-Agent", UA_Mobile)
-			req.Header.Set("Referer", Ref_Migu)
-		}
-		if src == "qq" {
-			req.Header.Set("Referer", "http://y.qq.com")
+		req, reqErr := buildSourceRequest("GET", urlStr, src, "bytes=0-1")
+		if reqErr != nil {
+			c.JSON(200, gin.H{"valid": false})
+			return
 		}
 
 		client := &http.Client{Timeout: 5 * time.Second}
@@ -694,8 +717,11 @@ func Start(port string) {
 				c.String(502, "Soda info error")
 				return
 			}
-			req, _ := http.NewRequest("GET", info.URL, nil)
-			req.Header.Set("User-Agent", UA_Common)
+			req, reqErr := buildSourceRequest("GET", info.URL, "soda", "")
+			if reqErr != nil {
+				c.String(502, "Soda request error")
+				return
+			}
 			resp, err := (&http.Client{}).Do(req)
 			if err != nil {
 				c.String(502, "Soda stream error")
@@ -725,21 +751,10 @@ func Start(port string) {
 			return
 		}
 
-		req, _ := http.NewRequest("GET", downloadUrl, nil)
-		if rangeHeader := c.GetHeader("Range"); rangeHeader != "" {
-			req.Header.Set("Range", rangeHeader)
-		}
-
-		req.Header.Set("User-Agent", UA_Common)
-		if source == "bilibili" {
-			req.Header.Set("Referer", Ref_Bilibili)
-		}
-		if source == "migu" {
-			req.Header.Set("User-Agent", UA_Mobile)
-			req.Header.Set("Referer", Ref_Migu)
-		}
-		if source == "qq" {
-			req.Header.Set("Referer", "http://y.qq.com")
+		req, reqErr := buildSourceRequest("GET", downloadUrl, source, c.GetHeader("Range"))
+		if reqErr != nil {
+			c.String(502, "Upstream request error")
+			return
 		}
 
 		client := &http.Client{}
@@ -874,18 +889,9 @@ func validatePlayable(song *model.Song) bool {
 		return false
 	}
 
-	req, _ := http.NewRequest("GET", urlStr, nil)
-	req.Header.Set("Range", "bytes=0-1")
-	req.Header.Set("User-Agent", UA_Common)
-	if song.Source == "bilibili" {
-		req.Header.Set("Referer", Ref_Bilibili)
-	}
-	if song.Source == "migu" {
-		req.Header.Set("User-Agent", UA_Mobile)
-		req.Header.Set("Referer", Ref_Migu)
-	}
-	if song.Source == "qq" {
-		req.Header.Set("Referer", "http://y.qq.com")
+	req, reqErr := buildSourceRequest("GET", urlStr, song.Source, "bytes=0-1")
+	if reqErr != nil {
+		return false
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}

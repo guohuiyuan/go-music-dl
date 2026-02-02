@@ -25,6 +25,7 @@ import (
 
 // 定义搜索函数类型
 type SearchFunc func(keyword string) ([]model.Song, error)
+
 // [新增] 定义歌单搜索函数类型
 type SearchPlaylistFunc func(keyword string) ([]model.Playlist, error)
 
@@ -48,13 +49,14 @@ var PlaylistSourceMap = map[string]SearchPlaylistFunc{
 	"qq":       qq.SearchPlaylist,
 	"kugou":    kugou.SearchPlaylist,
 	"kuwo":     kuwo.SearchPlaylist,
+	"bilibili": bilibili.SearchPlaylist,
 	"soda":     soda.SearchPlaylist,
 	"fivesing": fivesing.SearchPlaylist,
 }
 
 func GetAllSourceNames() []string {
 	return []string{
-		"netease", "qq", "kugou", "kuwo", "migu", 
+		"netease", "qq", "kugou", "kuwo", "migu",
 		"fivesing", "jamendo", "joox", "qianqian", "soda", "bilibili",
 	}
 }
@@ -62,7 +64,7 @@ func GetAllSourceNames() []string {
 // [新增] 获取支持歌单搜索的源列表
 func GetPlaylistSourceNames() []string {
 	return []string{
-		"netease", "qq", "kugou", "kuwo", "soda", "fivesing",
+		"netease", "qq", "kugou", "kuwo", "bilibili", "soda", "fivesing",
 	}
 }
 
@@ -112,14 +114,18 @@ func SearchPlaylist(keyword string, selectedSources []string) ([]model.Playlist,
 
 	for _, sourceName := range selectedSources {
 		searchFunc, exists := PlaylistSourceMap[sourceName]
-		if !exists { continue }
+		if !exists {
+			continue
+		}
 
 		wg.Add(1)
 		go func(src string, sFunc SearchPlaylistFunc) {
 			defer wg.Done()
 			lists, err := sFunc(keyword)
 			if err == nil {
-				for i := range lists { lists[i].Source = src }
+				for i := range lists {
+					lists[i].Source = src
+				}
 				mu.Lock()
 				allPlaylists = append(allPlaylists, lists...)
 				mu.Unlock()
@@ -133,36 +139,60 @@ func SearchPlaylist(keyword string, selectedSources []string) ([]model.Playlist,
 // GetDownloadURL ... (保持不变)
 func GetDownloadURL(song *model.Song) (string, error) {
 	switch song.Source {
-	case "netease": return netease.GetDownloadURL(song)
-	case "qq": return qq.GetDownloadURL(song)
-	case "kugou": return kugou.GetDownloadURL(song)
-	case "kuwo": return kuwo.GetDownloadURL(song)
-	case "migu": return migu.GetDownloadURL(song)
-	case "bilibili": return bilibili.GetDownloadURL(song)
-	case "fivesing": return fivesing.GetDownloadURL(song)
-	case "jamendo": return jamendo.GetDownloadURL(song)
-	case "joox": return joox.GetDownloadURL(song)
-	case "qianqian": return qianqian.GetDownloadURL(song)
-	case "soda": return soda.GetDownloadURL(song)
-	default: return "", fmt.Errorf("不支持的源: %s", song.Source)
+	case "netease":
+		return netease.GetDownloadURL(song)
+	case "qq":
+		return qq.GetDownloadURL(song)
+	case "kugou":
+		return kugou.GetDownloadURL(song)
+	case "kuwo":
+		return kuwo.GetDownloadURL(song)
+	case "migu":
+		return migu.GetDownloadURL(song)
+	case "bilibili":
+		return bilibili.GetDownloadURL(song)
+	case "fivesing":
+		return fivesing.GetDownloadURL(song)
+	case "jamendo":
+		return jamendo.GetDownloadURL(song)
+	case "joox":
+		return joox.GetDownloadURL(song)
+	case "qianqian":
+		return qianqian.GetDownloadURL(song)
+	case "soda":
+		return soda.GetDownloadURL(song)
+	default:
+		return "", fmt.Errorf("不支持的源: %s", song.Source)
 	}
 }
 
 // GetLyrics ... (保持不变)
 func GetLyrics(song *model.Song) (string, error) {
 	switch song.Source {
-	case "netease": return netease.GetLyrics(song)
-	case "qq": return qq.GetLyrics(song)
-	case "kugou": return kugou.GetLyrics(song)
-	case "kuwo": return kuwo.GetLyrics(song)
-	case "migu": return migu.GetLyrics(song)
-	case "bilibili": return bilibili.GetLyrics(song)
-	case "fivesing": return fivesing.GetLyrics(song)
-	case "jamendo": return jamendo.GetLyrics(song)
-	case "joox": return joox.GetLyrics(song)
-	case "qianqian": return qianqian.GetLyrics(song)
-	case "soda": return soda.GetLyrics(song)
-	default: return "", fmt.Errorf("不支持的源: %s", song.Source)
+	case "netease":
+		return netease.GetLyrics(song)
+	case "qq":
+		return qq.GetLyrics(song)
+	case "kugou":
+		return kugou.GetLyrics(song)
+	case "kuwo":
+		return kuwo.GetLyrics(song)
+	case "migu":
+		return migu.GetLyrics(song)
+	case "bilibili":
+		return bilibili.GetLyrics(song)
+	case "fivesing":
+		return fivesing.GetLyrics(song)
+	case "jamendo":
+		return jamendo.GetLyrics(song)
+	case "joox":
+		return joox.GetLyrics(song)
+	case "qianqian":
+		return qianqian.GetLyrics(song)
+	case "soda":
+		return soda.GetLyrics(song)
+	default:
+		return "", fmt.Errorf("不支持的源: %s", song.Source)
 	}
 }
 
@@ -172,21 +202,35 @@ func DownloadSong(song *model.Song) error {
 
 func DownloadSongWithOptions(song *model.Song, saveDir string, downloadCover bool, downloadLyrics bool) error {
 	filename := song.Filename()
-	if saveDir == "" { saveDir = "downloads" }
-	if _, err := os.Stat(saveDir); os.IsNotExist(err) { os.MkdirAll(saveDir, 0755) }
+	if saveDir == "" {
+		saveDir = "downloads"
+	}
+	if _, err := os.Stat(saveDir); os.IsNotExist(err) {
+		os.MkdirAll(saveDir, 0755)
+	}
 
 	filePath := filepath.Join(saveDir, filename)
 	baseName := strings.TrimSuffix(filename, filepath.Ext(filename))
 
 	if song.Source == "soda" {
-		if err := soda.Download(song, filePath); err != nil { return err }
+		if err := soda.Download(song, filePath); err != nil {
+			return err
+		}
 	} else {
 		url, err := GetDownloadURL(song)
-		if err != nil { return fmt.Errorf("获取下载链接失败: %v", err) }
-		if url == "" { return fmt.Errorf("该歌曲无下载链接") }
+		if err != nil {
+			return fmt.Errorf("获取下载链接失败: %v", err)
+		}
+		if url == "" {
+			return fmt.Errorf("该歌曲无下载链接")
+		}
 		data, err := utils.Get(url)
-		if err != nil { return fmt.Errorf("下载失败: %v", err) }
-		if err := os.WriteFile(filePath, data, 0644); err != nil { return err }
+		if err != nil {
+			return fmt.Errorf("下载失败: %v", err)
+		}
+		if err := os.WriteFile(filePath, data, 0644); err != nil {
+			return err
+		}
 	}
 
 	if downloadCover && song.Cover != "" {
@@ -194,7 +238,9 @@ func DownloadSongWithOptions(song *model.Song, saveDir string, downloadCover boo
 	}
 	if downloadLyrics {
 		lrc, err := GetLyrics(song)
-		if err == nil && lrc != "" { _ = os.WriteFile(filepath.Join(saveDir, baseName+".lrc"), []byte(lrc), 0644) }
+		if err == nil && lrc != "" {
+			_ = os.WriteFile(filepath.Join(saveDir, baseName+".lrc"), []byte(lrc), 0644)
+		}
 	}
 	return nil
 }
@@ -205,6 +251,8 @@ func DownloadSongWithCover(song *model.Song, downloadCover bool) error {
 
 func downloadFile(url, destPath string) error {
 	data, err := utils.Get(url)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(destPath, data, 0644)
 }
