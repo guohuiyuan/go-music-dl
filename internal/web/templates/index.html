@@ -189,6 +189,8 @@
         .btn-play:hover { transform: scale(1.1); }
         .btn-dl { background: #f7fafc; color: var(--text-sub); border: 1px solid #e2e8f0; }
         .btn-dl:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        .btn-switch { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+        .btn-switch:hover { border-color: #fb923c; color: #c2410c; }
 
         /* Playlist Grid */
         .playlist-grid-container {
@@ -432,23 +434,27 @@
                             onclick="playAllAndJumpTo(this)">
                         <i class="fa-solid fa-play"></i>
                     </button>
+
+                    <button type="button" class="btn-circle btn-switch" title="换源"
+                            onclick="switchSource(this)">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
                     
                     <a href="/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}" 
-                       id="dl-{{.ID}}" class="btn-circle btn-dl" title="下载歌曲" target="_blank">
+                       id="dl-{{.ID}}" class="btn-circle btn-dl btn-download" title="下载歌曲" target="_blank">
                         <i class="fa-solid fa-download"></i>
                     </a>
 
                     <a href="/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}" 
-                       id="lrc-{{.ID}}" class="btn-circle btn-dl" title="下载歌词" target="_blank">
+                       id="lrc-{{.ID}}" class="btn-circle btn-dl btn-lyric" title="下载歌词" target="_blank">
                         <i class="fa-solid fa-file-lines"></i>
                     </a>
 
-                    {{ if .Cover }}
                     <a href="/download_cover?url={{ .Cover }}&name={{ .Name }}&artist={{ .Artist }}" 
-                       class="btn-circle btn-dl" title="下载封面" target="_blank">
+                       class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank"
+                       style="{{ if not .Cover }}display:none;{{ end }}">
                         <i class="fa-regular fa-image"></i>
                     </a>
-                    {{ end }}
                 </div>
             </li>
             {{ end }}
@@ -665,6 +671,141 @@
             const active = isActuallyPlaying && currentPlayingId && id === currentPlayingId;
             setPlayButtonState(card, active);
         });
+    }
+
+    function formatDuration(seconds) {
+        const s = Number(seconds || 0);
+        if (!s || s <= 0) return '-';
+        const min = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function updateCardWithSong(card, song) {
+        const oldId = card.dataset.id;
+
+        // data-* 更新
+        card.dataset.id = song.id;
+        card.dataset.source = song.source;
+        card.dataset.duration = song.duration || 0;
+        card.dataset.name = song.name || card.dataset.name;
+        card.dataset.artist = song.artist || card.dataset.artist;
+
+        // 标题/作者/专辑
+        const titleEl = card.querySelector('.song-info h3');
+        if (titleEl) titleEl.textContent = song.name || '';
+
+        const artistLine = card.querySelector('.artist-line');
+        if (artistLine) {
+            const albumText = song.album ? ` &nbsp;•&nbsp; ${song.album}` : '';
+            artistLine.innerHTML = `<i class="fa-regular fa-user" style="font-size:11px;"></i> ${song.artist || ''}${albumText}`;
+        }
+
+        // 源标签
+        const sourceTag = card.querySelector('.tag-src');
+        if (sourceTag) sourceTag.textContent = song.source;
+
+        // 时长标签
+        const tags = card.querySelectorAll('.tags .tag');
+        if (tags && tags.length >= 2) {
+            tags[1].textContent = formatDuration(song.duration);
+        }
+
+        // 封面
+        const coverWrap = card.querySelector('.cover-wrapper');
+        if (coverWrap) {
+            let imgEl = coverWrap.querySelector('img');
+            if (!imgEl) {
+                imgEl = document.createElement('img');
+                coverWrap.innerHTML = '';
+                coverWrap.appendChild(imgEl);
+            }
+            imgEl.src = song.cover || 'https://via.placeholder.com/150?text=Music';
+            imgEl.alt = song.name || '';
+        }
+
+        // 下载/歌词/封面链接 & id
+        const dl = card.querySelector('.btn-download');
+        if (dl) {
+            dl.href = `/download?id=${encodeURIComponent(song.id)}&source=${song.source}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`;
+            dl.id = `dl-${song.id}`;
+        }
+
+        const lrc = card.querySelector('.btn-lyric');
+        if (lrc) {
+            lrc.href = `/download_lrc?id=${encodeURIComponent(song.id)}&source=${song.source}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`;
+            lrc.id = `lrc-${song.id}`;
+        }
+
+        const coverBtn = card.querySelector('.btn-cover');
+        if (coverBtn) {
+            if (song.cover) {
+                coverBtn.style.display = '';
+                coverBtn.href = `/download_cover?url=${encodeURIComponent(song.cover)}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`;
+            } else {
+                coverBtn.style.display = 'none';
+            }
+        }
+
+        // size/bitrate 标签重置为 loading
+        const sizeTag = card.querySelector('[id^="size-"]');
+        if (sizeTag) {
+            sizeTag.id = `size-${song.id}`;
+            sizeTag.className = 'tag tag-loading';
+            sizeTag.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+        }
+        const bitrateTag = card.querySelector('[id^="bitrate-"]');
+        if (bitrateTag) {
+            bitrateTag.id = `bitrate-${song.id}`;
+            bitrateTag.className = 'tag tag-loading';
+            bitrateTag.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i>';
+        }
+
+        // 如果之前的 id 参与了播放高亮，复位后再同步一次
+        if (currentPlayingId === oldId) {
+            currentPlayingId = song.id;
+        }
+        syncAllPlayButtons();
+
+        // 重新触发检测
+        inspectSong(card);
+    }
+
+    function switchSource(btn) {
+        const card = btn.closest('.song-card');
+        if (!card) return;
+
+        const ds = card.dataset;
+        const name = ds.name || '';
+        const artist = ds.artist || '';
+        const source = ds.source || '';
+        if (!name || !source) return;
+
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+
+        const duration = ds.duration || '';
+        const url = `/switch_source?name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}&source=${encodeURIComponent(source)}&duration=${encodeURIComponent(duration)}`;
+        fetch(url)
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(song => {
+                const oldId = ds.id;
+                const wasPlaying = currentPlayingId && currentPlayingId === oldId && ap?.audio && !ap.audio.paused;
+
+                updateCardWithSong(card, song);
+
+                if (wasPlaying) {
+                    const playBtn = card.querySelector('.btn-play');
+                    if (playBtn) playAllAndJumpTo(playBtn);
+                }
+            })
+            .catch(() => {
+                alert('换源失败，请稍后重试');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            });
     }
 
     function playAllAndJumpTo(btn) {

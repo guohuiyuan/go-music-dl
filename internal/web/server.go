@@ -12,10 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
@@ -534,6 +536,135 @@ func Start(port string) {
 		})
 	})
 
+	// Switch Source (find best match across sources)
+	r.GET("/switch_source", func(c *gin.Context) {
+		name := strings.TrimSpace(c.Query("name"))
+		artist := strings.TrimSpace(c.Query("artist"))
+		current := strings.TrimSpace(c.Query("source"))
+		target := strings.TrimSpace(c.Query("target"))
+		durationStr := strings.TrimSpace(c.Query("duration"))
+
+		origDuration, _ := strconv.Atoi(durationStr)
+
+		if name == "" {
+			c.JSON(400, gin.H{"error": "missing name"})
+			return
+		}
+
+		keyword := name
+		if artist != "" {
+			keyword = name + " " + artist
+		}
+
+		var sources []string
+		if target != "" {
+			sources = []string{target}
+		} else {
+			sources = core.GetAllSourceNames()
+		}
+
+		type candidate struct {
+			song    model.Song
+			score   float64
+			durDiff int
+		}
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		var candidates []candidate
+
+		for _, src := range sources {
+			if src == "" || src == current {
+				continue
+			}
+			if src == "soda" || src == "fivesing" {
+				continue
+			}
+			fn := getSearchFunc(src)
+			if fn == nil {
+				continue
+			}
+
+			wg.Add(1)
+			go func(s string) {
+				defer wg.Done()
+
+				res, err := fn(keyword)
+				if (err != nil || len(res) == 0) && artist != "" {
+					res, _ = fn(name)
+				}
+				if len(res) == 0 {
+					return
+				}
+
+				limit := len(res)
+				if limit > 8 {
+					limit = 8
+				}
+
+				for i := 0; i < limit; i++ {
+					cand := res[i]
+					cand.Source = s
+					score := calcSongSimilarity(name, artist, cand.Name, cand.Artist)
+					if score <= 0 {
+						continue
+					}
+
+					durDiff := 0
+					if origDuration > 0 && cand.Duration > 0 {
+						durDiff = intAbs(origDuration - cand.Duration)
+						if !isDurationClose(origDuration, cand.Duration) {
+							continue
+						}
+					}
+
+					mu.Lock()
+					candidates = append(candidates, candidate{song: cand, score: score, durDiff: durDiff})
+					mu.Unlock()
+				}
+			}(src)
+		}
+
+		wg.Wait()
+		if len(candidates) == 0 {
+			c.JSON(404, gin.H{"error": "no match"})
+			return
+		}
+
+		sort.SliceStable(candidates, func(i, j int) bool {
+			if candidates[i].score == candidates[j].score {
+				return candidates[i].durDiff < candidates[j].durDiff
+			}
+			return candidates[i].score > candidates[j].score
+		})
+
+		var selected *model.Song
+		var selectedScore float64
+		for _, cand := range candidates {
+			ok := validatePlayable(&cand.song)
+			if ok {
+				tmp := cand.song
+				selected = &tmp
+				selectedScore = cand.score
+				break
+			}
+		}
+		if selected == nil {
+			c.JSON(404, gin.H{"error": "no playable match"})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"id":       selected.ID,
+			"name":     selected.Name,
+			"artist":   selected.Artist,
+			"album":    selected.Album,
+			"duration": selected.Duration,
+			"source":   selected.Source,
+			"cover":    selected.Cover,
+			"score":    selectedScore,
+		})
+	})
+
 	// Download Logic (Same as before)
 	r.GET("/download", func(c *gin.Context) {
 		id := c.Query("id")
@@ -724,6 +855,163 @@ func setDownloadHeader(c *gin.Context, filename string) {
 	encoded := url.QueryEscape(filename)
 	encoded = strings.ReplaceAll(encoded, "+", "%20")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"; filename*=utf-8''%s", encoded, encoded))
+}
+
+func validatePlayable(song *model.Song) bool {
+	if song == nil || song.ID == "" || song.Source == "" {
+		return false
+	}
+	if song.Source == "soda" || song.Source == "fivesing" {
+		return false
+	}
+
+	fn := getDownloadFunc(song.Source)
+	if fn == nil {
+		return false
+	}
+	urlStr, err := fn(&model.Song{ID: song.ID, Source: song.Source})
+	if err != nil || urlStr == "" {
+		return false
+	}
+
+	req, _ := http.NewRequest("GET", urlStr, nil)
+	req.Header.Set("Range", "bytes=0-1")
+	req.Header.Set("User-Agent", UA_Common)
+	if song.Source == "bilibili" {
+		req.Header.Set("Referer", Ref_Bilibili)
+	}
+	if song.Source == "migu" {
+		req.Header.Set("User-Agent", UA_Mobile)
+		req.Header.Set("Referer", Ref_Migu)
+	}
+	if song.Source == "qq" {
+		req.Header.Set("Referer", "http://y.qq.com")
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == 200 || resp.StatusCode == 206
+}
+
+func isDurationClose(a, b int) bool {
+	if a <= 0 || b <= 0 {
+		return true
+	}
+	diff := intAbs(a - b)
+	if diff <= 10 {
+		return true
+	}
+	maxAllowed := int(float64(a) * 0.15)
+	if maxAllowed < 10 {
+		maxAllowed = 10
+	}
+	return diff <= maxAllowed
+}
+
+func intAbs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func calcSongSimilarity(name, artist, candName, candArtist string) float64 {
+	nameA := normalizeText(name)
+	nameB := normalizeText(candName)
+	if nameA == "" || nameB == "" {
+		return 0
+	}
+	nameSim := similarityScore(nameA, nameB)
+
+	artistA := normalizeText(artist)
+	artistB := normalizeText(candArtist)
+	if artistA == "" || artistB == "" {
+		return nameSim
+	}
+
+	artistSim := similarityScore(artistA, artistB)
+	return nameSim*0.7 + artistSim*0.3
+}
+
+func normalizeText(s string) string {
+	if s == "" {
+		return ""
+	}
+	s = strings.ToLower(s)
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.In(r, unicode.Han) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func similarityScore(a, b string) float64 {
+	if a == b {
+		return 1
+	}
+	if a == "" || b == "" {
+		return 0
+	}
+	la := len([]rune(a))
+	lb := len([]rune(b))
+	maxLen := la
+	if lb > maxLen {
+		maxLen = lb
+	}
+	if maxLen == 0 {
+		return 0
+	}
+	dist := levenshteinDistance(a, b)
+	if dist >= maxLen {
+		return 0
+	}
+	return 1 - float64(dist)/float64(maxLen)
+}
+
+func levenshteinDistance(a, b string) int {
+	ra := []rune(a)
+	rb := []rune(b)
+	la := len(ra)
+	lb := len(rb)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+
+	prev := make([]int, lb+1)
+	cur := make([]int, lb+1)
+	for j := 0; j <= lb; j++ {
+		prev[j] = j
+	}
+	for i := 1; i <= la; i++ {
+		cur[0] = i
+		for j := 1; j <= lb; j++ {
+			cost := 0
+			if ra[i-1] != rb[j-1] {
+				cost = 1
+			}
+			del := prev[j] + 1
+			ins := cur[j-1] + 1
+			sub := prev[j-1] + cost
+			cur[j] = del
+			if ins < cur[j] {
+				cur[j] = ins
+			}
+			if sub < cur[j] {
+				cur[j] = sub
+			}
+		}
+		prev, cur = cur, prev
+	}
+	return prev[lb]
 }
 
 func openBrowser(url string) {
