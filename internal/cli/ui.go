@@ -1355,7 +1355,7 @@ func (m modelState) View() string {
 		s.WriteString("请输入搜索关键字:\n")
 		s.WriteString(m.textInput.View())
 		s.WriteString(fmt.Sprintf("\n\n(当前源: %v)", getSourceDisplay(m.sources)))
-		s.WriteString("\n(按 Enter 搜索/解析, Ctrl+C 退出)")
+		s.WriteString("\n(按 Enter 搜索/解析, Tab 切换搜歌/歌单, Ctrl+C 退出)")
 		cm.mu.RLock()
 		if len(cm.cookies) > 0 {
 			var loadedSources []string
