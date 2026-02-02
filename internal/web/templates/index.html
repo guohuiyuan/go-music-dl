@@ -406,7 +406,8 @@
                 data-source="{{.Source}}" 
                 data-duration="{{.Duration}}" 
                 data-name="{{.Name}}" 
-                data-artist="{{.Artist}}">
+                data-artist="{{.Artist}}"
+                data-cover="{{.Cover}}">
                 
                 <div class="cover-wrapper">
                     {{ if .Cover }}
@@ -453,7 +454,7 @@
 
                     <a href="/download_cover?url={{ .Cover }}&name={{ .Name }}&artist={{ .Artist }}" 
                        class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank"
-                       style="{{ if not .Cover }}display:none;{{ end }}">
+                              style="display:none;">
                         <i class="fa-regular fa-image"></i>
                     </a>
                 </div>
@@ -515,6 +516,14 @@
         const cards = document.querySelectorAll('.song-card');
         cards.forEach((card, index) => {
             setTimeout(() => inspectSong(card), index * 100);
+        });
+
+        // 根据封面字段显示/隐藏封面按钮
+        cards.forEach(card => {
+            const coverBtn = card.querySelector('.btn-cover');
+            if (!coverBtn) return;
+            const cover = card.dataset.cover || '';
+            coverBtn.style.display = cover ? '' : 'none';
         });
 
         // 首次进入页面，统一初始化播放按钮图标
@@ -691,6 +700,7 @@
         card.dataset.duration = song.duration || 0;
         card.dataset.name = song.name || card.dataset.name;
         card.dataset.artist = song.artist || card.dataset.artist;
+        card.dataset.cover = song.cover || '';
 
         // 标题/作者/专辑
         const titleEl = card.querySelector('.song-info h3');
