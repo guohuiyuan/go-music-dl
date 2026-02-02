@@ -656,11 +656,13 @@ func (m modelState) updateDownloading(msg tea.Msg) (tea.Model, tea.Cmd) {
 func probeSongDetails(song *model.Song) {
 	dlFunc := getDownloadFunc(song.Source)
 	if dlFunc == nil {
+		song.IsInvalid = true
 		return
 	}
 
 	urlStr, err := dlFunc(song)
 	if err != nil || urlStr == "" {
+		song.IsInvalid = true
 		return
 	}
 
@@ -680,21 +682,25 @@ func probeSongDetails(song *model.Song) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		song.IsInvalid = true
 		return
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 && resp.StatusCode != 206 {
+		song.IsInvalid = true
+		return
+	}
+
 	var size int64
-	if resp.StatusCode == 200 || resp.StatusCode == 206 {
-		// 优先从 Content-Range 获取总大小
-		cr := resp.Header.Get("Content-Range")
-		if parts := strings.Split(cr, "/"); len(parts) == 2 {
-			fmt.Sscanf(parts[1], "%d", &size)
-		}
-		// 降级使用 Content-Length
-		if size == 0 {
-			size = resp.ContentLength
-		}
+	// 优先从 Content-Range 获取总大小
+	cr := resp.Header.Get("Content-Range")
+	if parts := strings.Split(cr, "/"); len(parts) == 2 {
+		fmt.Sscanf(parts[1], "%d", &size)
+	}
+	// 降级使用 Content-Length
+	if size == 0 {
+		size = resp.ContentLength
 	}
 
 	if size > 0 {
@@ -1070,16 +1076,25 @@ func (m modelState) renderTable() string {
 		song := m.songs[i]
 		isCursor := (m.cursor == i)
 		_, isSelected := m.selected[i]
+
 		checkStr := "[ ]"
 		if isSelected {
 			checkStr = checkedStyle.Render("[✓]")
 		}
+
+		var sizeStr string
+		if song.IsInvalid {
+			// 仅标记文件详情为红色提示，但不影响勾选状态显示
+			sizeStr = lipgloss.NewStyle().Foreground(redColor).Render("!无效")
+		} else {
+			sizeStr = song.FormatSize()
+		}
+
 		idxStr := fmt.Sprintf("%d", i+1)
 		title := truncate(song.Name, colTitle-4)
 		artist := truncate(song.Artist, colArtist-2)
 		album := truncate(song.Album, colAlbum-2)
 		dur := song.FormatDuration()
-		size := song.FormatSize()
 		bitrate := "-"
 		if song.Bitrate > 0 {
 			bitrate = fmt.Sprintf("%d kbps", song.Bitrate)
@@ -1099,7 +1114,7 @@ func (m modelState) renderTable() string {
 			renderCell(artist, colArtist, style),
 			renderCell(album, colAlbum, style),
 			renderCell(dur, colDur, style),
-			renderCell(size, colSize, style),
+			renderCell(sizeStr, colSize, style),
 			renderCell(bitrate, colBit, style),
 			renderCell(src, colSrc, style),
 		)
