@@ -509,6 +509,9 @@
         cards.forEach((card, index) => {
             setTimeout(() => inspectSong(card), index * 100);
         });
+
+        // 首次进入页面，统一初始化播放按钮图标
+        syncAllPlayButtons();
     });
 
     // 切换搜索类型：单曲 vs 歌单
@@ -599,12 +602,40 @@
         audio: []
     });
 
+    // 当前正在播放（或最近一次被切换到）的歌曲 ID，用于按钮图标/点击切换
+    let currentPlayingId = null;
+
     ap.on('listswitch', (e) => {
         const index = e.index;
         const newAudio = ap.list.audios[index];
         if (newAudio && newAudio.custom_id) {
-            highlightCard(newAudio.custom_id);
+            currentPlayingId = newAudio.custom_id;
+            highlightCard(currentPlayingId);
+            syncAllPlayButtons();
         }
+    });
+
+    ap.on('play', () => {
+        // 尽量从当前列表项里拿到 custom_id
+        const idx = ap?.list?.index;
+        const audio = (typeof idx === 'number') ? ap.list.audios[idx] : null;
+        if (audio && audio.custom_id) {
+            currentPlayingId = audio.custom_id;
+            highlightCard(currentPlayingId);
+        }
+        syncAllPlayButtons();
+    });
+
+    ap.on('pause', () => {
+        // 仅更新按钮图标；高亮保留由用户决定
+        syncAllPlayButtons();
+    });
+
+    ap.on('ended', () => {
+        // 播放结束时恢复按钮图标
+        currentPlayingId = null;
+        highlightCard(null);
+        syncAllPlayButtons();
     });
 
     function highlightCard(targetId) {
@@ -615,12 +646,46 @@
         }
     }
 
+    function setPlayButtonState(card, isPlaying) {
+        if (!card) return;
+        const btn = card.querySelector('.btn-play');
+        const icon = btn ? btn.querySelector('i') : null;
+        if (!btn || !icon) return;
+
+        // 播放中显示“停止”图标；停止/暂停显示“播放”图标
+        icon.classList.remove('fa-play', 'fa-stop');
+        icon.classList.add(isPlaying ? 'fa-stop' : 'fa-play');
+        btn.title = isPlaying ? '停止' : '播放';
+    }
+
+    function syncAllPlayButtons() {
+        const isActuallyPlaying = ap?.audio && !ap.audio.paused;
+        document.querySelectorAll('.song-card').forEach(card => {
+            const id = card.dataset.id;
+            const active = isActuallyPlaying && currentPlayingId && id === currentPlayingId;
+            setPlayButtonState(card, active);
+        });
+    }
+
     function playAllAndJumpTo(btn) {
         const currentCard = btn.closest('.song-card');
         const allCards = Array.from(document.querySelectorAll('.song-card'));
         const clickedIndex = allCards.indexOf(currentCard);
 
         if (clickedIndex === -1) return;
+
+        const clickedId = currentCard.dataset.id;
+        const isActuallyPlaying = ap?.audio && !ap.audio.paused;
+
+        // 再次点击同一首：停止播放（并复位到开头）
+        if (currentPlayingId && currentPlayingId === clickedId && isActuallyPlaying) {
+            ap.pause();
+            try { ap.seek(0); } catch (e) {}
+            currentPlayingId = null;
+            highlightCard(null);
+            syncAllPlayButtons();
+            return;
+        }
 
         ap.list.clear();
         const playlist = [];
@@ -645,7 +710,10 @@
         ap.list.add(playlist);
         ap.list.switch(clickedIndex);
         ap.play();
-        highlightCard(currentCard.dataset.id);
+
+        currentPlayingId = clickedId;
+        highlightCard(currentPlayingId);
+        syncAllPlayButtons();
     }
 </script>
 
