@@ -135,6 +135,12 @@
             border-radius: 6px; transition: all 0.2s;
         }
         .ctrl-btn:hover { background: #edf2f7; color: var(--primary-color); }
+        .ctrl-btn.primary {
+            background: #f7f9ff; color: var(--primary-color);
+            border: 1px solid #dbe3ff; padding: 6px 12px;
+            font-weight: 600; border-radius: 999px;
+        }
+        .ctrl-btn.primary:hover { background: #eff3ff; }
 
         .source-grid {
             display: grid;
@@ -165,9 +171,17 @@
 
         /* Results */
         .list-header {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid #edf2f7; border-radius: 12px;
+            box-shadow: var(--shadow);
         }
-        .list-header span { color: var(--text-sub); font-size: 14px; }
+        .list-header .result-count {
+            color: var(--text-main); font-size: 14px; font-weight: 700;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .list-header .result-count .count { color: var(--primary-color); }
         
         /* 批量操作样式 */
         .checkbox-wrapper {
@@ -411,8 +425,9 @@
             .artist-line { font-size: 12px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
             .tags { flex-wrap: wrap; }
             .tag { padding: 2px 5px; }
-            .actions { gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+            .actions { display: grid; grid-template-columns: repeat(2, 34px); grid-auto-rows: 34px; gap: 8px; flex-shrink: 0; justify-content: flex-end; }
             .btn-circle { width: 34px; height: 34px; font-size: 13px; }
+            .btn-cover { display: none !important; }
             .settings-float { top: 15px; right: 15px; width: 36px; height: 36px; }
             .modal { width: 85%; max-height: 80vh; padding: 20px; }
             
@@ -433,8 +448,22 @@
                 align-items: stretch;
             }
             .batch-info { justify-content: center; flex-wrap: wrap;}
-            .batch-actions { justify-content: space-around; }
-            .btn-pill { flex: 1; justify-content: center; }
+            .batch-actions { flex-direction: column; justify-content: flex-start; }
+            .btn-pill { width: 100%; justify-content: center; }
+
+            /* 移动端播放器展开自适应 */
+            .aplayer.aplayer-fixed {
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 0 !important;
+                bottom: 0 !important;
+                transform: translateY(-18px);
+            }
+            .aplayer.aplayer-fixed .aplayer-list {
+                max-height: 40vh !important;
+            }
 
             /* [新增] 移动端回到顶部按钮位置微调 */
             .back-to-top {
@@ -542,8 +571,8 @@
         </div>
     {{ else if .Result }}
         <div class="list-header">
-            <span>找到 {{ len .Result }} 首歌曲</span>
-            <button type="button" class="ctrl-btn" id="btn-batch-toggle" onclick="toggleBatchMode()">
+            <span class="result-count"><i class="fa-solid fa-music"></i> 找到 <span class="count">{{ len .Result }}</span> 首歌曲</span>
+            <button type="button" class="ctrl-btn primary" id="btn-batch-toggle" onclick="toggleBatchMode()">
                 <i class="fa-solid fa-list-check"></i> 批量操作
             </button>
         </div>
