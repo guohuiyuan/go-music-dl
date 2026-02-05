@@ -7,8 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/gin-gonic/gin v1.11.0
-	github.com/guohuiyuan/music-lib v1.0.4-0.20260205105151-55c8218d0d6e
-	github.com/mattn/go-runewidth v0.0.19
+	github.com/guohuiyuan/music-lib v1.0.4-0.20260205121835-23c4f2678a04
 	github.com/spf13/cobra v1.10.2
 )
 
@@ -40,6 +39,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
+	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect

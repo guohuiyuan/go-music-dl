@@ -260,6 +260,23 @@ func getPlaylistDetailFunc(source string) func(string) ([]model.Song, error) {
 	}
 }
 
+// 新增：每日推荐歌单工厂 (仅支持 qq, netease, kuwo, kugou)
+func getRecommendFunc(source string) func() ([]model.Playlist, error) {
+	c := cm.Get(source)
+	switch source {
+	case "netease":
+		return netease.New(c).GetRecommendedPlaylists
+	case "qq":
+		return qq.New(c).GetRecommendedPlaylists
+	case "kugou":
+		return kugou.New(c).GetRecommendedPlaylists
+	case "kuwo":
+		return kuwo.New(c).GetRecommendedPlaylists
+	default:
+		return nil
+	}
+}
+
 // 新增：歌单解析工厂
 func getParsePlaylistFunc(source string) func(string) (*model.Playlist, []model.Song, error) {
 	c := cm.Get(source)
@@ -473,6 +490,19 @@ func (m modelState) updateInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case tea.KeyEsc:
 			return m, tea.Quit
+		}
+	}
+	if km, ok := msg.(tea.KeyMsg); ok {
+		switch km.String() {
+		case "w":
+			m.state = stateLoading
+			m.searchType = "playlist"
+			m.songs = nil
+			m.playlists = nil
+			m.statusMsg = "正在获取每日推荐歌单..."
+			// 重新加载 Cookie 以防外部文件变动
+			cm.Load()
+			return m, tea.Batch(m.spinner.Tick, recommendPlaylistsCmd(m.sources))
 		}
 	}
 	m.textInput, cmd = m.textInput.Update(msg)
@@ -935,6 +965,44 @@ func searchCmd(keyword string, searchType string, sources []string) tea.Cmd {
 	}
 }
 
+func recommendPlaylistsCmd(sources []string) tea.Cmd {
+	return func() tea.Msg {
+		targetSources := sources
+		if len(targetSources) == 0 {
+			targetSources = []string{"netease", "qq", "kugou", "kuwo"}
+		}
+
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		var allPlaylists []model.Playlist
+
+		for _, src := range targetSources {
+			fn := getRecommendFunc(src)
+			if fn == nil {
+				continue
+			}
+			wg.Add(1)
+			go func(s string) {
+				defer wg.Done()
+				if res, err := fn(); err == nil && len(res) > 0 {
+					for i := range res {
+						res[i].Source = s
+					}
+					mu.Lock()
+					allPlaylists = append(allPlaylists, res...)
+					mu.Unlock()
+				}
+			}(src)
+		}
+		wg.Wait()
+
+		if len(allPlaylists) == 0 {
+			return searchErrorMsg(fmt.Errorf("未找到推荐歌单"))
+		}
+		return playlistResultMsg(allPlaylists)
+	}
+}
+
 func fetchPlaylistSongsCmd(id, source string) tea.Cmd {
 	return func() tea.Msg {
 		fn := getPlaylistDetailFunc(source)
@@ -1366,7 +1434,7 @@ func (m modelState) View() string {
 		}
 		s.WriteString(fmt.Sprintf("\n\n(当前源: %v)", getSourceDisplay(m.sources)))
 		s.WriteString(fmt.Sprintf("\n(当前模式: %s搜索)", modeLabel))
-		s.WriteString("\n(按 Enter 搜索/解析, Tab 切换搜歌/歌单, Ctrl+C 退出)")
+		s.WriteString("\n(按 Enter 搜索/解析, Tab 切换搜歌/歌单, w 每日推荐, Ctrl+C 退出)")
 		cm.mu.RLock()
 		if len(cm.cookies) > 0 {
 			var loadedSources []string
@@ -1423,7 +1491,7 @@ func (m modelState) renderTable() string {
 		colAlbum  = 15
 		colDur    = 8
 		colSize   = 10
-		colBit    = 10
+		colBit    = 11
 		colSrc    = 10
 	)
 	var b strings.Builder
