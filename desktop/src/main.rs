@@ -24,7 +24,9 @@ fn main() -> wry::Result<()> {
     let mut child = None;
     for path in &music_dl_paths {
         let mut cmd = Command::new(path);
-        cmd.arg("web");
+        cmd.arg("web")
+           .arg("--no-browser")  // Don't auto-open browser
+           .arg("-p").arg("37777");  // Use uncommon port
 
         // On Windows, hide the console window
         #[cfg(target_os = "windows")]
@@ -63,7 +65,7 @@ fn main() -> wry::Result<()> {
         .unwrap();
 
     let _webview = WebViewBuilder::new(&window)
-        .with_url("http://localhost:8080/music")
+        .with_url("http://localhost:37777/music")
         .build()?;
 
     event_loop.run(move |event, _, control_flow| {
@@ -75,7 +77,20 @@ fn main() -> wry::Result<()> {
                 ..
             } => {
                 // Kill the child process when closing
-                let _ = child.kill();
+                println!("Terminating web server...");
+                if let Err(e) = child.kill() {
+                    eprintln!("Failed to kill child process: {}", e);
+                    // Fallback: try to kill by process name on Windows
+                    #[cfg(target_os = "windows")]
+                    {
+                        let _ = std::process::Command::new("taskkill")
+                            .args(&["/F", "/IM", "music-dl.exe"])
+                            .output();
+                    }
+                }
+                // Wait a moment for the process to terminate
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                println!("Web server terminated. Exiting...");
                 *control_flow = ControlFlow::Exit;
             }
             _ => (),
