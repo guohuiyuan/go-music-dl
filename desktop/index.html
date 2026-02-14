@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music DL Desktop</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input, button {
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Music Downloader</h1>
+        <p>Enter the URL of the music to download:</p>
+        <input type="text" id="urlInput" placeholder="https://example.com/song.mp3">
+        <button onclick="downloadMusic()">Download</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function downloadMusic() {
+            const url = document.getElementById('urlInput').value;
+            const status = document.getElementById('status');
+            if (url) {
+                status.innerHTML = 'Downloading...';
+                // Here you would integrate with the music-dl backend
+                // For now, just simulate
+                setTimeout(() => {
+                    status.innerHTML = 'Download completed!';
+                }, 2000);
+            } else {
+                status.innerHTML = 'Please enter a URL.';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -28,6 +28,47 @@ Go Music DL 是一个音乐搜索与下载工具，带 Web 和 TUI 两种入口�
 
 ## 快速开始
 
+### 桌面应用模式
+
+桌面应用提供了原生窗口体验，无需打开浏览器即可使用。
+
+#### 特性
+- 🖥️ 原生桌面窗口，无需浏览器
+- 🚀 自动启动内置Web服务器
+- 🎵 完整Web界面功能
+- 📦 单文件分发，绿色免安装
+- 🖼️ 自定义窗口图标
+
+#### 下载使用
+
+1. 从 [Releases](https://github.com/guohuiyuan/go-music-dl/releases) 页面下载最新版本的 `go-music-dl-desktop-windows.zip`
+2. 解压到任意目录
+3. 双击运行 `go-music-dl-desktop.exe`
+4. 应用会自动启动Web服务器并打开桌面窗口
+
+#### 手动构建
+
+如果需要自定义构建：
+
+```bash
+# 1. 构建Go二进制文件
+cd go-music-dl
+go build -o ../go-music-dl-desktop/music-dl cmd/music-dl/main.go
+
+# 2. 构建Rust桌面应用
+cd ../go-music-dl-desktop
+cargo build --release
+
+# 3. 打包
+# Windows
+./package.bat
+```
+
+#### 系统要求
+- Windows 10/11 (推荐)
+- 已安装 WebView2 运行时 (通常已预装)
+- 如遇WebView2错误，可从 [Microsoft官网](https://developer.microsoft.com/microsoft-edge/webview2/) 下载安装
+
 ### Web 模式
 
 ```bash
@@ -217,7 +258,11 @@ TUI 在输入界面按 `w` 直接拉取推荐歌单，然后回车进详情。
 支持解析的平台：网易云、QQ音乐、酷狗、酷我、汽水音乐、5sing、Bilibili。
 
 ## 常见问题
+**Q: 桌面应用打不开或显示空白？**
+检查是否已安装 WebView2 运行时。从 [Microsoft官网](https://developer.microsoft.com/microsoft-edge/webview2/) 下载安装最新版本。
 
+**Q: 桌面应用启动慢或卡顿？**
+首次运行需要下载 WebView2 运行时。也可提前安装 Evergreen Bootstrapper 版本。
 **Q: 有些歌搜不到或下载失败？**
 可能是付费限制、平台接口变更或网络问题。
 
@@ -232,13 +277,17 @@ Web 右上角“设置”里可添加平台 Cookie。
 ```
 go-music-dl/
 ├── cmd/
-│   └── music-dl/
-├── core/
+│   └── music-dl/          # CLI/TUI 主程序
+├── core/                  # 核心业务逻辑
 ├── internal/
-│   ├── cli/
-│   └── web/
-├── downloads/
-├── screenshots/
+│   ├── cli/              # TUI 界面
+│   └── web/              # Web 服务器和模板
+├── downloads/            # 下载文件目录
+├── screenshots/          # 截图资源
+├── go-music-dl-desktop/  # 桌面应用 (Rust + Tao/Wry)
+│   ├── src/
+│   ├── Cargo.toml
+│   └── music-dl          # Go二进制文件
 └── README.md
 ```
 
@@ -248,6 +297,8 @@ go-music-dl/
 - **CLI 框架**: [Cobra](https://github.com/spf13/cobra) - 命令行工具
 - **Web 框架**: [Gin](https://github.com/gin-gonic/gin) - Web 框架
 - **TUI 框架**: [Bubble Tea](https://github.com/charmbracelet/bubbletea) - 终端界面
+- **桌面框架**: [Tao](https://github.com/tauri-apps/tao) + [Wry](https://github.com/tauri-apps/wry) - 跨平台桌面应用
+- **图像处理**: [image](https://github.com/image-rs/image) - 图标处理
 - **下载库**: [music-dl](https://github.com/0xHJK/music-dl) - 音乐下载库
 - **下载库**: [musicdl](https://github.com/CharlesPikachu/musicdl) - 音乐下载库
 

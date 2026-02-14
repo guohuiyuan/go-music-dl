@@ -3,3 +3,7 @@ music-dl.exe
 music-dl
 !cmd/music-dl/
 cookies.json
+target/
+music-dl-desktop*
+go-music-dl-desktop*
+dist/

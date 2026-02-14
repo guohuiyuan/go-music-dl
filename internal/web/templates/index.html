@@ -340,7 +340,7 @@
         .back-to-top {
             position: fixed;
             bottom: 120px; /* 默认位置 */
-            right: 140px;  /* [调整] 向左移动，避开 Live2D */
+            right: 20px;  /* 默认位置 */
             width: 45px;
             height: 45px;
             background: white;
@@ -350,7 +350,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            z-index: 200000; /* [调整] 层级高于 Live2D (99999) */
+            z-index: 1000;
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
@@ -368,7 +368,7 @@
             transform: translateY(-5px);
         }
 
-        /* APlayer & Waifu */
+        /* APlayer */
         /* 强制提升 APlayer 层级，确保移动端可控制 */
         .aplayer.aplayer-fixed {
             z-index: 10000 !important;
@@ -393,15 +393,9 @@
             font-weight: 800 !important; margin: 15px 0 !important; transform: scale(1.05);
             background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        #waifu {
-            left: auto !important; right: 20px !important; bottom: 90px !important;
-            z-index: 99999 !important; pointer-events: none !important;
-        }
-        #waifu canvas, #waifu-tool, #waifu-tips { pointer-events: auto !important; }
 
         /* ================= 移动端适配 ================= */
         @media (max-width: 768px) {
-            #waifu { display: none; }
             body { padding: 0 0 200px 0; background-size: 100% 400px; }
             .container { padding: 0; width: 100%; }
             .search-box { 
@@ -692,7 +686,6 @@
 <div id="aplayer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
-<script src="https://fastly.jsdelivr.net/gh/stevenjoezhang/live2d-widget@latest/autoload.js"></script>
 
 <script>
     // Define global API Root variable

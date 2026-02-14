@@ -1,0 +1,21 @@
+[package]
+name = "go-music-dl-desktop"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tao = "0.30"
+wry = "0.42"
+image = "0.25"
+
+[build-dependencies]
+winres = "0.1"
+
+[package.metadata.deb]
+maintainer = "guohuiyuan"
+copyright = "2026, guohuiyuan"
+depends = "$auto"
+assets = [
+    ["target/release/go-music-dl-desktop", "usr/bin/", "755"],
+    ["../music-dl", "usr/bin/music-dl", "755"] # 这一行很重要，把 Go 程序也打进去
+]

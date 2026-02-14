@@ -1,86 +1,147 @@
-version: 2
-project_name: go-music-dl
-env:
-  - GO111MODULE=on
-before:
-  hooks:
-    - go mod tidy
-    - go generate ./...
-    - go install github.com/tc-hib/go-winres@latest
-    - go-winres make --in ./winres/winres.json --out ./cmd/music-dl/rsrc
-builds:
-  - id: nowin
-    env:
-      - CGO_ENABLED=0
-      - GO111MODULE=on
-    goos:
-      - linux
-    goarch:
-      - 386
-      - amd64
-      - arm
-      - arm64
-    goarm:
-      - 6
-      - 7
-    main: ./cmd/music-dl
-    binary: music-dl
-    mod_timestamp: "{{ .CommitTimestamp }}"
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w
-  - id: win
-    env:
-      - CGO_ENABLED=0
-      - GO111MODULE=on
-    goos:
-      - windows
-    goarch:
-      - amd64
-    main: ./cmd/music-dl
-    binary: music-dl
-    mod_timestamp: "{{ .CommitTimestamp }}"
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w
+name: Desktop Release
 
-checksum:
-  name_template: "go-music-dl_checksums.txt"
-changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - fix typo
-      - Merge pull request
-      - Merge branch
-      - Merge remote-tracking
-      - go mod tidy
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
-archives:
-  - id: nowin
-    builds:
-      - nowin
-    name_template: "go-music-dl_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    format_overrides:
-      - goos: windows
-        formats: zip
-  - id: win
-    builds:
-      - win
-    name_template: "go-music-dl_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    format_overrides:
-      - goos: windows
-        formats: zip
+permissions:
+  contents: write
 
-nfpms:
-  - license: AGPL 3.0
-    homepage: https://github.com/guohuiyuan/go-music-dl
-    file_name_template: "go-music-dl_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    formats:
-      - deb
-      - rpm
-    maintainer: guohuiyuan
+jobs:
+  release:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            goos: windows
+            ext: .exe
+            archive: zip
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            goos: darwin
+            ext: ""
+            archive: dmg
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            goos: linux
+            ext: ""
+            archive: deb
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- 1. 环境准备 ---
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # Linux 特有依赖 (Webview 和打包工具)
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev
+          cargo install cargo-deb
+
+      # macOS 特有工具 (生成 dmg)
+      - name: Install macOS Tools
+        if: matrix.os == 'macos-latest'
+        run: |
+          npm install -g create-dmg
+
+      # --- 2. 编译 Go 后端 (music-dl) ---
+      - name: Build Go Backend
+        run: |
+          cd cmd/music-dl
+          go build -ldflags "-s -w" -o ../../bin/music-dl${{ matrix.ext }} .
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: amd64
+          CGO_ENABLED: 0
+
+      # --- 3. 编译 Rust 前端 (Desktop) ---
+      # 并在编译前修补路径，把 "../music-dl" 改为 "./music-dl" 适应发布环境
+      - name: Patch & Build Rust Desktop
+        shell: bash
+        run: |
+          # 临时修改代码，让它找同级目录的 exe
+          sed -i.bak 's|../music-dl|./music-dl|g' src/main.rs || true
+          
+          # 编译
+          cargo build --release --target ${{ matrix.target }}
+          
+          # 复制产物到 bin 目录
+          cp target/${{ matrix.target }}/release/go-music-dl-desktop${{ matrix.ext }} bin/music-dl-desktop${{ matrix.ext }}
+
+      # --- 4. 打包 (Windows - ZIP) ---
+      - name: Package Windows
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          cd bin
+          Compress-Archive -Path music-dl.exe, music-dl-desktop.exe -DestinationPath ../go-music-dl-desktop-windows-amd64.zip
+
+      # --- 5. 打包 (macOS - DMG) ---
+      - name: Package macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p bundle/MusicDL.app/Contents/MacOS
+          mkdir -p bundle/MusicDL.app/Contents/Resources
+          
+          # 制作简单的 .app 结构
+          cp bin/music-dl-desktop bundle/MusicDL.app/Contents/MacOS/MusicDL
+          cp bin/music-dl bundle/MusicDL.app/Contents/MacOS/music-dl
+          chmod +x bundle/MusicDL.app/Contents/MacOS/*
+          
+          # 创建 Info.plist (如果不做这一步，App可能打不开，这里简化处理)
+          echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>MusicDL</string><key>CFBundleIdentifier</key><string>com.guohuiyuan.musicdl</string><key>CFBundleName</key><string>MusicDL</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string></dict></plist>' > bundle/MusicDL.app/Contents/Info.plist
+
+          # 生成 DMG
+          create-dmg \
+            --volname "MusicDL Installer" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --app-drop-link 600 185 \
+            "go-music-dl-desktop-macos-amd64.dmg" \
+            "bundle/MusicDL.app"
+
+      # --- 6. 打包 (Linux - DEB) ---
+      - name: Package Linux (Deb)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # 准备 deb 目录结构
+          mkdir -p deb_dist/usr/bin
+          cp bin/music-dl deb_dist/usr/bin/music-dl-backend
+          cp bin/music-dl-desktop deb_dist/usr/bin/go-music-dl-desktop
+          
+          # 使用 cargo-deb 或者简单的 fpm，或者手动打包
+          # 这里为了简单演示，先打个 tar.gz 保证可用性
+          tar -czvf go-music-dl-desktop-linux-amd64.tar.gz -C bin .
+          
+          # 如果你的 Cargo.toml 配置了 metadata.deb，可以直接运行:
+          # cargo deb --target ${{ matrix.target }} --no-build --output go-music-dl-desktop_amd64.deb
+          # (需要在 Cargo.toml 添加 [package.metadata.deb] 配置)
+
+      # --- 7. 上传产物到 GitHub Release ---
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            *.zip
+            *.dmg
+            *.tar.gz
+            *.deb
