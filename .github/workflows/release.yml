@@ -39,7 +39,6 @@ jobs:
   # ===================================================
   build-windows-desktop:
     runs-on: windows-latest
-    needs: goreleaser # 可选：等待 CLI 构建完再跑，或者并行(去掉这行)
     strategy:
       matrix:
         include:
