@@ -354,7 +354,7 @@ func detectSource(link string) string {
 
 // --- Main ---
 
-func Start(port string) {
+func Start(port string, shouldOpenBrowser bool) {
 	cm.Load()
 
 	gin.SetMode(gin.ReleaseMode)
@@ -888,7 +888,9 @@ func Start(port string) {
 
 	urlStr := "http://localhost:" + port + RoutePrefix
 	fmt.Printf("Web started at %s\n", urlStr)
-	go func() { time.Sleep(500 * time.Millisecond); openBrowser(urlStr) }()
+	if shouldOpenBrowser {
+		go func() { time.Sleep(500 * time.Millisecond); openBrowser(urlStr) }()
+	}
 	r.Run(":" + port)
 }
 

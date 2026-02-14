@@ -38,6 +38,7 @@ Go Music DL 是一个音乐搜索与下载工具，带 Web 和 TUI 两种入口�
 - 🎵 完整Web界面功能
 - 📦 单文件分发，绿色免安装
 - 🖼️ 自定义窗口图标
+- 🌐 自动打开Web界面
 
 #### 下载使用
 
@@ -76,6 +77,22 @@ cargo build --release
 ```
 
 浏览器会自动打开 `http://localhost:8080/music`。
+
+#### 命令行选项
+
+- `-p, --port string`: 指定服务端口 (默认 "8080")
+- `--no-browser`: 不自动打开浏览器
+
+```bash
+# 指定端口
+./music-dl web -p 3000
+
+# 不自动打开浏览器
+./music-dl web --no-browser
+
+# 组合使用
+./music-dl web -p 3000 --no-browser
+```
 
 #### 反向代理配置
 

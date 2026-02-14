@@ -3,6 +3,9 @@ use tao::event_loop::{ControlFlow, EventLoop};
 use tao::window::WindowBuilder;
 use wry::WebViewBuilder;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 fn main() -> wry::Result<()> {
     // Start the Go web server
     // Try multiple possible paths for music-dl binary
@@ -11,13 +14,26 @@ fn main() -> wry::Result<()> {
         "./music-dl.exe",       // Windows exe in same directory
         "../music-dl",          // Parent directory (development)
         "../music-dl.exe",      // Windows exe in parent directory
+        "../../music-dl",       // Grandparent directory
+        "../../music-dl.exe",   // Windows exe in grandparent directory
+        "../../../music-dl",    // Great-grandparent directory
+        "../../../music-dl.exe", // Windows exe in great-grandparent directory
         "music-dl",             // In PATH
     ];
 
     let mut child = None;
     for path in &music_dl_paths {
-        if let Ok(cmd) = Command::new(path).arg("web").spawn() {
-            child = Some(cmd);
+        let mut cmd = Command::new(path);
+        cmd.arg("web");
+
+        // On Windows, hide the console window
+        #[cfg(target_os = "windows")]
+        {
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        if let Ok(process) = cmd.spawn() {
+            child = Some(process);
             break;
         }
     }
