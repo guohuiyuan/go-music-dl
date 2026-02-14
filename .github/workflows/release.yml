@@ -21,7 +21,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             arch_name: amd64
           - target: i686-pc-windows-msvc
-            arch_name: x86
+            arch_name: 386   # [修复] Go 中 32位叫 386，不是 x86
           - target: aarch64-pc-windows-msvc
             arch_name: arm64
     steps:
@@ -37,7 +37,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # [修复] 路径改为 ./cmd/music-dl，不要加项目名前缀
       - name: Build Go Backend
         run: |
           go build -ldflags "-s -w" -o music-dl.exe ./cmd/music-dl
@@ -90,9 +89,9 @@ jobs:
 
       - name: Install Packaging Tools
         run: |
-          npm install -g create-dmg
+          # [修复] 使用 brew 安装支持 cli 参数的 create-dmg，而不是 npm 版
+          brew install create-dmg
 
-      # [注意] macOS 这里也确保路径正确
       - name: Build Go Backend
         run: |
           go build -ldflags "-s -w" -o music-dl ./cmd/music-dl
@@ -151,10 +150,10 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # [修复] 这里的 libwebkit2gtk-4.0-dev 改为 libwebkit2gtk-4.1-dev
       - name: Install Dependencies
         run: |
           sudo apt-get update
+          # 注意：Ubuntu 24.04 (Noble) 需要 webkit2gtk-4.1
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
           cargo install cargo-deb
           cargo install cargo-generate-rpm
@@ -196,7 +195,6 @@ jobs:
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
 
-          # [确保] icon.png 路径正确
           ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage --icon-file desktop/icon.png --desktop-file AppDir/usr/share/applications/music-dl.desktop
 
           mv MusicDL*.AppImage go-music-dl-linux-amd64.AppImage
