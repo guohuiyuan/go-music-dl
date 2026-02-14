@@ -57,7 +57,13 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # 编译 Go 后端 (供 Rust 嵌入使用，不单独上传)
+      # [新增] Rust 编译缓存 (加速后续构建)
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      # 编译 Go 后端
       - name: Build Go Backend
         run: |
           go build -ldflags "-s -w" -o music-dl.exe ./cmd/music-dl
@@ -105,10 +111,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      # [新增] Rust 编译缓存
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
       - name: Install Packaging Tools
         run: brew install create-dmg
 
-      # 编译 Go 后端 (供 Rust 嵌入使用，不单独上传)
+      # 编译 Go 后端
       - name: Build Go Backend
         run: |
           go build -ldflags "-s -w" -o music-dl ./cmd/music-dl
@@ -141,7 +154,6 @@ jobs:
           files: |
             go-music-dl-desktop-macos-*.dmg
             go-music-dl-desktop-macos-*.pkg
-            # [已删除] music-dl-macos-*.tar.gz
 
   # ===================================================
   # 4. Linux 桌面端构建
@@ -154,9 +166,17 @@ jobs:
         with:
           go-version: '1.25'
       - uses: dtolnay/rust-toolchain@stable
+
+      # [新增] Rust 编译缓存
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
+          # 包含 libfuse2 (AppImage) 和 imagemagick (图标)
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev imagemagick libfuse2
           cargo install cargo-deb
           cargo install cargo-generate-rpm
