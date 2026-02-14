@@ -1,31 +1,223 @@
-name: 发行版
+name: Desktop Release
+
 on:
   push:
     tags:
       - 'v*'
 
-# [关键修改] 添加写权限，允许 Actions 创建 Release
 permissions:
   contents: write
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
+  # ===================================================
+  # 1. Windows 构建 (x64, x86, arm64)
+  # ===================================================
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            arch_name: amd64
+          - target: i686-pc-windows-msvc
+            arch_name: x86
+          - target: aarch64-pc-windows-msvc
+            arch_name: arm64
     steps:
-      - name: Checkout
-        uses: actions/checkout@master
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@master
+      - name: Install Go
+        uses: actions/setup-go@v5
         with:
           go-version: '1.25'
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@master
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          version: "~> v2"
-          args: release --clean
+          targets: ${{ matrix.target }}
+
+      # 1. 编译 Go 后端 (生成 music-dl.exe 到项目根目录)
+      - name: Build Go Backend
+        run: |
+          go build -ldflags "-s -w" -o music-dl.exe ./go-music-dl/cmd/music-dl
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: ${{ matrix.arch_name }}
+
+      # 2. 编译 Rust 前端 (会自动包含上面的 music-dl.exe)
+      - name: Build Rust Desktop
+        run: |
+          cd desktop
+          cargo build --release --target ${{ matrix.target }}
+
+      # 3. 打包为 Zip
+      - name: Package Windows
+        shell: powershell
+        run: |
+          mkdir dist
+          copy desktop/target/${{ matrix.target }}/release/go-music-dl-desktop.exe dist/music-dl-desktop.exe
+          Compress-Archive -Path dist/* -DestinationPath go-music-dl-windows-${{ matrix.arch_name }}.zip
+
+      - name: Upload Artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: go-music-dl-windows-${{ matrix.arch_name }}.zip
+
+  # ===================================================
+  # 2. macOS 构建 (x64, arm64/M1) - 生成 DMG/PKG/APP
+  # ===================================================
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            arch_name: amd64
+          - target: aarch64-apple-darwin
+            arch_name: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Packaging Tools
+        run: |
+          npm install -g create-dmg
+
+      # 1. 编译 Go 后端 (生成 music-dl 到项目根目录)
+      - name: Build Go Backend
+        run: |
+          go build -ldflags "-s -w" -o music-dl ./cmd/music-dl
+        env:
+          CGO_ENABLED: 0
+          GOOS: darwin
+          GOARCH: ${{ matrix.arch_name }}
+
+      # 2. 编译 Rust Desktop
+      - name: Build Rust Desktop
+        run: |
+          cd desktop
+          cargo build --release --target ${{ matrix.target }}
+
+      # 3. 打包 (.app -> .dmg)
+      - name: Create DMG
+        run: |
+          mkdir -p bundle/MusicDL.app/Contents/MacOS
+          mkdir -p bundle/MusicDL.app/Contents/Resources
+
+          # 复制二进制
+          cp desktop/target/${{ matrix.target }}/release/go-music-dl-desktop bundle/MusicDL.app/Contents/MacOS/MusicDL
+          chmod +x bundle/MusicDL.app/Contents/MacOS/MusicDL
+
+          # 创建 Info.plist
+          echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>MusicDL</string><key>CFBundleIdentifier</key><string>com.guohuiyuan.musicdl</string><key>CFBundleName</key><string>MusicDL</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string><key>LSUIElement</key><true/></dict></plist>' > bundle/MusicDL.app/Contents/Info.plist
+
+          # 创建 DMG
+          create-dmg \
+            --volname "MusicDL Installer" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --app-drop-link 600 185 \
+            "go-music-dl-macos-${{ matrix.arch_name }}.dmg" \
+            "bundle/MusicDL.app"
+
+      # 4. 创建 PKG
+      - name: Create PKG
+        run: |
+          productbuild --component bundle/MusicDL.app /Applications "go-music-dl-macos-${{ matrix.arch_name }}.pkg"
+
+      - name: Upload Artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            *.dmg
+            *.pkg
+
+  # ===================================================
+  # 3. Linux 构建 (生成 Deb, RPM, AppImage)
+  # ===================================================
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # 安装 Linux GUI 依赖和打包工具
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev
+          cargo install cargo-deb
+          cargo install cargo-generate-rpm
+
+      # 1. 编译 Go 后端 (生成 music-dl 到项目根目录)
+      - name: Build Go Backend
+        run: |
+          go build -ldflags "-s -w" -o music-dl ./go-music-dl/cmd/music-dl
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: amd64
+
+      # 2. 编译 Rust Desktop
+      - name: Build Rust Desktop
+        run: |
+          cd desktop
+          cargo build --release
+
+      # 3. 打包 Deb
+      - name: Package Deb
+        run: |
+          cd desktop
+          cargo deb --no-build --output ../go-music-dl-linux-amd64.deb
+
+      # 4. 打包 RPM
+      - name: Package RPM
+        run: |
+          cd desktop
+          cargo generate-rpm --no-build --output ../go-music-dl-linux-amd64.rpm
+
+      # 5. 打包 AppImage (使用 linuxdeploy)
+      - name: Package AppImage
+        run: |
+          # 准备 AppDir 结构
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/
+          mkdir -p AppDir/usr/share/applications/
+
+          cp desktop/target/release/go-music-dl-desktop AppDir/usr/bin/music-dl-desktop
+          cp desktop/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/music-dl.png
+
+          # 创建 .desktop 文件
+          echo -e "[Desktop Entry]\nType=Application\nName=MusicDL\nExec=music-dl-desktop\nIcon=music-dl\nCategories=AudioVideo;" > AppDir/usr/share/applications/music-dl.desktop
+
+          # 下载 linuxdeploy 并打包
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage --icon-file desktop/icon.png --desktop-file AppDir/usr/share/applications/music-dl.desktop
+
+          mv MusicDL*.AppImage go-music-dl-linux-amd64.AppImage
+
+      - name: Upload Artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            *.deb
+            *.rpm
+            *.AppImage

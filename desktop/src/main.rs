@@ -43,11 +43,11 @@ mod system_config {
 // ==========================================
 
 /// 嵌入的Go后端二进制文件
-/// 路径解析：desktop/src/main.rs -> ../../ -> go-music-dl/music-dl.exe
+/// 路径解析：go-music-dl/desktop/src/main.rs -> ../../../ -> music-dl.exe
 #[cfg(target_os = "windows")]
-static MUSIC_DL_BINARY: &[u8] = include_bytes!("../../music-dl.exe");
+static MUSIC_DL_BINARY: &[u8] = include_bytes!("../../../music-dl.exe");
 #[cfg(not(target_os = "windows"))]
-static MUSIC_DL_BINARY: &[u8] = include_bytes!("../../music-dl");
+static MUSIC_DL_BINARY: &[u8] = include_bytes!("../../../music-dl");
 
 // ==========================================
 //                 主程序逻辑
