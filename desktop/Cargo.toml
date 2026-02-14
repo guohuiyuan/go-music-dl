@@ -2,6 +2,12 @@
 name = "go-music-dl-desktop"
 version = "0.1.0"
 edition = "2024"
+# --- 必须添加以下字段才能打包 Linux ---
+license = "AGPL-3.0"   # 或者 "MIT", "Apache-2.0" 等
+description = "A desktop GUI for music-dl"
+authors = ["guohuiyuan"]
+repository = "https://github.com/guohuiyuan/go-music-dl"
+# --------------------------------------
 
 [dependencies]
 tao = "0.30"
