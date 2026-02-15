@@ -24,11 +24,28 @@ depends = "$auto"
 section = "utility"
 priority = "optional"
 assets = [
+    # 二进制文件
     ["target/release/go-music-dl-desktop", "usr/bin/music-dl-desktop", "755"],
-    # 注意：这里不需要单独复制 Go binary，因为 rust 已经把它 embed 进去了
+    # 图标文件 -> 安装到系统图标库
+    ["icon.png", "usr/share/icons/hicolor/256x256/apps/music-dl.png", "644"],
 ]
+# 自动生成 .desktop 快捷方式文件
+[package.metadata.deb.desktop]
+Name = "MusicDL"
+Comment = "A desktop GUI for music-dl"
+Exec = "music-dl-desktop"
+Icon = "music-dl"
+Terminal = "false"
+Type = "Application"
+Categories = "AudioVideo;"
 
+
+# RPM 打包配置 (Fedora/CentOS)
 [package.metadata.generate-rpm]
 assets = [
-    { source = "target/release/go-music-dl-desktop", dest = "/usr/bin/music-dl-desktop", mode = "755" }
+    { source = "target/release/go-music-dl-desktop", dest = "/usr/bin/music-dl-desktop", mode = "755" },
+    # 图标文件
+    { source = "icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/music-dl.png", mode = "644" },
+    # .desktop 文件
+    { source = "music-dl.desktop", dest = "/usr/share/applications/music-dl.desktop", mode = "644" }
 ]

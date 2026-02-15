@@ -139,12 +139,34 @@ jobs:
       # 打包桌面端 DMG & PKG
       - name: Create DMG & PKG
         run: |
+          # 1. 创建 .app 目录结构
           mkdir -p bundle/MusicDL.app/Contents/MacOS
           mkdir -p bundle/MusicDL.app/Contents/Resources
+          
+          # 2. 复制二进制文件
           cp desktop/target/${{ matrix.target }}/release/go-music-dl-desktop bundle/MusicDL.app/Contents/MacOS/MusicDL
           chmod +x bundle/MusicDL.app/Contents/MacOS/MusicDL
-          echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>MusicDL</string><key>CFBundleIdentifier</key><string>com.guohuiyuan.musicdl</string><key>CFBundleName</key><string>MusicDL</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string><key>LSUIElement</key><true/></dict></plist>' > bundle/MusicDL.app/Contents/Info.plist
+          
+          # 3. 自动生成 macOS 所需的 .icns 图标
+          mkdir MusicDL.iconset
+          sips -z 16 16     desktop/icon.png --out MusicDL.iconset/icon_16x16.png
+          sips -z 32 32     desktop/icon.png --out MusicDL.iconset/icon_16x16@2x.png
+          sips -z 32 32     desktop/icon.png --out MusicDL.iconset/icon_32x32.png
+          sips -z 64 64     desktop/icon.png --out MusicDL.iconset/icon_32x32@2x.png
+          sips -z 128 128   desktop/icon.png --out MusicDL.iconset/icon_128x128.png
+          sips -z 256 256   desktop/icon.png --out MusicDL.iconset/icon_128x128@2x.png
+          sips -z 256 256   desktop/icon.png --out MusicDL.iconset/icon_256x256.png
+          sips -z 512 512   desktop/icon.png --out MusicDL.iconset/icon_256x256@2x.png
+          sips -z 512 512   desktop/icon.png --out MusicDL.iconset/icon_512x512.png
+          iconutil -c icns MusicDL.iconset
+          
+          # 4. 将生成的 .icns 放入 Resources 目录
+          cp MusicDL.icns bundle/MusicDL.app/Contents/Resources/
+          
+          # 5. 生成 Info.plist (增加 CFBundleIconFile 字段)
+          echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>MusicDL</string><key>CFBundleIdentifier</key><string>com.guohuiyuan.musicdl</string><key>CFBundleName</key><string>MusicDL</string><key>CFBundleIconFile</key><string>MusicDL</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string><key>LSUIElement</key><true/></dict></plist>' > bundle/MusicDL.app/Contents/Info.plist
 
+          # 6. 生成安装包
           create-dmg --volname "MusicDL Installer" --window-pos 200 120 --window-size 800 400 --app-drop-link 600 185 "go-music-dl-desktop-macos-${{ matrix.arch_name }}.dmg" "bundle/MusicDL.app"
           productbuild --component bundle/MusicDL.app /Applications "go-music-dl-desktop-macos-${{ matrix.arch_name }}.pkg"
 

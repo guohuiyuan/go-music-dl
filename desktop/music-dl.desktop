@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=MusicDL
+Exec=music-dl-desktop
+Icon=music-dl
+Categories=AudioVideo;
