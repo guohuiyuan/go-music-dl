@@ -12,6 +12,7 @@ music-dl.exe
 
 # Downloads
 downloads/
+desktop/
 
 # Sensitive files
 cookies.json
