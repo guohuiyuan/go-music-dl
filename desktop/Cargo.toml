@@ -1,9 +1,9 @@
 [package]
 name = "go-music-dl-desktop"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 # --- 必须添加以下字段才能打包 Linux ---
-license = "AGPL-3.0"   # 或者 "MIT", "Apache-2.0" 等
+license = "AGPL-3.0"
 description = "A desktop GUI for music-dl"
 authors = ["guohuiyuan"]
 repository = "https://github.com/guohuiyuan/go-music-dl"
@@ -17,6 +17,9 @@ image = "0.25"
 [build-dependencies]
 winres = "0.1"
 
+# =========================================================
+# 1. DEB 打包配置 (Ubuntu/Debian)
+# =========================================================
 [package.metadata.deb]
 maintainer = "guohuiyuan"
 copyright = "2026, guohuiyuan"
@@ -24,28 +27,20 @@ depends = "$auto"
 section = "utility"
 priority = "optional"
 assets = [
-    # 二进制文件
+    # 1. 二进制文件
     ["target/release/go-music-dl-desktop", "usr/bin/music-dl-desktop", "755"],
-    # 图标文件 -> 安装到系统图标库
+    # 2. 图标文件
     ["icon.png", "usr/share/icons/hicolor/256x256/apps/music-dl.png", "644"],
+    # 3. 桌面快捷方式 (引用刚才创建的文件)
+    ["music-dl.desktop", "usr/share/applications/music-dl.desktop", "644"],
 ]
-# 自动生成 .desktop 快捷方式文件
-[package.metadata.deb.desktop]
-Name = "MusicDL"
-Comment = "A desktop GUI for music-dl"
-Exec = "music-dl-desktop"
-Icon = "music-dl"
-Terminal = "false"
-Type = "Application"
-Categories = "AudioVideo;"
 
-
-# RPM 打包配置 (Fedora/CentOS)
+# =========================================================
+# 2. RPM 打包配置 (Fedora/CentOS)
+# =========================================================
 [package.metadata.generate-rpm]
 assets = [
     { source = "target/release/go-music-dl-desktop", dest = "/usr/bin/music-dl-desktop", mode = "755" },
-    # 图标文件
     { source = "icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/music-dl.png", mode = "644" },
-    # .desktop 文件
     { source = "music-dl.desktop", dest = "/usr/share/applications/music-dl.desktop", mode = "644" }
 ]

@@ -1,6 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=MusicDL
+Comment=A desktop GUI for music-dl
 Exec=music-dl-desktop
 Icon=music-dl
+Terminal=false
 Categories=AudioVideo;
