@@ -194,7 +194,7 @@ func getPlaylistDetailFunc(source string) func(string) ([]model.Song, error) {
 	}
 }
 
-// [修改] 推荐歌单工厂 (仅支持 qq, netease, kuwo, kugou)
+// 推荐歌单工厂 (仅支持 qq, netease, kuwo, kugou)
 func getRecommendFunc(source string) func() ([]model.Playlist, error) {
 	c := cm.Get(source)
 	switch source {
@@ -206,7 +206,6 @@ func getRecommendFunc(source string) func() ([]model.Playlist, error) {
 		return kugou.New(c).GetRecommendedPlaylists
 	case "kuwo":
 		return kuwo.New(c).GetRecommendedPlaylists
-	// 其他源暂不开启每日推荐
 	default:
 		return nil
 	}
@@ -352,6 +351,46 @@ func detectSource(link string) string {
 	return ""
 }
 
+// 辅助函数：生成原始链接
+// 注意：虽然 music-lib 已经处理了 Link，但在 `/playlist` 详情接口中，
+// 我们只获得了 []Song，没有 Playlist 结构体，因此需要此函数来生成“回到歌单”的链接。
+func getOriginalLink(source, id, typeStr string) string {
+	switch source {
+	case "netease":
+		if typeStr == "playlist" {
+			return "https://music.163.com/#/playlist?id=" + id
+		}
+		return "https://music.163.com/#/song?id=" + id
+	case "qq":
+		if typeStr == "playlist" {
+			return "https://y.qq.com/n/ryqq/playlist/" + id
+		}
+		return "https://y.qq.com/n/ryqq/songDetail/" + id
+	case "kugou":
+		if typeStr == "playlist" {
+			return "https://www.kugou.com/yy/special/single/" + id + ".html"
+		}
+		// 酷狗单曲ID通常是Hash
+		return "https://www.kugou.com/song/#hash=" + id
+	case "kuwo":
+		if typeStr == "playlist" {
+			return "http://www.kuwo.cn/playlist_detail/" + id
+		}
+		return "http://www.kuwo.cn/play_detail/" + id
+	case "migu":
+		if typeStr == "song" {
+			return "https://music.migu.cn/v3/music/song/" + id
+		}
+	case "bilibili":
+		return "https://www.bilibili.com/video/" + id
+	case "fivesing":
+		if strings.Contains(id, "/") {
+			return "http://5sing.kugou.com/" + id + ".html"
+		}
+	}
+	return ""
+}
+
 // --- Main ---
 
 func Start(port string, shouldOpenBrowser bool) {
@@ -359,6 +398,8 @@ func Start(port string, shouldOpenBrowser bool) {
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+
+	// 注册模板
 	tmpl := template.Must(template.New("").ParseFS(templateFS, "templates/*.html"))
 	r.SetHTMLTemplate(tmpl)
 
@@ -379,13 +420,12 @@ func Start(port string, shouldOpenBrowser bool) {
 	})
 
 	api.GET("/", func(c *gin.Context) {
-		renderIndex(c, nil, nil, "", nil, "", "song")
+		renderIndex(c, nil, nil, "", nil, "", "song", "")
 	})
 
 	// Daily recommendations
 	api.GET("/recommend", func(c *gin.Context) {
 		sources := c.QueryArray("sources")
-		// If no sources specified, use default supported sources
 		if len(sources) == 0 {
 			sources = []string{"netease", "qq", "kugou", "kuwo"}
 		}
@@ -396,7 +436,6 @@ func Start(port string, shouldOpenBrowser bool) {
 
 		for _, src := range sources {
 			fn := getRecommendFunc(src)
-			// Skip if source doesn't support recommendations
 			if fn == nil {
 				continue
 			}
@@ -413,20 +452,18 @@ func Start(port string, shouldOpenBrowser bool) {
 		}
 		wg.Wait()
 
-		// Render results in playlist mode
-		renderIndex(c, nil, allPlaylists, "🔥 每日推荐", sources, "", "playlist")
+		renderIndex(c, nil, allPlaylists, "🔥 每日推荐", sources, "", "playlist", "")
 	})
 
 	// Search (Song & Playlist)
 	api.GET("/search", func(c *gin.Context) {
 		keyword := strings.TrimSpace(c.Query("q"))
-		searchType := c.DefaultQuery("type", "song") // song or playlist
+		searchType := c.DefaultQuery("type", "song")
 		sources := c.QueryArray("sources")
 
-		// Default sources logic
 		if len(sources) == 0 {
 			if searchType == "playlist" {
-				sources = core.GetPlaylistSourceNames() // Only sources that support playlists
+				sources = core.GetPlaylistSourceNames()
 			} else {
 				sources = core.GetDefaultSourceNames()
 			}
@@ -436,7 +473,7 @@ func Start(port string, shouldOpenBrowser bool) {
 		var allPlaylists []model.Playlist
 		var errorMsg string
 
-		// 1. Link parsing mode (supports single songs and playlists)
+		// 1. Link parsing mode
 		if strings.HasPrefix(keyword, "http") {
 			src := detectSource(keyword)
 			if src == "" {
@@ -444,26 +481,27 @@ func Start(port string, shouldOpenBrowser bool) {
 			} else {
 				parsed := false
 
-				// Try single song parsing first
+				// Try single song
 				parseFn := getParseFunc(src)
 				if parseFn != nil {
 					if song, err := parseFn(keyword); err == nil {
+						// 已由 music-lib 填充 Link
 						allSongs = append(allSongs, *song)
-						searchType = "song" // Must switch to song mode to display
+						searchType = "song"
 						parsed = true
 					}
 				}
 
-				// If single song fails, try playlist parsing
+				// Try playlist
 				if !parsed {
 					parsePlaylistFn := getParsePlaylistFunc(src)
 					if parsePlaylistFn != nil {
 						if playlist, songs, err := parsePlaylistFn(keyword); err == nil {
 							if searchType == "playlist" {
-								// If user is searching playlists, show playlist card
+								// 已由 music-lib 填充 Link
 								allPlaylists = append(allPlaylists, *playlist)
 							} else {
-								// Otherwise directly show playlist songs
+								// 已由 music-lib 填充 Link
 								allSongs = append(allSongs, songs...)
 								searchType = "song"
 							}
@@ -476,9 +514,8 @@ func Start(port string, shouldOpenBrowser bool) {
 					errorMsg = fmt.Sprintf("解析失败: 暂不支持 %s 平台的此链接类型或解析出错", src)
 				}
 			}
-			// Skip keyword search below
 		} else {
-			// 2. Keyword search mode
+			// 2. Keyword search
 			var wg sync.WaitGroup
 			var mu sync.Mutex
 
@@ -488,7 +525,6 @@ func Start(port string, shouldOpenBrowser bool) {
 					defer wg.Done()
 
 					if searchType == "playlist" {
-						// Playlist search
 						fn := getPlaylistSearchFunc(s)
 						if fn != nil {
 							res, err := fn(keyword)
@@ -499,7 +535,6 @@ func Start(port string, shouldOpenBrowser bool) {
 							}
 						}
 					} else {
-						// Single song search
 						fn := getSearchFunc(s)
 						if fn != nil {
 							res, err := fn(keyword)
@@ -518,7 +553,7 @@ func Start(port string, shouldOpenBrowser bool) {
 			wg.Wait()
 		}
 
-		renderIndex(c, allSongs, allPlaylists, keyword, sources, errorMsg, searchType)
+		renderIndex(c, allSongs, allPlaylists, keyword, sources, errorMsg, searchType, "")
 	})
 
 	// Get playlist details and render
@@ -526,27 +561,31 @@ func Start(port string, shouldOpenBrowser bool) {
 		id := c.Query("id")
 		src := c.Query("source")
 		if id == "" || src == "" {
-			renderIndex(c, nil, nil, "", nil, "缺少参数", "song")
+			renderIndex(c, nil, nil, "", nil, "缺少参数", "song", "")
 			return
 		}
 
 		fn := getPlaylistDetailFunc(src)
 		if fn == nil {
-			renderIndex(c, nil, nil, "", nil, "该源不支持查看歌单详情", "song")
+			renderIndex(c, nil, nil, "", nil, "该源不支持查看歌单详情", "song", "")
 			return
 		}
 
+		// music-lib 的 songs 已经包含 Link
 		songs, err := fn(id)
 		errMsg := ""
 		if err != nil {
 			errMsg = fmt.Sprintf("获取歌单失败: %v", err)
 		}
 
-		// Render as song list mode, but retain context
-		renderIndex(c, songs, nil, "", []string{src}, errMsg, "song")
+		// [关键] music-lib 的 GetPlaylistSongs 只返回歌曲列表，不返回歌单元数据
+		// 所以我们需要手动构建歌单的原始链接，用于前端的“打开原始歌单”按钮
+		playlistLink := getOriginalLink(src, id, "playlist")
+
+		renderIndex(c, songs, nil, "", []string{src}, errMsg, "song", playlistLink)
 	})
 
-	// Inspect
+	// Inspect (保持不变)
 	api.GET("/inspect", func(c *gin.Context) {
 		id := c.Query("id")
 		src := c.Query("source")
@@ -619,7 +658,7 @@ func Start(port string, shouldOpenBrowser bool) {
 		})
 	})
 
-	// Switch Source (find best match across sources)
+	// Switch Source
 	api.GET("/switch_source", func(c *gin.Context) {
 		name := strings.TrimSpace(c.Query("name"))
 		artist := strings.TrimSpace(c.Query("artist"))
@@ -736,6 +775,7 @@ func Start(port string, shouldOpenBrowser bool) {
 			return
 		}
 
+		// 直接使用库中返回的 Link
 		c.JSON(200, gin.H{
 			"id":       selected.ID,
 			"name":     selected.Name,
@@ -745,10 +785,11 @@ func Start(port string, shouldOpenBrowser bool) {
 			"source":   selected.Source,
 			"cover":    selected.Cover,
 			"score":    selectedScore,
+			"link":     selected.Link,
 		})
 	})
 
-	// Download Logic
+	// Download Logic (保持不变)
 	api.GET("/download", func(c *gin.Context) {
 		id := c.Query("id")
 		source := c.Query("source")
@@ -894,14 +935,14 @@ func Start(port string, shouldOpenBrowser bool) {
 	r.Run(":" + port)
 }
 
-func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist, q string, selected []string, errMsg string, searchType string) {
+// [修改] 增加 playlistLink 参数，传递给模板
+func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist, q string, selected []string, errMsg string, searchType string, playlistLink string) {
 	allSrc := core.GetAllSourceNames()
 	desc := make(map[string]string)
 	for _, s := range allSrc {
 		desc[s] = core.GetSourceDescription(s)
 	}
 
-	// 标记哪些源支持歌单
 	playlistSupported := make(map[string]bool)
 	for _, s := range core.GetPlaylistSourceNames() {
 		playlistSupported[s] = true
@@ -919,8 +960,14 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 		"SearchType":         searchType,
 		"PlaylistSupported":  playlistSupported,
 		"Root":               RoutePrefix,
+		"PlaylistLink":       playlistLink, // 传递当前歌单的原始链接
 	})
 }
+
+// (其余辅助函数 formatSize, setDownloadHeader, validatePlayable, isDurationClose, intAbs, calcSongSimilarity... 保持不变)
+// ------------------------------------------
+// 为了保证完整性，以下是其余辅助代码
+// ------------------------------------------
 
 func formatSize(s int64) string {
 	if s <= 0 {

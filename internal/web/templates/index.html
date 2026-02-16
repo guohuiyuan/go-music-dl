@@ -176,12 +176,27 @@
             background: rgba(255, 255, 255, 0.85);
             border: 1px solid #edf2f7; border-radius: 12px;
             box-shadow: var(--shadow);
+            flex-wrap: wrap; /* 允许小屏换行 */
         }
         .list-header .result-count {
             color: var(--text-main); font-size: 14px; font-weight: 700;
             display: flex; align-items: center; gap: 8px;
         }
         .list-header .result-count .count { color: var(--primary-color); }
+        
+        /* [新增] 原始歌单链接样式 */
+        .playlist-source-link {
+            font-size: 14px;
+            color: var(--primary-color);
+            text-decoration: none;
+            margin-left: 15px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        .playlist-source-link:hover { text-decoration: underline; opacity: 0.8; }
         
         /* 批量操作样式 */
         .checkbox-wrapper {
@@ -257,6 +272,21 @@
         .cover-wrapper img { width: 100%; height: 100%; object-fit: cover; }
         .song-info { flex: 1; min-width: 0; margin-right: 10px; }
         .song-info h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* [新增] 原始链接样式 */
+        .song-title-link {
+            color: inherit; text-decoration: none; border-bottom: 1px dashed transparent;
+            transition: all 0.2s;
+        }
+        .song-title-link:hover {
+            color: var(--primary-color); border-bottom-color: var(--primary-color);
+        }
+        .external-link-icon {
+            display: inline-block; margin-left: 5px; color: #a0aec0;
+            transition: color 0.2s; text-decoration: none;
+        }
+        .external-link-icon:hover { color: var(--primary-color); }
+
         .artist-line { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; }
         .tags { display: flex; gap: 6px; }
         .tag { font-size: 10px; padding: 3px 8px; border-radius: 6px; background: #edf2f7; color: #718096; font-weight: 600; }
@@ -550,22 +580,38 @@
     {{ if .Playlists }}
         <div class="playlist-grid-container">
             {{ range .Playlists }}
-            <a href="{{$.Root}}/playlist?id={{.ID}}&source={{.Source}}" class="playlist-card">
+            <div class="playlist-card" onclick="location.href='{{$.Root}}/playlist?id={{.ID}}&source={{.Source}}'">
                 <div class="playlist-cover">
                     <img src="{{ .Cover }}" loading="lazy" onerror="this.src='https://via.placeholder.com/150?text=Playlist'">
                     <span class="tag tag-src" style="position:absolute; top:5px; right:5px; margin:0;">{{ .Source }}</span>
                 </div>
                 <div class="playlist-meta">
-                    <div class="playlist-title">{{ .Name }}</div>
+                    <div class="playlist-title">
+                        {{ .Name }}
+                        {{ if .Link }}
+                        <a href="{{ .Link }}" target="_blank" class="external-link-icon" title="去原网页" onclick="event.stopPropagation()">
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 12px;"></i>
+                        </a>
+                        {{ end }}
+                    </div>
                     <div class="playlist-author"><i class="fa-regular fa-user"></i> {{ .Creator }}</div>
                     <div class="playlist-count">共 {{ .TrackCount }} 首</div>
                 </div>
-            </a>
+            </div>
             {{ end }}
         </div>
     {{ else if .Result }}
         <div class="list-header">
-            <span class="result-count"><i class="fa-solid fa-music"></i> 找到 <span class="count">{{ len .Result }}</span> 首歌曲</span>
+            <div>
+                <span class="result-count"><i class="fa-solid fa-music"></i> 找到 <span class="count">{{ len .Result }}</span> 首歌曲</span>
+                
+                {{ if .PlaylistLink }}
+                    <a href="{{ .PlaylistLink }}" target="_blank" class="playlist-source-link">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> 打开原始歌单
+                    </a>
+                {{ end }}
+            </div>
+
             <button type="button" class="ctrl-btn primary" id="btn-batch-toggle" onclick="toggleBatchMode()">
                 <i class="fa-solid fa-list-check"></i> 批量操作
             </button>
@@ -614,7 +660,13 @@
                     {{ end }}
                 </div>
                 <div class="song-info">
-                    <h3>{{ .Name }}</h3>
+                    <h3>
+                        {{ if .Link }}
+                            <a href="{{ .Link }}" target="_blank" class="song-title-link" title="打开原始链接">{{ .Name }}</a>
+                        {{ else }}
+                            {{ .Name }}
+                        {{ end }}
+                    </h3>
                     <div class="artist-line">
                         <i class="fa-regular fa-user" style="font-size:11px;"></i> {{ .Artist }}
                         {{ if .Album }} &nbsp;•&nbsp; {{ .Album }}{{ end }}
@@ -927,7 +979,14 @@
         card.dataset.cover = song.cover || '';
 
         const titleEl = card.querySelector('.song-info h3');
-        if (titleEl) titleEl.textContent = song.name || '';
+        if (titleEl) {
+            // [修改] 如果后端传回了 link 字段，则构建链接，否则直接显示文本
+            if (song.link) {
+                titleEl.innerHTML = `<a href="${song.link}" target="_blank" class="song-title-link" title="打开原始链接">${song.name || ''}</a>`;
+            } else {
+                titleEl.textContent = song.name || '';
+            }
+        }
 
         const artistLine = card.querySelector('.artist-line');
         if (artistLine) {
