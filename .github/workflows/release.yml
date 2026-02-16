@@ -166,6 +166,10 @@ jobs:
           # 5. 生成 Info.plist (增加 CFBundleIconFile 字段)
           echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>MusicDL</string><key>CFBundleIdentifier</key><string>com.guohuiyuan.musicdl</string><key>CFBundleName</key><string>MusicDL</string><key>CFBundleIconFile</key><string>MusicDL</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string><key>LSUIElement</key><true/></dict></plist>' > bundle/MusicDL.app/Contents/Info.plist
 
+          # 5.1 对 .app 进行 Ad-hoc 签名，避免 Gatekeeper 在 Apple Silicon 上报“已损坏”错误
+          # 使用 Ad-hoc 签名（占位符证书 '-'），足以让二进制可执行并通过基本检查
+          codesign --force --deep --sign - bundle/MusicDL.app || true
+
           # 6. 生成安装包
           create-dmg --volname "MusicDL Installer" --window-pos 200 120 --window-size 800 400 --app-drop-link 600 185 "go-music-dl-desktop-macos-${{ matrix.arch_name }}.dmg" "bundle/MusicDL.app"
           productbuild --component bundle/MusicDL.app /Applications "go-music-dl-desktop-macos-${{ matrix.arch_name }}.pkg"
