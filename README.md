@@ -146,7 +146,7 @@ docker run -d --name music-dl \
   -e TZ=Asia/Shanghai \
   --user 1000:1000 \
   --restart unless-stopped \
-  go-music-dl
+  guohuiyuan/go-music-dl
 ```
 
 浏览器会自动打开 `http://localhost:8080`。
