@@ -132,6 +132,12 @@ location /music/ {
 # 构建镜像
 docker build -t go-music-dl .
 
+# 标记镜像
+docker tag go-music-dl:latest guohuiyuan/go-music-dl:latest
+
+# 推送镜像
+docker push guohuiyuan/go-music-dl:latest
+
 # 运行 Web 模式
 docker run -d --name music-dl \
   -p 8080:8080 \
