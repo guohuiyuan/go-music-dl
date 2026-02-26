@@ -239,14 +239,40 @@ body.batch-mode .song-card { padding-left: 10px; }
 .back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
 .back-to-top:hover { background: #10b981; color: white; transform: translateY(-5px); }
 
-/* 🌟 Sakana 蒜苗看板娘位置控制 - 置于右侧且避开悬浮播放器与置顶按钮 */
-#sakana-widget {
+/* 🌟 Sakana 蒜苗看板娘容器控制 - 置于右侧 */
+.sakana-container {
     position: fixed;
-    bottom: 150px; 
+    bottom: 150px; /* 在返回顶部按钮上方，完美避开播放器和按钮 */
     right: 10px;   
     z-index: 998;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     transform-origin: right bottom;
     transform: scale(0.85); /* 稍微缩小一点，更精致 */
+}
+/* 新增的换肤按钮样式 */
+.sakana-btn {
+    margin-top: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #10b981;
+    color: #10b981;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sakana-btn:hover {
+    background: #10b981;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
 }
 
 .aplayer.aplayer-fixed { z-index: 10000 !important; }
@@ -263,11 +289,6 @@ body.batch-mode .song-card { padding-left: 10px; }
     color: #10b981 !important; /* 强力翠绿主色 */
     font-weight: 800 !important;
 }
-
-/* 🌟 恢复详情页 (视频生成器) 内歌词的原始透明白色高亮效果 */
-.vg-line { color: rgba(255, 255, 255, 0.4) !important; }
-.vg-line:hover { color: rgba(255, 255, 255, 0.8) !important; }
-.vg-line.active { color: #ffffff !important; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
 
 @media (max-width: 768px) {
     body { padding: 0 0 240px 0; background-size: 100% 400px; }
@@ -305,27 +326,31 @@ body.batch-mode .song-card { padding-left: 10px; }
     .settings-float { top: 15px; right: 15px; width: 36px; height: 36px; }
     .modal { width: 92%; max-height: 85vh; padding: 20px; }
     
-    /* 🌟 手机端防误触：让播放器悬浮，避开底部手势区 */
+    /* 🌟 手机端防误触：大幅度上移，形成悬浮胶囊，避开底部手势区 */
     .aplayer.aplayer-fixed { 
-        bottom: calc(20px + env(safe-area-inset-bottom)) !important; 
-        left: 10px !important;
-        max-width: calc(100% - 20px) !important;
-        border-radius: 12px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.15) !important;
+        bottom: calc(70px + env(safe-area-inset-bottom)) !important; 
+        left: 15px !important;
+        right: 15px !important;
+        width: auto !important;
+        max-width: none !important;
+        border-radius: 16px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
     }
     .aplayer.aplayer-fixed .aplayer-body {
-        border-radius: 12px !important;
-        background: #fff;
+        border-radius: 16px !important;
+        background: rgba(255,255,255,0.98) !important;
     }
+    /* 展开播放列表的圆角修复 */
     .aplayer.aplayer-fixed .aplayer-list {
-        border-radius: 12px 12px 0 0 !important;
+        border-radius: 16px 16px 0 0 !important;
+        border: 1px solid #eee; border-bottom: none;
     }
 
-    /* 移动端调整返回顶部按钮位置，避开悬浮的播放器 */
+    /* 移动端调整返回顶部按钮位置，确保它悬停在播放器胶囊上方 */
     .back-to-top {
-        bottom: calc(110px + env(safe-area-inset-bottom)) !important;
+        bottom: calc(160px + env(safe-area-inset-bottom)) !important;
     }
 
     /* 手机端为防止组件遮挡 UI，强制隐藏看板娘 */
-    #sakana-widget { display: none !important; }
+    .sakana-container { display: none !important; }
 }

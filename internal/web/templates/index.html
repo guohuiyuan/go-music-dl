@@ -343,24 +343,36 @@
 
 <div id="aplayer"></div>
 
-<div id="sakana-widget"></div>
+<div id="sakana-container" class="sakana-container">
+    <div id="sakana-widget"></div>
+    <button class="sakana-btn" onclick="changeSakanaSkin()"><i class="fa-solid fa-rotate"></i> 换图</button>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
 
 <script>
     window.API_ROOT = "{{.Root}}";
+    window.sakanaInstance = null;
     
     // 初始化 Sakana 插件 (接入随机二次元 API)
     function initSakanaWidget() {
         if (window.innerWidth > 768) {
             // 获取默认角色模板
             const customChar = SakanaWidget.getCharacter('chisato');
-            // 将角色的贴图换成你指定的 API 链接
-            customChar.image = 'https://www.loliapi.com/acg/pe/';
-            // 注册并挂载
+            // 加上时间戳避免浏览器缓存导致图片不更新
+            customChar.image = 'https://www.loliapi.com/acg/pe/?t=' + Date.now();
             SakanaWidget.registerCharacter('my-random-acg', customChar);
-            new SakanaWidget({ character: 'my-random-acg' }).mount('#sakana-widget');
+            window.sakanaInstance = new SakanaWidget({ character: 'my-random-acg' }).mount('#sakana-widget');
         }
+    }
+
+    // 点击按钮，无感切换角色皮肤图片
+    function changeSakanaSkin() {
+        if (!window.sakanaInstance) return;
+        const customChar = SakanaWidget.getCharacter('my-random-acg');
+        customChar.image = 'https://www.loliapi.com/acg/pe/?t=' + Date.now();
+        SakanaWidget.registerCharacter('my-random-acg', customChar);
+        window.sakanaInstance.setCharacter('my-random-acg');
     }
 </script>
 
