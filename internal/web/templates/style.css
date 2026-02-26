@@ -222,39 +222,55 @@ body.batch-mode .song-card { padding-left: 10px; }
 .collection-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 10px; transition: all 0.2s; background: #faf8f8; cursor: pointer;}
 .collection-item:hover { border-color: #10b981; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15); }
 
-.back-to-top { position: fixed; bottom: 120px; right: 20px; width: 45px; height: 45px; background: white; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; color: #10b981; font-size: 20px; }
+/* 返回顶部按钮 */
+.back-to-top { 
+    position: fixed; 
+    bottom: 90px;  /* 避开底部播放器 */
+    right: 20px; 
+    width: 45px; 
+    height: 45px; 
+    background: white; 
+    border-radius: 50%; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+    display: flex; align-items: center; justify-content: center; 
+    cursor: pointer; z-index: 1000; opacity: 0; visibility: hidden; 
+    transition: all 0.3s ease; color: #10b981; font-size: 20px; 
+}
 .back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
 .back-to-top:hover { background: #10b981; color: white; transform: translateY(-5px); }
 
+/* 🌟 Sakana 蒜苗看板娘位置控制 - 置于右侧且避开悬浮播放器与置顶按钮 */
+#sakana-widget {
+    position: fixed;
+    bottom: 150px; 
+    right: 10px;   
+    z-index: 998;
+    transform-origin: right bottom;
+    transform: scale(0.85); /* 稍微缩小一点，更精致 */
+}
+
 .aplayer.aplayer-fixed { z-index: 10000 !important; }
 
-/* 🌟 APlayer 歌词绿色大字号美化 */
+/* 🌟 APlayer 主界面外部歌词：绿色大字号美化 */
 .aplayer .aplayer-lrc p {
-    font-size: 14px !important;
+    font-size: 16px !important;
     color: #a7f3d0 !important; /* 浅绿色过渡 */
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     transition: all 0.3s ease;
 }
 .aplayer .aplayer-lrc p.aplayer-lrc-current {
-    font-size: 18px !important;
+    font-size: 20px !important;
     color: #10b981 !important; /* 强力翠绿主色 */
     font-weight: 800 !important;
 }
 
-/* 🌟 视频生成器的歌词样式同步更新绿色 */
-.vg-line { color: rgba(16, 185, 129, 0.5) !important; }
-.vg-line:hover { color: rgba(16, 185, 129, 0.8) !important; }
-.vg-line.active { color: #10b981 !important; }
-
-#sakana-widget {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    z-index: 999;
-}
+/* 🌟 恢复详情页 (视频生成器) 内歌词的原始透明白色高亮效果 */
+.vg-line { color: rgba(255, 255, 255, 0.4) !important; }
+.vg-line:hover { color: rgba(255, 255, 255, 0.8) !important; }
+.vg-line.active { color: #ffffff !important; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
 
 @media (max-width: 768px) {
-    body { padding: 0 0 200px 0; background-size: 100% 400px; }
+    body { padding: 0 0 240px 0; background-size: 100% 400px; }
     .container { padding: 0; width: 100%; }
     .search-box { padding: 20px 15px; border-radius: 0 0 20px 20px; margin-bottom: 20px; border-left: none; border-right: none; border-top: none; }
     h1 { font-size: 1.8rem; margin-bottom: 20px; }
@@ -289,6 +305,27 @@ body.batch-mode .song-card { padding-left: 10px; }
     .settings-float { top: 15px; right: 15px; width: 36px; height: 36px; }
     .modal { width: 92%; max-height: 85vh; padding: 20px; }
     
-    /* 手机端为防止组件遮挡 UI，将其缩小或隐藏 */
+    /* 🌟 手机端防误触：让播放器悬浮，避开底部手势区 */
+    .aplayer.aplayer-fixed { 
+        bottom: calc(20px + env(safe-area-inset-bottom)) !important; 
+        left: 10px !important;
+        max-width: calc(100% - 20px) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15) !important;
+    }
+    .aplayer.aplayer-fixed .aplayer-body {
+        border-radius: 12px !important;
+        background: #fff;
+    }
+    .aplayer.aplayer-fixed .aplayer-list {
+        border-radius: 12px 12px 0 0 !important;
+    }
+
+    /* 移动端调整返回顶部按钮位置，避开悬浮的播放器 */
+    .back-to-top {
+        bottom: calc(110px + env(safe-area-inset-bottom)) !important;
+    }
+
+    /* 手机端为防止组件遮挡 UI，强制隐藏看板娘 */
     #sakana-widget { display: none !important; }
 }

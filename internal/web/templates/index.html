@@ -350,10 +350,16 @@
 <script>
     window.API_ROOT = "{{.Root}}";
     
-    // 初始化 Sakana 插件
+    // 初始化 Sakana 插件 (接入随机二次元 API)
     function initSakanaWidget() {
         if (window.innerWidth > 768) {
-            new SakanaWidget({ character: 'chisato' }).mount('#sakana-widget');
+            // 获取默认角色模板
+            const customChar = SakanaWidget.getCharacter('chisato');
+            // 将角色的贴图换成你指定的 API 链接
+            customChar.image = 'https://www.loliapi.com/acg/pe/';
+            // 注册并挂载
+            SakanaWidget.registerCharacter('my-random-acg', customChar);
+            new SakanaWidget({ character: 'my-random-acg' }).mount('#sakana-widget');
         }
     }
 </script>
