@@ -9,8 +9,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./downloads:/home/appuser/downloads
-      - ./cookies.json:/home/appuser/cookies.json
+      - music_data_downloads:/home/appuser/downloads
+      - music_data_cookies:/home/appuser/cookies.json
+      - music_data_favorites:/home/appuser/favorites.db
     environment:
       - TZ=Asia/Shanghai
     user: "1000:1000"

@@ -7,9 +7,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # 挂载下载目录和配置文件
-      - ./downloads:/home/appuser/downloads
-      - ./cookies.json:/home/appuser/cookies.json
+      - music_data_downloads:/home/appuser/downloads
+      - music_data_cookies:/home/appuser/cookies.json
+      - music_data_favorites:/home/appuser/favorites.db
     environment:
       - TZ=Asia/Shanghai
     # 确保以 appuser (uid=1000) 身份运行，配合宿主机权限设置
