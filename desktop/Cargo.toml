@@ -13,6 +13,7 @@ repository = "https://github.com/guohuiyuan/go-music-dl"
 tao = "0.30"
 wry = "0.42"
 image = "0.25"
+open = "3"
 
 [build-dependencies]
 winres = "0.1"

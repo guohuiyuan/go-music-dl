@@ -7,6 +7,8 @@ use tao::event_loop::{ControlFlow, EventLoop};
 use tao::window::WindowBuilder;
 // [关键修正] 引入 WebContext 修复 .with_data_directory 报错
 use wry::{WebViewBuilder, WebContext};
+// 用于在系统默认浏览器中打开外部链接
+use open;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -134,10 +136,33 @@ fn main() -> wry::Result<()> {
     let mut web_context = WebContext::new(Some(data_dir.clone()));
 
     let server_url = format!("http://localhost:{}{}", server_config::PORT, server_config::URL_PATH);
-    
+
+    // clone 出一个前缀供 handler 捕获（避免引用生命周期问题）
+    let server_prefix = server_url.clone();
+
     let _webview = WebViewBuilder::new(&window)
         .with_url(&server_url)
         .with_web_context(&mut web_context) // 使用 Context 注入配置
+        // 拦截 target="_blank" / window.open 请求，交给系统浏览器打开
+        .with_new_window_req_handler(move |url| {
+            // 打开外部链接，不在 WebView 中创建新窗口
+            if let Err(e) = open::that(&url) {
+                eprintln!("Failed to open external link: {} : {}", url, e);
+            }
+            // 返回 false 表示不要由 WebView 自行打开新窗口
+            false
+        })
+        // 拦截顶级导航，只有当导航目标属于本地服务时允许在 WebView 内部跳转
+        .with_navigation_handler(move |nav| {
+            let url = nav.as_str();
+            if !url.starts_with(&server_prefix) {
+                if let Err(e) = open::that(url) {
+                    eprintln!("Failed to open external nav: {} : {}", url, e);
+                }
+                return false; // 阻止 WebView 自己导航到外部站点
+            }
+            true
+        })
         .build()?;
 
     // 6. 事件循环
