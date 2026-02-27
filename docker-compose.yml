@@ -14,3 +14,9 @@ services:
       - TZ=Asia/Shanghai
     # 确保以 appuser (uid=1000) 身份运行，配合宿主机权限设置
     user: "1000:1000"
+
+# 声明命名卷
+volumes:
+  music_data_downloads:
+  music_data_cookies:
+  music_data_favorites:

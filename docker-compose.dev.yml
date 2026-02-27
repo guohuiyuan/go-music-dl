@@ -15,3 +15,9 @@ services:
     environment:
       - TZ=Asia/Shanghai
     user: "1000:1000"
+
+# 声明命名卷
+volumes:
+  music_data_downloads:
+  music_data_cookies:
+  music_data_favorites:

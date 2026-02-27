@@ -37,6 +37,7 @@ Go Music DL 是一个音乐搜索与下载工具，支持 **Web 界面**、**TUI
 ## 主要功能
 
 * **多模式支持**: Web 界面、TUI 终端、桌面应用
+* **本地自制歌单**: 支持新建本地收藏夹，随时收藏、管理心仪歌曲，数据持久化不丢失
 * 多平台聚合搜索与歌单搜索
 * 试听、歌词、封面下载
 * Range 探测：显示大小与码率
@@ -46,12 +47,14 @@ Go Music DL 是一个音乐搜索与下载工具，支持 **Web 界面**、**TUI
 
 ## 新增改动（简要）
 
-* Web 试听按钮支持播放/停止切换
-* Web 单曲支持“换源”，按相似度优先、时长接近、可播放验证
-* 换源自动排除 soda 与 fivesing
-* TUI 增加 r 键批量换源，并显示换源进度
-* 增加“每日歌单推荐”，Web 和 TUI 都能看
-* Web 端支持批量操作：全选、选择无效、批量下载、批量换源
+* **Web 架构全面重构**：前端代码彻底模块化（拆分独立的 JS / CSS / HTML 模板），后端路由按业务域拆分（音乐查询、歌单管理、视频生成），大幅提升代码可维护性。
+* **新增自制歌单功能**：Web 端支持本地收藏夹，用户可自由创建、编辑歌单，将不同平台的歌曲聚合收藏。
+* Web 试听按钮支持播放/停止切换，底部增加全局播放与音量控制栏。
+* Web 单曲支持“换源”，按相似度优先、时长接近、可播放验证。
+* 换源自动排除 soda 与 fivesing。
+* TUI 增加 r 键批量换源，并显示换源进度。
+* 增加“每日歌单推荐”，Web 和 TUI 都能看。
+* Web 端支持批量操作：全选、选择无效、批量下载、批量换源。
 
 ## 快速开始
 
@@ -82,7 +85,7 @@ Go Music DL 是一个音乐搜索与下载工具，支持 **Web 界面**、**TUI
 
 #### 开发与构建
 
-桌面应用的详细开发指南和构建说明请参考 [desktop/README.md](https://www.google.com/search?q=desktop/README.md)。
+桌面应用的详细开发指南和构建说明请参考 [desktop/README.md](desktop/README.md)。
 
 #### 系统要求
 
@@ -133,9 +136,9 @@ location /music/ {
 
 **注意：** 应用程序已内置路由前缀支持，无需额外配置即可在子路径下正常工作。
 
-### Docker 部署
+### Docker 部署 (零配置)
 
-本项目提供了多种 Docker 部署方式，满足**快速体验**与**本地开发**的需求。
+本项目提供了多种 Docker 部署方式，已全面升级为 **Docker 命名卷 (Named Volumes)** 管理数据，彻底告别权限报错和手动建文件夹的烦恼，实现真正的零配置一键启动。
 
 #### 1. 生产环境部署（推荐）
 
@@ -159,7 +162,7 @@ docker compose down
 
 * 自动拉取 `guohuiyuan/go-music-dl:latest` 镜像
 * 支持后台运行和自动重启
-* 自动挂载当前目录下的 `downloads` (下载目录) 和 `cookies.json` (配置文件)
+* **真·零配置**：自动创建 Docker 命名卷来持久化 `downloads` (下载目录)、`cookies.json` (配置) 和 `favorites.db` (收藏夹数据)，无需手动干预
 * 设置时区为亚洲上海
 * 以非root用户(uid=1000)运行，提高安全性
 
@@ -175,13 +178,14 @@ docker compose -f docker-compose.dev.yml up -d --build
 
 #### 3. 纯命令行模式 (docker run)
 
-如果不使用 Compose，也可以直接通过命令行运行：
+如果不使用 Compose，也可以直接通过命令行运行（同样使用命名卷保证零配置和数据持久化）：
 
 ```bash
 docker run -d --name music-dl \
   -p 8080:8080 \
-  -v $(pwd)/downloads:/home/appuser/downloads \
-  -v $(pwd)/cookies.json:/home/appuser/cookies.json \
+  -v music_data_downloads:/home/appuser/downloads \
+  -v music_data_cookies:/home/appuser/cookies.json \
+  -v music_data_favorites:/home/appuser/favorites.db \
   -e TZ=Asia/Shanghai \
   --user 1000:1000 \
   --restart unless-stopped \
@@ -189,34 +193,7 @@ docker run -d --name music-dl \
 
 ```
 
-### 远程部署
-
-使用部署脚本自动拉取最新镜像并启动服务：
-
-```bash
-# 下载部署脚本
-wget [https://raw.githubusercontent.com/guohuiyuan/go-music-dl/main/deploy.sh](https://raw.githubusercontent.com/guohuiyuan/go-music-dl/main/deploy.sh)
-
-# 运行部署
-bash deploy.sh
-
-```
-
-脚本会自动：
-
-* 检查Docker环境
-* 创建部署目录
-* 拉取最新Docker镜像
-* 生成docker-compose.yml
-* 启动服务
-
-访问：http://localhost:8080
-
-**说明：**
-
-* 部署目录为 `music-dl/`
-* 下载文件保存在 `music-dl/downloads/`
-* Cookies文件为 `music-dl/cookies.json`
+*提示：使用命名卷后，下载的歌曲文件保存在 Docker 的虚拟卷中。如果需要导出音乐文件，可以通过网页端的“批量下载”功能直接保存到本地。*
 
 ### CLI/TUI 模式
 
@@ -261,9 +238,9 @@ TUI 常用按键：
 **如果你 Fork 了本仓库并希望使用自己的构建流：**
 
 1. 在你的仓库 **Settings** -> **Secrets and variables** -> **Actions** 中添加：
+
 * `DOCKERHUB_USERNAME`: 你的 DockerHub 用户名
 * `DOCKERHUB_TOKEN`: 你的 DockerHub 访问令牌
-
 
 2. 将 `docker-compose.yml` 中的镜像地址修改为你自己的：`image: 你的用户名/go-music-dl:latest`
 
@@ -373,8 +350,17 @@ go-music-dl/
 │   └── music-dl/          # CLI/TUI 主程序
 ├── core/                  # 核心业务逻辑
 ├── internal/
-│   ├── cli/              # TUI 界面
-│   └── web/              # Web 服务器和模板
+│   ├── cli/               # TUI 界面 (如: ui.go)
+│   └── web/               # 重构后的 Web 后端服务
+│       ├── templates/     # 前端模板与静态资源分离
+│       │   ├── app.js     # 前端主交互逻辑
+│       │   ├── style.css  # 核心样式
+│       │   ├── videogen.js# 视频生成可视化逻辑
+│       │   └── *.html     # 各个页面模板
+│       ├── server.go      # Web 服务主入口
+│       ├── music.go       # 音乐搜索与解析路由
+│       ├── collection.go  # 本地自制歌单接口
+│       └── videogen.go    # 视频生成后端支持
 ├── desktop/               # 桌面应用 (Rust + Tao/Wry)
 │   ├── src/
 │   │   └── main.rs       # 桌面应用主程序
@@ -388,10 +374,10 @@ go-music-dl/
 ├── downloads/            # 下载文件目录
 ├── screenshots/          # 截图资源
 ├── cookies.json          # Cookie 配置文件
+├── favorites.db          # 自制歌单数据库
 ├── docker-compose.yml    # Docker 生产环境配置 (直接拉取镜像)
 ├── docker-compose.dev.yml# Docker 开发环境配置 (本地构建)
 ├── Dockerfile            # Docker 构建配置
-├── deploy.sh             # 部署脚本
 ├── go.mod                # Go 模块配置
 ├── package.bat           # Windows 打包脚本
 ├── run.bat               # Windows 运行脚本
