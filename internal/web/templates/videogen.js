@@ -375,6 +375,40 @@
           return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
       },
 
+      // === 新增：音量控制相关方法 ===
+      setVolume: function(vol) {
+          if (this.isLocalAudio && this.localAudio) {
+              this.localAudio.volume = vol;
+          } else if (window.ap) {
+              window.ap.volume && window.ap.volume(vol, true);
+          }
+          const vt = document.getElementById('vg-vol-text'); if (vt) vt.textContent = Math.round(vol * 100) + '%';
+          this.updateVolIcon(vol);
+      },
+
+      updateVolIcon: function(vol) {
+          const icon = document.getElementById('vg-vol-icon');
+          if (!icon) return;
+          if (vol === 0) icon.className = "fa-solid fa-volume-xmark";
+          else if (vol < 0.5) icon.className = "fa-solid fa-volume-low";
+          else icon.className = "fa-solid fa-volume-high";
+      },
+
+      toggleMute: function() {
+          const vb = document.getElementById('vg-volume-bar');
+          if (!vb) return;
+          let currentVol = vb.value / 100;
+          if (currentVol > 0) {
+              this._lastVol = currentVol;
+              vb.value = 0;
+              this.setVolume(0);
+          } else {
+              let targetVol = this._lastVol || 0.7;
+              vb.value = targetVol * 100;
+              this.setVolume(targetVol);
+          }
+      },
+
       handleFileSelect: function (input) {
         if (input.files && input.files[0]) {
           const file = input.files[0], reader = new FileReader();
@@ -522,6 +556,21 @@
                 }
             }
         };
+
+        // 👇 新增：初始化并绑定音量条事件
+        const vb = document.getElementById('vg-volume-bar');
+        if (vb) {
+            let initialVol = 0.7;
+            if (this.isLocalAudio && this.localAudio) {
+                initialVol = this.localAudio.volume;
+            } else if (window.ap && window.ap.audio) {
+                initialVol = window.ap.audio.volume || initialVol;
+            }
+            vb.value = initialVol * 100;
+            const vt = document.getElementById('vg-vol-text'); if (vt) vt.textContent = Math.round(initialVol * 100) + '%';
+            this.updateVolIcon(initialVol);
+            vb.oninput = (e) => { this.setVolume(e.target.value / 100); };
+        }
 
         this.reset(); 
         

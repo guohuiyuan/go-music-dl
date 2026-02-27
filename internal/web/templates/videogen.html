@@ -276,6 +276,16 @@
         .vg-line.active { padding-left: 5px; transform: scale(1.02); font-size: clamp(19px, 6vw, 26px); }
         .vg-close { top: 15px; right: 15px; }
     }
+    /* === 新增：音量控制条样式 === */
+    .vg-volume-wrapper {
+        display: flex; align-items: center; justify-content: center; gap: 10px; 
+        width: 100%; margin-top: 12px; font-size: 12px; color: rgba(255,255,255,0.8);
+    }
+    .vg-volume-wrapper i { cursor: pointer; transition: color 0.2s; width: 16px; text-align: center; }
+    .vg-volume-wrapper i:hover { color: #fff; }
+    .vg-volume-wrapper input[type="range"] { width: 100px; flex: none; }
+    .vg-vol-text { width: 35px; text-align: right; font-family: monospace; }
+
 </style>
 
 <div id="vg-modal" class="vg-overlay">
@@ -305,6 +315,11 @@
                     <span id="vg-time-current">00:00</span>
                     <input type="range" id="vg-seek-bar" class="vg-seek-bar" value="0" step="0.1" min="0" max="100">
                     <span id="vg-time-total">00:00</span>
+                </div>
+                <div class="vg-volume-wrapper">
+                    <i class="fa-solid fa-volume-high" id="vg-vol-icon" onclick="VideoGen.toggleMute()" title="静音/恢复"></i>
+                    <input type="range" id="vg-volume-bar" class="vg-seek-bar" value="70" step="1" min="0" max="100">
+                    <span id="vg-vol-text" class="vg-vol-text">70%</span>
                 </div>
             </div>
             
