@@ -72,66 +72,6 @@ Go Music DL 是一个音乐搜索与下载工具，支持 **Web 界面**、**TUI
 * 🖼️ 自定义窗口图标
 * 🔒 使用罕见端口(37777)，避免端口冲突
 
-### Docker 部署
-
-本项目推荐使用 Docker 进行部署，所有数据（包含下载的音乐、视频、数据库、配置文件）均统一持久化在本地的 `data` 目录中，方便备份和迁移。
-
-**⚠️ 极其重要：启动前准备**
-为了保证容器内非 root 用户拥有写入权限，**启动前必须手动创建数据目录并赋予权限**：
-```bash
-mkdir -p data
-chmod 777 data
-
-```
-
-#### 1. 生产环境部署（推荐）
-
-项目包含 `docker-compose.yml` 文件，直接拉取云端预编译镜像，无需在本地构建：
-
-```bash
-# 启动服务
-}
-
-# 查看日志
-
-
-# 停止服务
-```
-
-```
-
-浏览器访问 `http://localhost:8080`。
-
-#### 2. 开发环境部署（本地构建）
-
-如果您修改了源码，希望在本地通过 Docker 重新构建并测试效果，请使用 `docker-compose.dev.yml`：
-
-```bash
-
-
-```
-
-#### 3. 纯命令行模式 (docker run)
-
-如果不使用 Compose，也可以直接通过命令行运行：
-
-```bash
-mkdir -p data && chmod 777 data
-
-docker run -d --name music-dl \
-  -p 8080:8080 \
-  -v $(pwd)/data:/home/appuser/data \
-  -e TZ=Asia/Shanghai \
-  --restart unless-stopped \
-  guohuiyuan/go-music-dl:latest
-
-```
-
-*提示：下载的歌曲、导出的视频、收藏夹数据都会静静地躺在你宿主机的 `data` 文件夹下，随时可以直接拷贝带走。*
-访问地址：`http://your-domain.com/music/`
-
-**注意：** 应用程序已内置路由前缀支持，无需额外配置即可在子路径下正常工作。
-
 ### Docker 部署 (零配置)
 
 本项目提供了多种 Docker 部署方式，已全面升级为 **Docker 命名卷 (Named Volumes)** 管理数据，彻底告别权限报错和手动建文件夹的烦恼，实现真正的零配置一键启动。
