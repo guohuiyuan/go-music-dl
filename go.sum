@@ -73,6 +73,8 @@ github.com/guohuiyuan/music-lib v1.0.5-0.20260301080023-06a352f8b4f2 h1:HrHP9yiK
 github.com/guohuiyuan/music-lib v1.0.5-0.20260301080023-06a352f8b4f2/go.mod h1:3DexVzzLf4nVxdz/b1qpRnDJ7y66TjUaQWjTOCwl1ro=
 github.com/guohuiyuan/music-lib v1.0.5-0.20260302071720-9c3346e5b5c9 h1:cv++7KQCi1FUgkvdKDtmmrBWww11ZfouwLmleUi/0FQ=
 github.com/guohuiyuan/music-lib v1.0.5-0.20260302071720-9c3346e5b5c9/go.mod h1:3DexVzzLf4nVxdz/b1qpRnDJ7y66TjUaQWjTOCwl1ro=
+github.com/guohuiyuan/music-lib v1.0.6-0.20260302140311-e9dedb8baa14 h1:sVCnEuQpyoZrevOTWQ8QOck9I1Q8gbVVrYiISpor8FI=
+github.com/guohuiyuan/music-lib v1.0.6-0.20260302140311-e9dedb8baa14/go.mod h1:3DexVzzLf4nVxdz/b1qpRnDJ7y66TjUaQWjTOCwl1ro=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
