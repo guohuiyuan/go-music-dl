@@ -138,7 +138,7 @@ function openCookieModal() {
 function saveCookies() {
     const data = {};
     document.querySelectorAll('input[id^="cookie-"]').forEach(input => {
-        if (input.value) data[input.id.replace('cookie-', '')] = input.value;
+        data[input.id.replace('cookie-', '')] = input.value;
     });
     fetch(API_ROOT + '/cookies', {
         method: 'POST', 
