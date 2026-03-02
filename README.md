@@ -38,6 +38,7 @@ Go Music DL 是一个音乐搜索与下载工具，支持 **Web 界面**、**TUI
 
 * **多模式支持**: Web 界面、TUI 终端、桌面应用
 * **本地自制歌单**: 支持新建本地收藏夹，随时收藏、管理心仪歌曲，数据持久化不丢失
+* **无损音乐支持**: 支持网易云、QQ 音乐、Bilibili 的 FLAC 无损音乐下载
 * 多平台聚合搜索与歌单搜索
 * 试听、歌词、封面下载
 * Range 探测：显示大小与码率
@@ -258,8 +259,8 @@ TUI 在输入界面按 `w` 直接拉取推荐歌单，然后回车进详情。
 
 | 平台 | 包名 | 搜索 | 下载 | 歌词 | 歌曲解析 | 歌单搜索 | 歌单推荐 | 歌单歌曲 | 歌单链接解析 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 网易云音乐 | `netease` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |  |
-| QQ 音乐 | `qq` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |  |
+| 网易云音乐 | `netease` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 支持 FLAC 无损 |
+| QQ 音乐 | `qq` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 支持 FLAC 无损 |
 | 酷狗音乐 | `kugou` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |  |
 | 酷我音乐 | `kuwo` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |  |
 | 咪咕音乐 | `migu` | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |  |
@@ -268,7 +269,7 @@ TUI 在输入界面按 `w` 直接拉取推荐歌单，然后回车进详情。
 | 5sing | `fivesing` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |  |
 | Jamendo | `jamendo` | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |  |
 | JOOX | `joox` | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |  |
-| Bilibili | `bilibili` | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ |  |
+| Bilibili | `bilibili` | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | 支持 FLAC 无损 |
 
 ## 歌曲链接解析
 
@@ -379,6 +380,8 @@ go-music-dl/
 * **图像处理**: [image](https://github.com/image-rs/image) - 图标处理
 * **下载库**: [music-dl](https://github.com/0xHJK/music-dl) - 音乐下载库
 * **下载库**: [musicdl](https://github.com/CharlesPikachu/musicdl) - 音乐下载库
+* **无损音乐**: [Suxiaoqinx/Netease_url](https://github.com/Suxiaoqinx/Netease_url) - 网易云音乐 FLAC 无损音乐解析
+* **QQ 音乐**: [Suxiaoqinx/qqmusic_flac](https://github.com/Suxiaoqinx/qqmusic_flac) - QQ 音乐 FLAC 解析
 
 ### 桌面应用架构
 
