@@ -18,6 +18,167 @@ import (
 	"github.com/guohuiyuan/music-lib/utils"
 )
 
+func encodeSyncSafeInt(v int) [4]byte {
+	if v < 0 {
+		v = 0
+	}
+	return [4]byte{
+		byte((v >> 21) & 0x7F),
+		byte((v >> 14) & 0x7F),
+		byte((v >> 7) & 0x7F),
+		byte(v & 0x7F),
+	}
+}
+
+func decodeSyncSafeInt(b []byte) int {
+	if len(b) < 4 {
+		return 0
+	}
+	return int(b[0]&0x7F)<<21 | int(b[1]&0x7F)<<14 | int(b[2]&0x7F)<<7 | int(b[3]&0x7F)
+}
+
+func stripID3v2Prefix(audioData []byte) []byte {
+	if len(audioData) < 10 || string(audioData[:3]) != "ID3" {
+		return audioData
+	}
+	tagSize := decodeSyncSafeInt(audioData[6:10])
+	total := 10 + tagSize
+	if audioData[5]&0x10 != 0 {
+		total += 10
+	}
+	if total <= 0 || total > len(audioData) {
+		return audioData
+	}
+	return audioData[total:]
+}
+
+func buildID3v24Frame(frameID string, payload []byte) []byte {
+	if len(frameID) != 4 || len(payload) == 0 {
+		return nil
+	}
+	var frame bytes.Buffer
+	frame.WriteString(frameID)
+	sz := encodeSyncSafeInt(len(payload))
+	frame.Write(sz[:])
+	frame.Write([]byte{0x00, 0x00})
+	frame.Write(payload)
+	return frame.Bytes()
+}
+
+func buildTextFrame(frameID string, text string) []byte {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	payload := append([]byte{0x03}, []byte(text)...)
+	return buildID3v24Frame(frameID, payload)
+}
+
+func normalizeCoverMime(coverMime string) string {
+	coverMime = strings.TrimSpace(strings.ToLower(coverMime))
+	if coverMime == "" {
+		return "image/jpeg"
+	}
+	if strings.Contains(coverMime, "png") {
+		return "image/png"
+	}
+	if strings.Contains(coverMime, "webp") {
+		return "image/webp"
+	}
+	if strings.Contains(coverMime, "gif") {
+		return "image/gif"
+	}
+	return "image/jpeg"
+}
+
+func fetchBytesWithMime(urlStr string, source string) ([]byte, string, error) {
+	req, err := core.BuildSourceRequest("GET", urlStr, source, "")
+	if err != nil {
+		return nil, "", err
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
+	if contentType == "" && len(data) > 0 {
+		contentType = http.DetectContentType(data)
+	}
+
+	if idx := strings.Index(contentType, ";"); idx >= 0 {
+		contentType = strings.TrimSpace(contentType[:idx])
+	}
+
+	return data, contentType, nil
+}
+
+func embedSongMetadata(audioData []byte, song *model.Song, lyric string, coverData []byte, coverMime string) ([]byte, error) {
+	audioData = stripID3v2Prefix(audioData)
+
+	var frames bytes.Buffer
+
+	if frame := buildTextFrame("TIT2", song.Name); len(frame) > 0 {
+		frames.Write(frame)
+	}
+	if frame := buildTextFrame("TPE1", song.Artist); len(frame) > 0 {
+		frames.Write(frame)
+	}
+
+	lyric = strings.TrimSpace(lyric)
+	if lyric != "" {
+		payload := make([]byte, 0, 8+len(lyric))
+		payload = append(payload, 0x03)
+		payload = append(payload, []byte("chi")...)
+		payload = append(payload, 0x00)
+		payload = append(payload, []byte(lyric)...)
+		if frame := buildID3v24Frame("USLT", payload); len(frame) > 0 {
+			frames.Write(frame)
+		}
+	}
+
+	if len(coverData) > 0 {
+		mime := normalizeCoverMime(coverMime)
+		payload := make([]byte, 0, len(mime)+4+len(coverData))
+		payload = append(payload, 0x03)
+		payload = append(payload, []byte(mime)...)
+		payload = append(payload, 0x00)
+		payload = append(payload, 0x03)
+		payload = append(payload, 0x00)
+		payload = append(payload, coverData...)
+		if frame := buildID3v24Frame("APIC", payload); len(frame) > 0 {
+			frames.Write(frame)
+		}
+	}
+
+	if frames.Len() == 0 {
+		return audioData, nil
+	}
+
+	var tag bytes.Buffer
+	tag.WriteString("ID3")
+	tag.WriteByte(0x04)
+	tag.WriteByte(0x00)
+	tag.WriteByte(0x00)
+	size := encodeSyncSafeInt(frames.Len())
+	tag.Write(size[:])
+	tag.Write(frames.Bytes())
+
+	return append(tag.Bytes(), audioData...), nil
+}
+
 func RegisterMusicRoutes(api *gin.RouterGroup) {
 
 	api.GET("/", func(c *gin.Context) {
@@ -371,6 +532,8 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		source := c.Query("source")
 		name := c.Query("name")
 		artist := c.Query("artist")
+		coverURL := strings.TrimSpace(c.Query("cover"))
+		embedMeta := c.Query("embed") == "1" && strings.TrimSpace(c.GetHeader("Range")) == ""
 
 		if id == "" || source == "" {
 			c.String(400, "Missing params")
@@ -383,8 +546,69 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 			artist = "Unknown"
 		}
 
-		tempSong := &model.Song{ID: id, Source: source, Name: name, Artist: artist}
+		tempSong := &model.Song{ID: id, Source: source, Name: name, Artist: artist, Cover: coverURL}
 		filename := fmt.Sprintf("%s - %s.mp3", name, artist)
+
+		if embedMeta {
+			var audioData []byte
+			if source == "soda" {
+				cookie := core.CM.Get("soda")
+				sodaInst := soda.New(cookie)
+				info, err := sodaInst.GetDownloadInfo(tempSong)
+				if err != nil {
+					c.String(502, "Soda info error")
+					return
+				}
+				encryptedData, _, err := fetchBytesWithMime(info.URL, "soda")
+				if err != nil {
+					c.String(502, "Soda stream error")
+					return
+				}
+				audioData, err = soda.DecryptAudio(encryptedData, info.PlayAuth)
+				if err != nil {
+					c.String(500, "Decrypt failed")
+					return
+				}
+			} else {
+				dlFunc := core.GetDownloadFunc(source)
+				if dlFunc == nil {
+					c.String(400, "Unknown source")
+					return
+				}
+
+				downloadURL, err := dlFunc(tempSong)
+				if err != nil {
+					c.String(404, "Failed to get URL")
+					return
+				}
+
+				audioData, _, err = fetchBytesWithMime(downloadURL, source)
+				if err != nil {
+					c.String(502, "Upstream stream error")
+					return
+				}
+			}
+
+			var lyric string
+			if lyricFn := core.GetLyricFunc(source); lyricFn != nil {
+				lyric, _ = lyricFn(&model.Song{ID: id, Source: source})
+			}
+
+			var coverData []byte
+			var coverMime string
+			if coverURL != "" {
+				coverData, coverMime, _ = fetchBytesWithMime(coverURL, source)
+			}
+
+			finalData, err := embedSongMetadata(audioData, tempSong, lyric, coverData, coverMime)
+			if err != nil {
+				finalData = audioData
+			}
+
+			setDownloadHeader(c, filename)
+			c.Data(200, "audio/mpeg", finalData)
+			return
+		}
 
 		if source == "soda" {
 			cookie := core.CM.Get("soda")

@@ -365,7 +365,7 @@ function updateCardWithSong(card, song) {
 
     const dl = card.querySelector('.btn-download');
     if (dl) {
-        dl.href = `${API_ROOT}/download?id=${encodeURIComponent(song.id)}&source=${song.source}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`;
+        dl.href = `${API_ROOT}/download?id=${encodeURIComponent(song.id)}&source=${song.source}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}&cover=${encodeURIComponent(song.cover || '')}&embed=1`;
         dl.id = `dl-${song.id}`;
     }
 
@@ -613,7 +613,7 @@ function getSelectedSongs() {
                 source: ds.source,
                 name: ds.name,
                 artist: ds.artist,
-                url: `${API_ROOT}/download?id=${encodeURIComponent(ds.id)}&source=${ds.source}&name=${encodeURIComponent(ds.name)}&artist=${encodeURIComponent(ds.artist)}`,
+                url: `${API_ROOT}/download?id=${encodeURIComponent(ds.id)}&source=${ds.source}&name=${encodeURIComponent(ds.name)}&artist=${encodeURIComponent(ds.artist)}&cover=${encodeURIComponent(ds.cover || '')}&embed=1`,
                 cover: coverUrl,
                 lrc: `${API_ROOT}/lyric?id=${encodeURIComponent(ds.id)}&source=${ds.source}`,
                 theme: '#10b981',
