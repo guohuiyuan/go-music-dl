@@ -67,8 +67,6 @@ github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e h1:ijClszYn+mADRFY17k
 github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e/go.mod h1:boTsfXsheKC2y+lKOCMpSfarhxDeIzfZG1jqGcPl3cA=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/guohuiyuan/music-lib v1.0.6-0.20260308162529-f50c58cfa6bf h1:im1TcyB82h9TzMlag1vCjIJIQneXS5vxDnX5Uvtigic=
-github.com/guohuiyuan/music-lib v1.0.6-0.20260308162529-f50c58cfa6bf/go.mod h1:3DexVzzLf4nVxdz/b1qpRnDJ7y66TjUaQWjTOCwl1ro=
 github.com/guohuiyuan/music-lib v1.0.6-0.20260308165809-ea321c84b16a h1:YdvycMClD87DXO4QYUZZvTJlp77lqai1IzjnkHUdg0Q=
 github.com/guohuiyuan/music-lib v1.0.6-0.20260308165809-ea321c84b16a/go.mod h1:3DexVzzLf4nVxdz/b1qpRnDJ7y66TjUaQWjTOCwl1ro=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
