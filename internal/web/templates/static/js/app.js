@@ -152,6 +152,94 @@ async function requestLocalDownload(url) {
     return data;
 }
 
+function formatBatchSongLabel(song) {
+    const name = (song && song.name) ? song.name : 'Unknown';
+    const artist = (song && song.artist) ? song.artist : 'Unknown';
+    return `${name} - ${artist}`;
+}
+
+function buildBatchFailureMessage(failures, title) {
+    if (!failures || failures.length === 0) {
+        return '';
+    }
+
+    let message = `\n\n${title} ${failures.length} 首：`;
+    failures.forEach((item, index) => {
+        const reason = item.reason ? `：${item.reason}` : '';
+        message += `\n${index + 1}. ${formatBatchSongLabel(item.song)}${reason}`;
+    });
+    return message;
+}
+
+function inferExtFromContentType(contentType) {
+    const raw = String(contentType || '').toLowerCase().split(';')[0].trim();
+    switch (raw) {
+    case 'audio/flac':
+    case 'audio/x-flac':
+        return 'flac';
+    case 'audio/ogg':
+    case 'application/ogg':
+        return 'ogg';
+    case 'audio/mp4':
+    case 'audio/x-m4a':
+    case 'audio/aac':
+    case 'audio/aacp':
+        return 'm4a';
+    case 'audio/x-ms-wma':
+    case 'audio/wma':
+        return 'wma';
+    default:
+        return 'mp3';
+    }
+}
+
+function getDownloadFilenameFromResponse(response, song) {
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const encodedMatch = disposition.match(/filename\*\s*=\s*utf-8''([^;]+)/i);
+    if (encodedMatch && encodedMatch[1]) {
+        try {
+            return decodeURIComponent(encodedMatch[1].trim().replace(/^"|"$/g, ''));
+        } catch (_) {
+        }
+    }
+
+    const plainMatch = disposition.match(/filename\s*=\s*"([^"]+)"/i) || disposition.match(/filename\s*=\s*([^;]+)/i);
+    if (plainMatch && plainMatch[1]) {
+        return plainMatch[1].trim().replace(/^"|"$/g, '');
+    }
+
+    return `${formatBatchSongLabel(song)}.${inferExtFromContentType(response.headers.get('Content-Type'))}`;
+}
+
+async function requestBrowserDownload(song) {
+    const response = await fetch(song.url);
+    if (!response.ok) {
+        let reason = '';
+        try {
+            reason = (await response.text()).trim();
+        } catch (_) {
+        }
+        throw new Error(reason || `HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const filename = getDownloadFilenameFromResponse(response, song);
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+
+    return {
+        warning: response.headers.get('X-MusicDL-Warning') || ''
+    };
+}
+
 async function handleDownloadClick(link) {
     if (!webSettings.downloadToLocal || !link) {
         return false;
@@ -853,51 +941,72 @@ function getSelectedSongs() {
 async function batchDownload() {
     const songs = getSelectedSongs();
     if (songs.length === 0) return;
+    const batchDl = document.getElementById('btn-batch-dl');
+    const batchSwitch = document.getElementById('btn-batch-switch');
+    const originalBatchDlHTML = batchDl ? batchDl.innerHTML : '';
+
     if (webSettings.downloadToLocal) {
         if (!confirm(`准备将 ${songs.length} 首歌曲保存到本地目录：\n${webSettings.downloadDir}`)) {
             return;
         }
+    } else {
+        if (!confirm(`准备下载 ${songs.length} 首歌曲。\n下载会依次开始，请保持页面打开直到提示完成。`)) {
+            return;
+        }
+    }
 
-        let success = 0;
-        let warningCount = 0;
+    if (batchDl) {
+        batchDl.disabled = true;
+        batchDl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 下载中';
+    }
+    if (batchSwitch) {
+        batchSwitch.disabled = true;
+    }
+
+    let success = 0;
+    let warningCount = 0;
+    const failures = [];
+
+    try {
         for (const song of songs) {
             try {
-                const data = await requestLocalDownload(song.url);
+                const result = webSettings.downloadToLocal
+                    ? await requestLocalDownload(song.url)
+                    : await requestBrowserDownload(song);
                 success++;
-                if (data.warning) {
+                if (result && result.warning) {
                     warningCount++;
                 }
-            } catch (_) {
+            } catch (error) {
+                failures.push({
+                    song,
+                    reason: (error && error.message) ? error.message : '下载失败'
+                });
             }
         }
 
-        if (success === songs.length) {
-            let message = `已保存 ${success} 首歌曲到：\n${webSettings.downloadDir}`;
-            if (warningCount > 0) {
-                message += `\n\n共 ${warningCount} 首触发了降级提示，请查看终端日志`;
-            }
-            alert(message);
-        } else {
-            alert(`本地保存完成，成功 ${success}/${songs.length}`);
+        let message = webSettings.downloadToLocal
+            ? `本地保存完成，成功 ${success}/${songs.length}`
+            : `批量下载已完成，成功 ${success}/${songs.length}`;
+
+        if (webSettings.downloadToLocal) {
+            message += `\n目录：${webSettings.downloadDir}`;
         }
-        return;
-    }
+        if (warningCount > 0) {
+            message += `\n\n共 ${warningCount} 首触发了降级提示，请查看终端日志`;
+        }
+        message += buildBatchFailureMessage(failures, '失败');
 
-    if (!confirm(`准备下载 ${songs.length} 首歌曲。\n注意：浏览器可能会拦截多个弹窗，请务必允许本站点的弹窗！`)) {
-        return;
+        alert(message);
+    } finally {
+        if (batchDl) {
+            batchDl.innerHTML = originalBatchDlHTML;
+        }
+        updateBatchToolbar();
+        if (batchSwitch && document.querySelectorAll('.song-checkbox:checked').length === 0) {
+            batchSwitch.disabled = true;
+        }
     }
-
-    songs.forEach((s, index) => {
-        setTimeout(() => {
-            const link = document.createElement('a');
-            link.href = s.url;
-            link.download = ''; 
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }, index * 800); 
-    });
 }
 
 function batchSwitchSource() {
