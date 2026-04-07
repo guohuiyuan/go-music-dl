@@ -123,3 +123,41 @@ func TestImportCollectionFromQueryBuildsSongListImportButton(t *testing.T) {
 		t.Fatalf("meta.HoverText = %q, want contains 元数据", meta.HoverText)
 	}
 }
+
+func TestApplyImportCollectionFallbackUsesParsedPlaylistMetadata(t *testing.T) {
+	meta := &importCollectionMeta{
+		Enabled:     true,
+		Name:        "导入歌单",
+		ContentType: collectionContentPlaylist,
+	}
+
+	pl := &model.Playlist{
+		Name:        "流行热歌",
+		Description: "自动解析到的歌单",
+		Cover:       "https://example.com/cover.jpg",
+		Creator:     "官方账号",
+		TrackCount:  30,
+		Link:        "https://example.com/playlist/1",
+	}
+
+	applyImportCollectionFallback(meta, pl, 8, "https://fallback.example.com")
+
+	if meta.Name != "流行热歌" {
+		t.Fatalf("meta.Name = %q, want 流行热歌", meta.Name)
+	}
+	if meta.Description != "自动解析到的歌单" {
+		t.Fatalf("meta.Description = %q, want 自动解析到的歌单", meta.Description)
+	}
+	if meta.Cover != "https://example.com/cover.jpg" {
+		t.Fatalf("meta.Cover = %q, want https://example.com/cover.jpg", meta.Cover)
+	}
+	if meta.Creator != "官方账号" {
+		t.Fatalf("meta.Creator = %q, want 官方账号", meta.Creator)
+	}
+	if meta.TrackCount != 30 {
+		t.Fatalf("meta.TrackCount = %d, want 30", meta.TrackCount)
+	}
+	if meta.Link != "https://example.com/playlist/1" {
+		t.Fatalf("meta.Link = %q, want https://example.com/playlist/1", meta.Link)
+	}
+}

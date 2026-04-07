@@ -62,6 +62,41 @@ func importCollectionFromQuery(c *gin.Context, contentType string, source string
 	}
 }
 
+func applyImportCollectionFallback(meta *importCollectionMeta, playlist *model.Playlist, fallbackTrackCount int, fallbackLink string) {
+	if meta == nil || playlist == nil {
+		return
+	}
+
+	if strings.TrimSpace(meta.Name) == "" || meta.Name == "导入歌单" || meta.Name == "导入专辑" {
+		if name := strings.TrimSpace(playlist.Name); name != "" {
+			meta.Name = name
+		}
+	}
+	if strings.TrimSpace(meta.Description) == "" {
+		meta.Description = strings.TrimSpace(playlist.Description)
+	}
+	if strings.TrimSpace(meta.Cover) == "" {
+		meta.Cover = strings.TrimSpace(playlist.Cover)
+	}
+	if strings.TrimSpace(meta.Creator) == "" {
+		meta.Creator = strings.TrimSpace(playlist.Creator)
+	}
+	if meta.TrackCount <= 0 {
+		if playlist.TrackCount > 0 {
+			meta.TrackCount = playlist.TrackCount
+		} else {
+			meta.TrackCount = fallbackTrackCount
+		}
+	}
+	if strings.TrimSpace(meta.Link) == "" {
+		if link := strings.TrimSpace(playlist.Link); link != "" {
+			meta.Link = link
+		} else {
+			meta.Link = strings.TrimSpace(fallbackLink)
+		}
+	}
+}
+
 func RegisterMusicRoutes(api *gin.RouterGroup) {
 
 	api.GET("/", func(c *gin.Context) {
@@ -104,6 +139,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		searchType := c.DefaultQuery("type", "song")
 		exactArtist := strings.TrimSpace(c.Query("exact_artist"))
 		sources := c.QueryArray("sources")
+		var importCollection *importCollectionMeta
 
 		if len(sources) == 0 {
 			sources = defaultSourcesForSearchType(searchType)
@@ -136,6 +172,11 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 							} else {
 								allSongs = append(allSongs, songs...)
 								searchType = "song"
+								if playlist != nil {
+									playlistLink := strings.TrimSpace(playlist.Link)
+									importCollection = importCollectionFromQuery(c, collectionContentPlaylist, src, playlist.ID, playlistLink, len(songs))
+									applyImportCollectionFallback(importCollection, playlist, len(songs), keyword)
+								}
 							}
 							parsed = true
 						}
@@ -150,6 +191,11 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 							} else {
 								allSongs = append(allSongs, songs...)
 								searchType = "song"
+								if album != nil {
+									albumLink := strings.TrimSpace(album.Link)
+									importCollection = importCollectionFromQuery(c, collectionContentAlbum, src, album.ID, albumLink, len(songs))
+									applyImportCollectionFallback(importCollection, album, len(songs), keyword)
+								}
 							}
 							parsed = true
 						}
@@ -216,7 +262,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 			allSongs = filterSongsByExactArtist(allSongs, exactArtist)
 		}
 
-		renderIndex(c, allSongs, allPlaylists, keyword, sources, errorMsg, searchType, "", "", "", false, "", nil)
+		renderIndex(c, allSongs, allPlaylists, keyword, sources, errorMsg, searchType, "", "", "", false, "", importCollection)
 	})
 
 	api.GET("/playlist", func(c *gin.Context) {
