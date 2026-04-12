@@ -8,12 +8,7 @@ import (
 )
 
 func main() {
-	go web.Start("37777", false, web.FeatureFlags{
-		VgChangeCover: false,
-		VgChangeAudio: false,
-		VgChangeLyric: false,
-		VgExportVideo: false,
-	})
+	go web.Start("37777", false)
 
 	w := webview.New(false)
 	w.SetTitle("go-music-dl-desktop")
