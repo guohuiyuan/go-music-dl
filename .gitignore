@@ -14,5 +14,6 @@ video_output/
 data/video_output/
 data/settings.db
 data/
+winres/winres.json
 *.exe
 *.log

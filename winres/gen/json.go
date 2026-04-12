@@ -11,7 +11,7 @@ import (
 
 const js = `{
   "RT_GROUP_ICON": {
-    "APP": {
+    "#2": {
       "0000": [
         "icon_256x256.png"
       ]
@@ -21,7 +21,7 @@ const js = `{
     "#1": {
       "0409": {
         "identity": {
-          "name": "go-music-dl",
+          "name": "go-music-dl-desktop",
           "version": "%s"
         },
         "description": "Go Music DL - 一个完整的、工程化的 Go 音乐下载项目",
@@ -56,10 +56,10 @@ const js = `{
             "CompanyName": "guohuiyuan",
             "FileDescription": "https://github.com/guohuiyuan/go-music-dl",
             "FileVersion": "%s",
-            "InternalName": "music-dl",
+            "InternalName": "go-music-dl-desktop",
             "LegalCopyright": "%s",
             "LegalTrademarks": "",
-            "OriginalFilename": "MUSIC-DL.EXE",
+            "OriginalFilename": "go-music-dl-desktop.exe",
             "PrivateBuild": "",
             "ProductName": "Go Music DL",
             "ProductVersion": "%s",

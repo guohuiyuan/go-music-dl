@@ -1,6 +1,6 @@
 {
   "RT_GROUP_ICON": {
-    "APP": {
+    "#2": {
       "0000": [
         "icon_256x256.png"
       ]
@@ -10,8 +10,8 @@
     "#1": {
       "0409": {
         "identity": {
-          "name": "go-music-dl",
-          "version": "1.0.0.203"
+          "name": "go-music-dl-desktop",
+          "version": "1.0.0.204"
         },
         "description": "Go Music DL - 一个完整的、工程化的 Go 音乐下载项目",
         "minimum-os": "vista",
@@ -35,20 +35,20 @@
     "#1": {
       "0000": {
         "fixed": {
-          "file_version": "1.0.0.203",
+          "file_version": "1.0.0.204",
           "product_version": "v1.0.0",
-          "timestamp": "2026-04-09T23:36:28+08:00"
+          "timestamp": "2026-04-12T15:42:45+08:00"
         },
         "info": {
           "0409": {
             "Comments": "A complete, engineered Go music download project with CLI and Web interface",
             "CompanyName": "guohuiyuan",
             "FileDescription": "https://github.com/guohuiyuan/go-music-dl",
-            "FileVersion": "1.0.0.203",
-            "InternalName": "music-dl",
+            "FileVersion": "1.0.0.204",
+            "InternalName": "go-music-dl-desktop",
             "LegalCopyright": "© 2026 guohuiyuan. All Rights Reserved.",
             "LegalTrademarks": "",
-            "OriginalFilename": "MUSIC-DL.EXE",
+            "OriginalFilename": "go-music-dl-desktop.exe",
             "PrivateBuild": "",
             "ProductName": "Go Music DL",
             "ProductVersion": "v1.0.0",
