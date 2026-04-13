@@ -18,3 +18,4 @@ winres/winres.json
 winres/desktop_go.winres.json
 *.exe
 *.log
+extra-release-assets/
