@@ -109,6 +109,8 @@ ffmpeg -version
 
 本项目提供了多种 Docker 部署方式。当前默认通过 `./data` 目录挂载到容器内 `/home/appuser/data`，下载文件、配置与收藏数据都会持久化到该目录。
 
+*注意：首次运行前必须先创建 `data` 目录（如 `mkdir -p data && chmod 777 data`），便于宿主机直接访问下载与配置数据。*
+
 #### 1. 生产环境部署（推荐）
 
 项目包含 `docker-compose.yml` 文件，直接拉取云端预编译镜像，无需在本地构建：
@@ -172,7 +174,6 @@ docker run -d --name music-dl -p 8080:8080 -v ${PWD}/data:/home/appuser/data -e 
 
 视频生成相关的“更换封面 / 更换音频 / 更换歌词 / 导出视频”按钮已迁移到 Web 设置中管理，默认关闭，可在网页右上角设置面板中开启。
 
-*提示：首次运行前可先创建 `data` 目录（如 `mkdir -p data && chmod 777 data`），便于宿主机直接访问下载与配置数据。*
 
 ### CLI/TUI 模式
 
