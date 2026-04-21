@@ -309,6 +309,8 @@ taskkill /F /IM music-dl.exe
 
 **Q: 如何构建桌面应用？**
 
+构建 Rust 桌面应用
+
 ```bash
 # 1. 构建 Go 二进制
 go build -o desktop/music-dl.exe cmd/music-dl/main.go
@@ -318,7 +320,17 @@ cd desktop
 cargo build --release
 
 ```
+构建纯 Go 的桌面应用
+```
+cd desktop
 
+# Windows 
+go build -ldflags="-H windowsgui"
+
+# Linux 
+go build
+
+```
 **Q: 桌面应用支持哪些平台？**
 目前支持 Windows (x64/x86/arm64)、macOS (x64/arm64)、Linux (x64)。
 
@@ -352,6 +364,7 @@ go-music-dl/
 │       ├── collection.go  # 本地自制歌单接口 (GORM)
 │       └── videogen.go    # 视频生成后端支持
 ├── desktop/               # 桌面应用 (Rust + Tao/Wry)
+├── desktop_go/            # 桌面应用 (Go + webview2 )
 ├── data/                  # 🌟 统一数据持久化目录 (Docker挂载点)
 │   ├── downloads/         # 下载的音乐文件
 │   ├── video_output/      # 生成的视频文件

@@ -3,6 +3,7 @@ module github.com/guohuiyuan/go-music-dl
 go 1.25.1
 
 require (
+	github.com/Ghibranalj/webview_go v0.0.0-20251019170756-f933bf214be3
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -12,7 +13,6 @@ require (
 	github.com/guohuiyuan/music-lib v1.0.8-0.20260406144930-3c833d000dbf
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/spf13/cobra v1.10.2
-	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	gorm.io/gorm v1.31.1
 )
 
@@ -65,6 +65,7 @@ require (
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
+	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect

@@ -3,8 +3,8 @@
 package main
 
 import (
+	webview "github.com/Ghibranalj/webview_go"
 	"github.com/guohuiyuan/go-music-dl/internal/web"
-	webview "github.com/webview/webview_go"
 )
 
 func main() {

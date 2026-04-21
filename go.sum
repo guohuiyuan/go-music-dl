@@ -1,3 +1,5 @@
+github.com/Ghibranalj/webview_go v0.0.0-20251019170756-f933bf214be3 h1:14BcewtjgN0jpNAcrqMsR9+HZgeMKA4o2p6gXREBjO8=
+github.com/Ghibranalj/webview_go v0.0.0-20251019170756-f933bf214be3/go.mod h1:bEeeYIHwmqw952yxgVy7pDBigi5R/szLd+ZQnORaOKc=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
