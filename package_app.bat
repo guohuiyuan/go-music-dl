@@ -6,7 +6,7 @@ cd desktop_app
 echo Building!
 gogio -target android ^
 -buildmode exe ^
--o music-dl.apk ^
+-o ../music-dl.apk ^
 -appid com.musicdl.app.util ^
 -name MusicDL ^
 -version 1.0.0.1 ^
