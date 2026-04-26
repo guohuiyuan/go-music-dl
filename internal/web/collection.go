@@ -698,7 +698,7 @@ func RegisterCollectionRoutes(api *gin.RouterGroup) {
 			})
 			return
 		}
-		if err != nil && err != gorm.ErrRecordNotFound {
+		if err != gorm.ErrRecordNotFound {
 			c.JSON(500, gin.H{"error": "导入失败: " + err.Error()})
 			return
 		}

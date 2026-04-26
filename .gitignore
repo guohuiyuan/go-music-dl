@@ -18,4 +18,6 @@ winres/winres.json
 winres/desktop_go.winres.json
 *.exe
 *.log
+*.apk
+*.idsig
 extra-release-assets/
