@@ -87,6 +87,7 @@ gogio -target android ^
  -name MusicDL ^
  -version 1.0.0.1 ^
  -icon ../winres/icon_256x256.png ^
+ -slice ^
  github.com/guohuiyuan/go-music-dl/desktop_app
 if errorlevel 1 (
 	echo ERROR: gogio build failed.

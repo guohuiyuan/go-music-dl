@@ -468,6 +468,7 @@ go-music-dl/
 │       └── videogen.go    # 视频生成后端支持
 ├── desktop/               # 桌面应用 (Rust + Tao/Wry)
 ├── desktop_go/            # 桌面应用 (Go + webview2 )
+├── desktop_app/           # 移动应用 (Go + Gio )
 ├── data/                  # 🌟 统一数据持久化目录 (Docker挂载点)
 │   ├── downloads/         # 下载的音乐文件
 │   ├── video_output/      # 生成的视频文件
@@ -479,7 +480,13 @@ go-music-dl/
 ├── docker-compose.dev.yml # Docker 开发环境配置 (本地构建)
 ├── Dockerfile             # Docker 构建配置
 ├── go.mod                 # Go 模块配置
-└── README.md              # 主项目说明
+├── README.md              # 主项目说明
+├── package.bat            # 构建Rust桌面程序脚本
+├── package_go.bat         # 构建Go桌面程序脚本
+├── package_app.bat        # 构建Android移动应用脚本
+├── package_ios.bat        # 构建IOS移动应用脚本
+├── run.bat                # Go Music DL - 启动脚本 (Windows)
+└── run.sh                 # Go Music DL - 启动脚本 (Linux/macOS)
 
 ```
 
