@@ -13,6 +13,8 @@ import (
 	"github.com/gioui-plugins/gio-plugins/plugin/gioplugins"
 	"github.com/gioui-plugins/gio-plugins/webviewer/giowebview"
 	"github.com/guohuiyuan/go-music-dl/internal/web"
+
+	_ "gioui.org/app/permission/storage"
 )
 
 type webTag struct{}
