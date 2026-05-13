@@ -30,6 +30,7 @@ type desktopApp struct {
 	// 因为 Gio 插件命令是在 frame 处理中下发的。
 	bridgeInstalled       bool
 	callbackRegistered    bool
+	storagePermissionOnce bool
 	pendingInitialNav     bool
 	pendingHistoryBack    bool
 	pendingExternalOpenTo *url.URL
@@ -137,6 +138,8 @@ func (a *desktopApp) run() error {
 		switch evt := gioplugins.Hijack(a.window).(type) {
 		case app.DestroyEvent:
 			return evt.Err
+		case app.ViewEvent:
+			a.requestStoragePermission(evt)
 		case app.FrameEvent:
 			a.handleFrame(evt)
 		}
