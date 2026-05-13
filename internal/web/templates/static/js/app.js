@@ -4,7 +4,7 @@ const API_ROOT = window.API_ROOT;
 const WEB_SETTINGS_KEY = 'musicdl:web_settings';
 const INSPECT_REQUEST_DELAY_MS = 100;
 const DEFAULT_WEB_PAGE_SIZE = 50;
-const DEFAULT_CLI_PAGE_SIZE = 50;
+const DEFAULT_CLI_PAGE_SIZE = 20;
 const LOCAL_MUSIC_SOURCE = 'local';
 const LEGACY_LOCAL_MUSIC_SOURCE = 'local-file';
 const DOWNLOAD_DIR_CUSTOM_VALUE = '__custom__';
@@ -1126,7 +1126,8 @@ const QR_LOGIN_SOURCE_LABELS = {
     qq: 'QQ音乐',
     qq_wx: 'QQ音乐微信',
     kugou: '酷狗音乐',
-    bilibili: 'Bilibili'
+    bilibili: 'Bilibili',
+    soda: '汽水音乐'
 };
 
 const QR_LOGIN_COOKIE_SOURCES = {
@@ -1136,8 +1137,15 @@ const QR_LOGIN_COOKIE_SOURCES = {
 let qrLoginState = {
     source: '',
     key: '',
+    baseKey: '',
     pollTimer: 0,
-    pollBusy: false
+    pollBusy: false,
+    smsBusy: false,
+    sms: {
+        encryptUID: '',
+        verifyParams: '',
+        codeSent: false
+    }
 };
 
 function qrLoginSourceLabel(source) {
@@ -1170,6 +1178,41 @@ function setQRLoginLoading(show, message = '正在生成二维码...') {
     el.style.display = show ? 'flex' : 'none';
 }
 
+function resetQRLoginSMSView() {
+    const panel = document.getElementById('qrLoginSMSPanel');
+    const input = document.getElementById('qrLoginSMSCode');
+    const sendBtn = document.getElementById('qrLoginSendSMSBtn');
+    const validateBtn = document.getElementById('qrLoginValidateSMSBtn');
+    if (panel) panel.style.display = 'none';
+    if (input) {
+        if (!input.dataset.qrSmsBound) {
+            input.addEventListener('keydown', event => {
+                if (event.key === 'Enter') validateSodaSMSCode();
+            });
+            input.dataset.qrSmsBound = 'true';
+        }
+        input.value = '';
+        input.disabled = false;
+    }
+    if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.textContent = '发送验证码';
+    }
+    if (validateBtn) {
+        validateBtn.disabled = false;
+        validateBtn.textContent = '确认登录';
+    }
+}
+
+function qrLoginResultExtra(result) {
+    const extra = result?.extra || result?.Extra || {};
+    return extra && typeof extra === 'object' ? extra : {};
+}
+
+function qrLoginExtraFlag(extra, key) {
+    return String(extra?.[key] || '').toLowerCase() === 'true';
+}
+
 function resetQRLoginView(source) {
     const title = document.getElementById('qrLoginTitle');
     const canvas = document.getElementById('qrLoginCanvas');
@@ -1182,10 +1225,12 @@ function resetQRLoginView(source) {
     }
     setQRLoginLoading(true);
     setQRLoginStatus(source === 'qq_wx' ? '请使用微信扫码登录' : '请使用对应音乐 App 扫码登录');
+    resetQRLoginSMSView();
 }
 
 function closeQRLoginModal() {
     clearQRLoginPoll();
+    resetQRLoginSMSView();
     const modal = document.getElementById('qrLoginModal');
     if (modal) modal.style.display = 'none';
 }
@@ -1203,7 +1248,15 @@ function startQRLogin(source) {
     }
 
     clearQRLoginPoll();
-    qrLoginState = { source, key: '', pollTimer: 0, pollBusy: false };
+    qrLoginState = {
+        source,
+        key: '',
+        baseKey: '',
+        pollTimer: 0,
+        pollBusy: false,
+        smsBusy: false,
+        sms: { encryptUID: '', verifyParams: '', codeSent: false }
+    };
     const modal = document.getElementById('qrLoginModal');
     if (modal) modal.style.display = 'flex';
     resetQRLoginView(source);
@@ -1218,6 +1271,7 @@ function startQRLogin(source) {
         })
         .then(session => {
             qrLoginState.key = String(session.key || '');
+            qrLoginState.baseKey = qrLoginState.key;
             renderQRLoginSession(session);
             setQRLoginStatus(source === 'qq_wx' ? '二维码已生成，请打开微信扫码' : '二维码已生成，请打开 App 扫码');
             pollQRLogin();
@@ -1235,8 +1289,9 @@ function renderQRLoginSession(session) {
     const image = document.getElementById('qrLoginImage');
     const imageURL = String(session.image_url || session.imageURL || '').trim();
     const loginURL = String(session.url || session.URL || '').trim();
+    const preferGeneratedQR = String(session.source || qrLoginState.source || '') === 'soda' && loginURL;
 
-    if (imageURL && image) {
+    if (imageURL && image && !preferGeneratedQR) {
         image.src = imageURL;
         image.style.display = 'block';
         if (canvas) canvas.style.display = 'none';
@@ -1266,32 +1321,166 @@ function cookieFromQRLoginResult(result) {
         .join('; ');
 }
 
-function pollQRLogin() {
-    if (!qrLoginState.source || !qrLoginState.key || qrLoginState.pollBusy) return;
-    qrLoginState.pollBusy = true;
+function handleQRLoginSuccess(result) {
+    clearQRLoginPoll();
+    const cookie = cookieFromQRLoginResult(result);
+    const input = document.getElementById(`cookie-${qrLoginCookieSource(qrLoginState.source)}`);
+    if (input && cookie) input.value = cookie;
+    setQRLoginStatus('登录成功，Cookie 已保存', 'success');
+    showToast('扫码登录成功', `${qrLoginSourceLabel(qrLoginState.source)} Cookie 已保存`, 'success');
+    window.setTimeout(closeQRLoginModal, 900);
+}
 
-    fetch(`${API_ROOT}/qr_login/${encodeURIComponent(qrLoginState.source)}?key=${encodeURIComponent(qrLoginState.key)}`)
+function showSodaSMSLogin(result) {
+    clearQRLoginPoll();
+    const extra = qrLoginResultExtra(result);
+    qrLoginState.sms = {
+        encryptUID: String(extra.encrypt_uid || qrLoginState.sms.encryptUID || ''),
+        verifyParams: String(extra.verify_params || qrLoginState.sms.verifyParams || ''),
+        codeSent: qrLoginExtraFlag(extra, 'need_sms_code') || qrLoginState.sms.codeSent
+    };
+    const panel = document.getElementById('qrLoginSMSPanel');
+    const input = document.getElementById('qrLoginSMSCode');
+    const sendBtn = document.getElementById('qrLoginSendSMSBtn');
+    const validateBtn = document.getElementById('qrLoginValidateSMSBtn');
+    if (panel) panel.style.display = 'block';
+    if (sendBtn) sendBtn.disabled = false;
+    if (validateBtn) validateBtn.disabled = false;
+
+    if (qrLoginState.sms.codeSent) {
+        const mobile = String(extra.mobile || '').trim();
+        setQRLoginStatus(mobile ? `验证码已发送至 ${mobile}，请输入后确认` : '验证码已发送，请输入后确认', 'warning');
+        if (input) input.focus();
+    } else {
+        const mobile = String(extra.mobile || '').trim();
+        setQRLoginStatus(mobile ? `扫码成功，请发送 ${mobile} 的验证码` : '扫码成功，请发送验证码并输入', 'warning');
+    }
+}
+
+function sodaSMSActionKey(action, code = '') {
+    const token = String(qrLoginState.baseKey || qrLoginState.key || '').trim();
+    const encryptUID = String(qrLoginState.sms.encryptUID || '').trim();
+    const verifyParams = String(qrLoginState.sms.verifyParams || '').trim();
+    if (!token || !encryptUID) return '';
+    const parts = [token, action, encryptUID, verifyParams];
+    if (action === 'validate') parts.push(code);
+    return parts.join('|');
+}
+
+function fetchQRLoginCheck(source, key) {
+    return fetch(`${API_ROOT}/qr_login/${encodeURIComponent(source)}?key=${encodeURIComponent(key)}`)
         .then(async response => {
             const data = await response.json().catch(() => null);
             if (!response.ok || !data) {
                 throw new Error((data && data.error) || '登录状态检查失败');
             }
             return data;
+        });
+}
+
+function sendSodaSMSCode() {
+    if (qrLoginState.source !== 'soda' || qrLoginState.smsBusy) return;
+    const key = sodaSMSActionKey('send_code');
+    if (!key) {
+        setQRLoginStatus('缺少短信验证参数，请刷新二维码重试', 'error');
+        return;
+    }
+
+    qrLoginState.smsBusy = true;
+    const sendBtn = document.getElementById('qrLoginSendSMSBtn');
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.textContent = '发送中...';
+    }
+    setQRLoginStatus('正在发送验证码...');
+
+    fetchQRLoginCheck('soda', key)
+        .then(result => {
+            const status = String(result.status || '');
+            if (status === 'success') {
+                handleQRLoginSuccess(result);
+                return;
+            }
+            if (status === 'failed') {
+                setQRLoginStatus(String(result.message || '').trim() || '验证码发送失败', 'error');
+                return;
+            }
+            showSodaSMSLogin(result);
         })
+        .catch(error => {
+            setQRLoginStatus(error.message || '验证码发送失败', 'error');
+        })
+        .finally(() => {
+            qrLoginState.smsBusy = false;
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '重新发送';
+            }
+        });
+}
+
+function validateSodaSMSCode() {
+    if (qrLoginState.source !== 'soda' || qrLoginState.smsBusy) return;
+    const input = document.getElementById('qrLoginSMSCode');
+    const code = String(input?.value || '').trim();
+    if (!code) {
+        setQRLoginStatus('请输入验证码', 'warning');
+        if (input) input.focus();
+        return;
+    }
+    const key = sodaSMSActionKey('validate', code);
+    if (!key) {
+        setQRLoginStatus('缺少短信验证参数，请刷新二维码重试', 'error');
+        return;
+    }
+
+    qrLoginState.smsBusy = true;
+    const validateBtn = document.getElementById('qrLoginValidateSMSBtn');
+    if (validateBtn) {
+        validateBtn.disabled = true;
+        validateBtn.textContent = '验证中...';
+    }
+    setQRLoginStatus('正在验证...');
+
+    fetchQRLoginCheck('soda', key)
+        .then(result => {
+            const status = String(result.status || '');
+            if (status === 'success') {
+                handleQRLoginSuccess(result);
+                return;
+            }
+            setQRLoginStatus(String(result.message || '').trim() || '验证码错误，请重试', status === 'failed' ? 'error' : 'warning');
+        })
+        .catch(error => {
+            setQRLoginStatus(error.message || '验证码验证失败', 'error');
+        })
+        .finally(() => {
+            qrLoginState.smsBusy = false;
+            if (validateBtn) {
+                validateBtn.disabled = false;
+                validateBtn.textContent = '确认登录';
+            }
+        });
+}
+
+function pollQRLogin() {
+    if (!qrLoginState.source || !qrLoginState.key || qrLoginState.pollBusy) return;
+    qrLoginState.pollBusy = true;
+
+    fetchQRLoginCheck(qrLoginState.source, qrLoginState.key)
         .then(result => {
             const status = String(result.status || '');
             const message = String(result.message || '').trim();
             if (status === 'success') {
-                clearQRLoginPoll();
-                const cookie = cookieFromQRLoginResult(result);
-                const input = document.getElementById(`cookie-${qrLoginCookieSource(qrLoginState.source)}`);
-                if (input && cookie) input.value = cookie;
-                setQRLoginStatus('登录成功，Cookie 已保存', 'success');
-                showToast('扫码登录成功', `${qrLoginSourceLabel(qrLoginState.source)} Cookie 已保存`, 'success');
-                window.setTimeout(closeQRLoginModal, 900);
+                handleQRLoginSuccess(result);
                 return;
             }
             if (status === 'scanned') {
+                const extra = qrLoginResultExtra(result);
+                if (qrLoginState.source === 'soda' && qrLoginExtraFlag(extra, 'need_sms')) {
+                    showSodaSMSLogin(result);
+                    return;
+                }
                 setQRLoginStatus(message || '已扫码，请在手机上确认', 'warning');
                 return;
             }

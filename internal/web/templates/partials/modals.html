@@ -80,8 +80,8 @@
             </div>
             <div class="cookie-item">
                 <label for="setting-cli-page-size">CLI 每页条数</label>
-                <input type="number" id="setting-cli-page-size" min="1" max="200" step="1" placeholder="默认 50">
-                <p class="setting-hint" style="margin-left: 0;">用于 TUI 分页显示，默认 50。</p>
+                <input type="number" id="setting-cli-page-size" min="1" max="200" step="1" placeholder="默认 20">
+                <p class="setting-hint" style="margin-left: 0;">用于 TUI 分页显示，默认 20。</p>
             </div>
             <div class="cookie-item setting-item">
                 <label class="setting-toggle" for="setting-vg-change-cover">
@@ -134,6 +134,13 @@
                     <div id="qrLoginLoading" class="qr-login-loading">正在生成二维码...</div>
                 </div>
                 <div id="qrLoginStatus" class="qr-login-status">请稍候</div>
+                <div id="qrLoginSMSPanel" class="qr-login-sms" style="display: none;">
+                    <div class="qr-login-sms-row">
+                        <input id="qrLoginSMSCode" class="qr-login-sms-input" type="text" inputmode="numeric" maxlength="8" placeholder="输入验证码">
+                        <button id="qrLoginSendSMSBtn" type="button" class="btn-pill btn-pill-primary" onclick="sendSodaSMSCode()">发送验证码</button>
+                    </div>
+                    <button id="qrLoginValidateSMSBtn" type="button" class="btn-pill btn-pill-dl qr-login-sms-submit" onclick="validateSodaSMSCode()">确认登录</button>
+                </div>
                 <div class="qr-login-actions">
                     <button type="button" class="btn-pill btn-pill-primary" onclick="restartQRLogin()"><i class="fa-solid fa-rotate-right"></i> 刷新二维码</button>
                     <button type="button" class="btn-pill btn-pill-dl" onclick="closeQRLoginModal()">关闭</button>
