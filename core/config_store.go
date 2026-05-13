@@ -18,7 +18,7 @@ const (
 	DefaultWebDownloadDir           = "data/downloads"
 	DefaultDownloadFilenameTemplate = "{name} - {artist}"
 	DefaultWebPageSize              = 50
-	DefaultCLIPageSize              = 50
+	DefaultCLIPageSize              = 20
 	DefaultWebConcurrency           = 3
 	webSettingsKey                  = "web_settings"
 )

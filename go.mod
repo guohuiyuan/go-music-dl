@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	gioui.org v0.9.1-0.20251215212054-7bcb315ee174
+	git.wow.st/gmp/jni v0.0.0-20210610011705-34026c7e22d0
 	github.com/Ghibranalj/webview_go v0.0.0-20251019170756-f933bf214be3
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -12,7 +13,7 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/gioui-plugins/gio-plugins v0.9.2
 	github.com/glebarez/sqlite v1.11.0
-	github.com/guohuiyuan/music-lib v1.1.1-0.20260508091248-cd064cac07df
+	github.com/guohuiyuan/music-lib v1.1.1-0.20260513122417-a62f8bf32c2d
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/spf13/cobra v1.10.2
 	gorm.io/gorm v1.31.1
@@ -20,7 +21,6 @@ require (
 
 require (
 	gioui.org/shader v1.0.8 // indirect
-	git.wow.st/gmp/jni v0.0.0-20210610011705-34026c7e22d0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect

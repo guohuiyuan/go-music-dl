@@ -672,6 +672,42 @@ body.batch-mode .song-card { padding-left: 10px; }
 .qr-login-status.success { background: #ecfdf5; color: #047857; border-color: #bbf7d0; }
 .qr-login-status.warning { background: #fffbeb; color: #b45309; border-color: #fde68a; }
 .qr-login-status.error { background: #fff5f5; color: #c53030; border-color: #feb2b2; }
+.qr-login-sms {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #dbeafe;
+    background: #f8fbff;
+    box-sizing: border-box;
+}
+.qr-login-sms-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+.qr-login-sms-input {
+    width: 100%;
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-main);
+    font-size: 14px;
+    font-weight: 700;
+    outline: none;
+    box-sizing: border-box;
+}
+.qr-login-sms-input:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+.qr-login-sms-submit {
+    width: 100%;
+    justify-content: center;
+    margin-top: 10px;
+}
 .qr-login-actions {
     width: 100%;
     display: flex;
@@ -1035,6 +1071,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     .qr-login-modal { max-width: 92vw; }
     .qr-login-frame { width: min(280px, 86vw); height: min(280px, 86vw); }
     .qr-login-frame canvas, .qr-login-image { width: min(248px, 78vw); height: min(248px, 78vw); }
+    .qr-login-sms-row { grid-template-columns: 1fr; }
     .playlist-meta { padding: 8px; }
     .playlist-title { font-size: 12px; margin-bottom: 4px; }
     .playlist-card-actions { flex-direction: column; align-items: stretch; }
