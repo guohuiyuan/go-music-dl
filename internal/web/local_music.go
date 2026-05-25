@@ -128,10 +128,14 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 		})
 	})
 
-	api.GET("/local_music/cover", func(c *gin.Context) {
+	localMusicCoverHandler := func(c *gin.Context) {
 		track, err := localMusicTrackByID(c.Query("id"))
 		if err != nil {
 			c.Status(http.StatusNotFound)
+			return
+		}
+		saveLocal := wantsSaveLocal(c)
+		if saveLocal && !allowSaveLocalRequest(c) {
 			return
 		}
 
@@ -140,7 +144,7 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 			c.Status(http.StatusNotFound)
 			return
 		}
-		if shouldSaveWebAssetToLocal(c) {
+		if saveLocal {
 			saveWebAssetResponse(c, localMusicCoverFilename(track, ext), data)
 			return
 		}
@@ -149,7 +153,9 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 		}
 		c.Header("Cache-Control", "public, max-age=21600")
 		c.Data(http.StatusOK, mimeType, data)
-	})
+	}
+	api.GET("/local_music/cover", localMusicCoverHandler)
+	api.POST("/local_music/cover", localMusicCoverHandler)
 
 	api.POST("/local_music/upload", func(c *gin.Context) {
 		file, err := c.FormFile("file")
@@ -1123,7 +1129,7 @@ func localMusicLyricFilename(track *localMusicTrack) string {
 	return utils.SanitizeFilename(fmt.Sprintf("%s - %s.lrc", name, artist))
 }
 
-func serveLocalMusicLyric(c *gin.Context, song *model.Song, download bool) {
+func serveLocalMusicLyric(c *gin.Context, song *model.Song, download bool, saveLocal ...bool) {
 	if song == nil {
 		c.String(http.StatusNotFound, "Lyric not found")
 		return
@@ -1151,7 +1157,7 @@ func serveLocalMusicLyric(c *gin.Context, song *model.Song, download bool) {
 	lyrics = formatLyricForMode(lyrics, c.DefaultQuery("format", "auto"))
 	c.Header("X-Lyric-Format", classifyLyricFormat(lyrics))
 	if download {
-		if shouldSaveWebAssetToLocal(c) {
+		if len(saveLocal) > 0 && saveLocal[0] {
 			saveWebAssetResponse(c, localMusicLyricFilename(track), []byte(lyrics))
 			return
 		}

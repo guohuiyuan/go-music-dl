@@ -445,8 +445,10 @@ function withSaveLocalParam(url) {
 
 async function requestLocalDownload(url) {
     const response = await fetch(withSaveLocalParam(url), {
+        method: 'POST',
         headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         }
     });
     const data = await response.json().catch(() => null);

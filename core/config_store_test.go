@@ -230,3 +230,53 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		t.Fatalf("absolute download dir mismatch: got %q want %q", got.DownloadDir, filepath.Clean(absoluteDir))
 	}
 }
+
+func TestWebAuthSettingsDefaultAndPersist(t *testing.T) {
+	baseDir := t.TempDir()
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(baseDir, "data", "settings.db"))
+	t.Setenv("MUSIC_DL_COOKIE_FILE", filepath.Join(baseDir, "data", "cookies.json"))
+	resetConfigStateForTest()
+	t.Cleanup(resetConfigStateForTest)
+
+	defaults, err := GetWebAuthSettings()
+	if err != nil {
+		t.Fatalf("get default auth settings: %v", err)
+	}
+	if defaults.Username != DefaultWebAuthUsername {
+		t.Fatalf("default Username = %q, want %q", defaults.Username, DefaultWebAuthUsername)
+	}
+	if defaults.PasswordHash != "" {
+		t.Fatalf("default PasswordHash should be empty")
+	}
+	if defaults.SessionSecret != "" {
+		t.Fatalf("default SessionSecret should be empty")
+	}
+
+	want := WebAuthSettings{
+		Username:      "owner",
+		PasswordHash:  "bcrypt-hash",
+		SessionSecret: "session-secret",
+	}
+	if err := SaveWebAuthSettings(want); err != nil {
+		t.Fatalf("save auth settings: %v", err)
+	}
+
+	got, err := GetWebAuthSettings()
+	if err != nil {
+		t.Fatalf("get saved auth settings: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("saved auth settings mismatch\ngot:  %#v\nwant: %#v", got, want)
+	}
+
+	if err := SaveWebAuthSettings(WebAuthSettings{}); err != nil {
+		t.Fatalf("save empty auth settings: %v", err)
+	}
+	got, err = GetWebAuthSettings()
+	if err != nil {
+		t.Fatalf("get normalized auth settings: %v", err)
+	}
+	if got.Username != DefaultWebAuthUsername {
+		t.Fatalf("normalized Username = %q, want %q", got.Username, DefaultWebAuthUsername)
+	}
+}

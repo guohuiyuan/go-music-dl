@@ -331,6 +331,11 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 
 func Start(port string, shouldOpenBrowser bool) {
 	core.CM.Load()
+	if settings, err := core.GetWebAuthSettings(); err == nil {
+		if token, tokenErr := prepareSetupToken(settings); tokenErr == nil && token != "" {
+			fmt.Printf("Web setup token: %s\nOpen %s/setup and keep this startup terminal private until setup is complete.\n", token, RoutePrefix)
+		}
+	}
 	InitDB()
 	defer CloseDB()
 
@@ -367,7 +372,6 @@ func Start(port string, shouldOpenBrowser bool) {
 	os.MkdirAll(videoDir, 0755)
 
 	api := r.Group(RoutePrefix)
-	api.Static("/videos", videoDir)
 
 	// Static assets embedded at build time.
 	api.GET("/icon.png", func(c *gin.Context) { c.FileFromFS("templates/static/images/icon.png", http.FS(templateFS)) })
@@ -375,6 +379,10 @@ func Start(port string, shouldOpenBrowser bool) {
 	api.GET("/videogen.css", func(c *gin.Context) { c.FileFromFS("templates/static/css/videogen.css", http.FS(templateFS)) })
 	api.GET("/videogen.js", func(c *gin.Context) { c.FileFromFS("templates/static/js/videogen.js", http.FS(templateFS)) })
 	api.GET("/app.js", func(c *gin.Context) { c.FileFromFS("templates/static/js/app.js", http.FS(templateFS)) })
+	bindAuthRoutes(api)
+	api.Use(authRequired(core.GetWebAuthSettings))
+	api.Static("/videos", videoDir)
+
 	api.GET("/render", func(c *gin.Context) {
 		c.HTML(200, "render.html", gin.H{
 			"Root": RoutePrefix,
