@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Go environment
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version: '1.25'
       - name: Cache downloaded module

@@ -475,11 +475,12 @@ jobs:
         shell: cmd
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE }}
+          ANDROID_KEYSTORE_FILE: ..\release.keystore
         run: |
           package_app.bat
 
       - name: Remove Android signing keystore
+        if: always()
         shell: cmd
         run: |
           del /q release.keystore
