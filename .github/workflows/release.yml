@@ -473,13 +473,16 @@ jobs:
           [IO.File]::WriteAllBytes("release.keystore", [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
       - name: Build APK
         shell: cmd
-        run: |
-          package_app.bat
-          del /q release.keystore
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE }}
+        run: |
+          package_app.bat
 
+      - name: Remove Android signing keystore
+        shell: cmd
+        run: |
+          del /q release.keystore
 
       - name: Verify APK
         shell: cmd
