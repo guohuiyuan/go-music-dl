@@ -102,6 +102,8 @@ gogio -target android ^
  -version %VERSION% ^
  -icon ../winres/icon_256x256.png ^
  -slice ^
+ -signkey "%ANDROID_KEYSTORE_FILE%" ^
+ -signpass "%ANDROID_KEYSTORE_PASSWORD%" ^
  github.com/guohuiyuan/go-music-dl/desktop_app
 if errorlevel 1 (
 	echo ERROR: gogio build failed.

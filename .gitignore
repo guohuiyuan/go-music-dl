@@ -22,3 +22,5 @@ winres/desktop_go.winres.json
 *.idsig
 extra-release-assets/
 __debug_bin*
+*.keystore
+*.keystore.base64
