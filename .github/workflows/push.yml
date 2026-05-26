@@ -9,12 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@master
+        uses: actions/setup-go@v6
         with:
           go-version: '1.25'
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
@@ -26,9 +26,9 @@ jobs:
           go generate ./...
 
       - name: Run Lint
-        uses: golangci/golangci-lint-action@master
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.12.2
 
       - name: Commit back
         if: ${{ !github.head_ref }}
