@@ -20,7 +20,20 @@
             {{ end }}
         </div>
 
-        <div style="display:flex; gap:10px; flex-wrap: wrap; justify-content: flex-end;">
+        <div style="display:flex; gap:10px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
+            {{ if gt .TotalCount 1 }}
+            <div class="song-sort-control" id="song-sort-control">
+                <select id="song-sort-select" aria-label="歌曲排序" onchange="setSongSortMode(this.value)">
+                    <option value="default">默认排序</option>
+                    <option value="quality">按音质</option>
+                    <option value="size">按大小</option>
+                    <option value="duration">按时长</option>
+                </select>
+                <button type="button" class="ctrl-btn sort-dir-btn" id="song-sort-direction" title="降序" onclick="toggleSongSortDirection()">
+                    <i class="fa-solid fa-arrow-down-wide-short"></i>
+                </button>
+            </div>
+            {{ end }}
             {{ if .ImportCollection }}
             <button type="button"
                     class="ctrl-btn primary"
@@ -105,6 +118,8 @@
             data-name="{{.Name}}"
             data-artist="{{.Artist}}"
             data-cover="{{.Cover}}"
+            data-sort-size="{{ if .Extra }}{{ index .Extra "size" }}{{ end }}"
+            data-sort-bitrate="{{ if .Extra }}{{ index .Extra "bitrate" }}{{ end }}"
             data-extra='{{tojson .Extra}}'>
 
             <div class="checkbox-wrapper">
@@ -222,6 +237,10 @@
                 <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
                    id="dl-{{.ID}}" class="btn-circle btn-dl btn-download" title="下载歌曲" target="_blank">
                     <i class="fa-solid fa-download"></i>
+                </a>
+                <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
+                   id="browser-dl-{{.ID}}" class="btn-circle btn-dl btn-browser-download" title="浏览器下载" target="_blank">
+                    <i class="fa-solid fa-cloud-arrow-down"></i>
                 </a>
                 {{ end }}
 

@@ -17,12 +17,14 @@ const (
 	ConfigDBFile                    = "data/settings.db"
 	DefaultWebDownloadDir           = "data/downloads"
 	DefaultDownloadFilenameTemplate = "{name} - {artist}"
+	DefaultWebAuthUsername          = "admin"
 	DefaultWebPageSize              = 50
 	DefaultCLIPageSize              = 20
 	DefaultWebConcurrency           = 3
 	DefaultUpdateRepoURL            = "https://github.com/guohuiyuan/go-music-dl"
 	DefaultGithubProxyURL           = "https://edgeone.gh-proxy.com"
 	webSettingsKey                  = "web_settings"
+	webAuthSettingsKey              = "web_auth_settings"
 )
 
 type configKV struct {
@@ -54,6 +56,12 @@ type WebSettings struct {
 	VgChangeAudio            bool   `json:"vgChangeAudio"`
 	VgChangeLyric            bool   `json:"vgChangeLyric"`
 	VgExportVideo            bool   `json:"vgExportVideo"`
+}
+
+type WebAuthSettings struct {
+	Username      string `json:"username"`
+	PasswordHash  string `json:"passwordHash"`
+	SessionSecret string `json:"sessionSecret"`
 }
 
 var (
@@ -166,6 +174,12 @@ func defaultWebSettings() WebSettings {
 	})
 }
 
+func defaultWebAuthSettings() WebAuthSettings {
+	return WebAuthSettings{
+		Username: DefaultWebAuthUsername,
+	}
+}
+
 func normalizeWebSettings(settings WebSettings) WebSettings {
 	settings.DownloadDir = strings.TrimSpace(settings.DownloadDir)
 	if settings.DownloadDir == "" {
@@ -199,6 +213,16 @@ func normalizeWebSettings(settings WebSettings) WebSettings {
 		settings.GithubProxyURL = DefaultGithubProxyURL
 	}
 	settings.DownloadDir = normalizeWebDownloadDir(settings.DownloadDir)
+	return settings
+}
+
+func normalizeWebAuthSettings(settings WebAuthSettings) WebAuthSettings {
+	settings.Username = strings.TrimSpace(settings.Username)
+	if settings.Username == "" {
+		settings.Username = DefaultWebAuthUsername
+	}
+	settings.PasswordHash = strings.TrimSpace(settings.PasswordHash)
+	settings.SessionSecret = strings.TrimSpace(settings.SessionSecret)
 	return settings
 }
 
@@ -246,6 +270,46 @@ func SaveWebSettings(settings WebSettings) error {
 		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
 	}).Create(&configKV{
 		Key:   webSettingsKey,
+		Value: string(data),
+	}).Error
+}
+
+func GetWebAuthSettings() (WebAuthSettings, error) {
+	settings := defaultWebAuthSettings()
+	if err := ensureConfigDB(); err != nil {
+		return settings, err
+	}
+
+	var row configKV
+	if err := configDB.Where("key = ?", webAuthSettingsKey).Limit(1).Find(&row).Error; err != nil {
+		return settings, err
+	}
+	if row.Key == "" {
+		return settings, nil
+	}
+
+	if err := json.Unmarshal([]byte(row.Value), &settings); err != nil {
+		return defaultWebAuthSettings(), err
+	}
+	return normalizeWebAuthSettings(settings), nil
+}
+
+func SaveWebAuthSettings(settings WebAuthSettings) error {
+	if err := ensureConfigDB(); err != nil {
+		return err
+	}
+
+	settings = normalizeWebAuthSettings(settings)
+	data, err := json.Marshal(settings)
+	if err != nil {
+		return err
+	}
+
+	return configDB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
+	}).Create(&configKV{
+		Key:   webAuthSettingsKey,
 		Value: string(data),
 	}).Error
 }

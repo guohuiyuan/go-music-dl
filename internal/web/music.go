@@ -770,7 +770,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		})
 	})
 
-	api.GET("/download", func(c *gin.Context) {
+	downloadHandler := func(c *gin.Context) {
 		id := c.Query("id")
 		source := c.Query("source")
 		name := c.Query("name")
@@ -780,7 +780,10 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		streamPlayback := c.Query("stream") == "1"
 		noRangeRequest := strings.TrimSpace(c.GetHeader("Range")) == ""
 		embedMeta := !streamPlayback && c.Query("embed") == "1" && noRangeRequest
-		saveLocal := !streamPlayback && c.Query("save_local") == "1" && noRangeRequest
+		saveLocal := !streamPlayback && noRangeRequest && wantsSaveLocal(c)
+		if wantsSaveLocal(c) && !allowSaveLocalRequest(c) {
+			return
+		}
 		extra := parseSongExtraQuery(c.Query("extra"))
 		if album == "" && extra != nil {
 			album = strings.TrimSpace(extra["album"])
@@ -965,15 +968,21 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		}
 		c.Status(resp.StatusCode)
 		io.Copy(c.Writer, resp.Body)
-	})
+	}
+	api.GET("/download", downloadHandler)
+	api.POST("/download", downloadHandler)
 
-	api.GET("/download_lrc", func(c *gin.Context) {
+	downloadLRCHandler := func(c *gin.Context) {
 		song := lyricSongFromQuery(c)
 		name := song.Name
 		artist := song.Artist
+		saveLocal := wantsSaveLocal(c)
+		if saveLocal && !allowSaveLocalRequest(c) {
+			return
+		}
 
 		if isLocalMusicSource(song.Source) {
-			serveLocalMusicLyric(c, song, true)
+			serveLocalMusicLyric(c, song, true, saveLocal)
 			return
 		}
 
@@ -992,30 +1001,38 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		c.Header("X-Lyric-Format", classifyLyricFormat(lrc))
 
 		filename := fmt.Sprintf("%s - %s.lrc", name, artist)
-		if shouldSaveWebAssetToLocal(c) {
+		if saveLocal {
 			saveWebAssetResponse(c, filename, []byte(lrc))
 			return
 		}
 		setDownloadHeader(c, filename)
 		c.String(200, lrc)
-	})
+	}
+	api.GET("/download_lrc", downloadLRCHandler)
+	api.POST("/download_lrc", downloadLRCHandler)
 
-	api.GET("/download_cover", func(c *gin.Context) {
+	downloadCoverHandler := func(c *gin.Context) {
 		u := c.Query("url")
 		if u == "" {
+			return
+		}
+		saveLocal := wantsSaveLocal(c)
+		if saveLocal && !allowSaveLocalRequest(c) {
 			return
 		}
 		resp, err := utils.Get(u, utils.WithHeader("User-Agent", core.UA_Common))
 		if err == nil {
 			filename := fmt.Sprintf("%s - %s.jpg", c.Query("name"), c.Query("artist"))
-			if shouldSaveWebAssetToLocal(c) {
+			if saveLocal {
 				saveWebAssetResponse(c, filename, resp)
 				return
 			}
 			setDownloadHeader(c, filename)
 			c.Data(200, "image/jpeg", resp)
 		}
-	})
+	}
+	api.GET("/download_cover", downloadCoverHandler)
+	api.POST("/download_cover", downloadCoverHandler)
 
 	api.GET("/cover_proxy", func(c *gin.Context) {
 		u := strings.TrimSpace(c.Query("url"))
@@ -1056,13 +1073,6 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		}
 		c.String(200, "[00:00.00] 纯音乐 / 无歌词")
 	})
-}
-
-func shouldSaveWebAssetToLocal(c *gin.Context) bool {
-	if c == nil {
-		return false
-	}
-	return strings.TrimSpace(c.Query("save_local")) == "1"
 }
 
 func saveWebAssetResponse(c *gin.Context, filename string, data []byte) {

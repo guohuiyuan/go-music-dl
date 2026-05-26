@@ -24,6 +24,12 @@
     <i class="fa-solid fa-gear"></i>
 </div>
 
+<form class="auth-float" action="{{.Root}}/logout" method="post" title="退出登录">
+    <button type="submit">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+    </button>
+</form>
+
 <div class="container">
     {{template "search_box" .}}
 

@@ -340,6 +340,12 @@ function buildDownloadURL(id, source, name, artist, album, cover, extra) {
     });
 }
 
+function buildBrowserDownloadURL(id, source, name, artist, album, cover, extra) {
+    return buildDownloadRequestURL(id, source, name, artist, album, cover, extra, {
+        embed: webSettings.embedDownload
+    });
+}
+
 function buildLyricRequestURL(song, endpoint = 'lyric', format = 'auto') {
     const params = new URLSearchParams({
         id: String(song?.id || ''),
@@ -384,6 +390,17 @@ function updateDownloadButton(link) {
     const ds = card.dataset;
     link.href = buildDownloadURL(ds.id, ds.source, ds.name, ds.artist, ds.album || '', ds.cover || '', ds.extra || '');
     link.title = webSettings.downloadToLocal ? '保存到本地目录' : '下载歌曲';
+}
+
+function updateBrowserDownloadButton(link) {
+    if (!link) return;
+
+    const card = link.closest('.song-card');
+    if (!card) return;
+
+    const ds = card.dataset;
+    link.href = buildBrowserDownloadURL(ds.id, ds.source, ds.name, ds.artist, ds.album || '', ds.cover || '', ds.extra || '');
+    link.title = webSettings.embedDownload ? '浏览器下载（内嵌元数据）' : '浏览器下载';
 }
 
 function updateLyricButton(link) {
@@ -432,6 +449,7 @@ function updateCoverButton(link) {
 function refreshDownloadLinks(root = document) {
     root.querySelectorAll('.song-card').forEach(card => {
         updateDownloadButton(card.querySelector('.btn-download'));
+        updateBrowserDownloadButton(card.querySelector('.btn-browser-download'));
         updateLyricButton(card.querySelector('.btn-lyric'));
         updateCoverButton(card.querySelector('.btn-cover'));
     });
@@ -445,8 +463,10 @@ function withSaveLocalParam(url) {
 
 async function requestLocalDownload(url) {
     const response = await fetch(withSaveLocalParam(url), {
+        method: 'POST',
         headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         }
     });
     const data = await response.json().catch(() => null);
@@ -610,6 +630,8 @@ async function handleDownloadClick(link) {
 
 let navigationAbortController = null;
 let pageNavigationEventsBound = false;
+let songSortMode = 'default';
+let songSortDirection = 'desc';
 
 function isAppRoute(pathname) {
     return pathname === API_ROOT || pathname.startsWith(`${API_ROOT}/`);
@@ -752,6 +774,7 @@ function initializePageContent(root = document) {
     bindSourceSelectorButtons(root);
     initSourceSelectorCollapse(root);
     bindSearchForm(root);
+    bindSongSortControls(root);
 
     const initialTypeEl = root.querySelector('input[name="type"]:checked');
     if (initialTypeEl) {
@@ -1140,6 +1163,132 @@ function parsePositiveInt(value, fallbackValue) {
     return parsed;
 }
 
+function parseSizeToBytes(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw || raw === '-' || raw === '无效' || raw === '检测失败') return 0;
+    const match = raw.match(/([\d.]+)\s*([kmgt]?i?b|[kmgt])?/i);
+    if (!match) return parsePositiveInt(raw, 0);
+    const number = Number.parseFloat(match[1]);
+    if (!Number.isFinite(number) || number <= 0) return 0;
+    const unit = String(match[2] || 'b').toLowerCase();
+    const multipliers = {
+        b: 1,
+        k: 1024,
+        kb: 1024,
+        kib: 1024,
+        m: 1024 ** 2,
+        mb: 1024 ** 2,
+        mib: 1024 ** 2,
+        g: 1024 ** 3,
+        gb: 1024 ** 3,
+        gib: 1024 ** 3,
+        t: 1024 ** 4,
+        tb: 1024 ** 4,
+        tib: 1024 ** 4
+    };
+    return Math.round(number * (multipliers[unit] || 1));
+}
+
+function parseBitrateToKbps(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw || raw === '-') return 0;
+    const match = raw.match(/([\d.]+)\s*(k|kbps|kbit\/s|m|mbps|mbit\/s)?/i);
+    if (!match) return parsePositiveInt(raw, 0);
+    const number = Number.parseFloat(match[1]);
+    if (!Number.isFinite(number) || number <= 0) return 0;
+    const unit = String(match[2] || 'kbps').toLowerCase();
+    return unit.startsWith('m') ? Math.round(number * 1000) : Math.round(number);
+}
+
+function ensureSongSortIndexes(root = document) {
+    const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+    const cards = Array.from(
+        scope.matches && scope.matches('.result-list')
+            ? scope.querySelectorAll('.song-card')
+            : scope.querySelectorAll('.result-list .song-card')
+    );
+    cards.forEach((card, index) => {
+        if (!card.dataset.sortIndex) {
+            card.dataset.sortIndex = String(index);
+        }
+        if (!card.dataset.sortDuration) {
+            card.dataset.sortDuration = String(parsePositiveInt(card.dataset.duration, 0));
+        }
+        if (card.dataset.sortSize) {
+            card.dataset.sortSize = String(parseSizeToBytes(card.dataset.sortSize));
+        }
+        if (card.dataset.sortBitrate) {
+            card.dataset.sortBitrate = String(parseBitrateToKbps(card.dataset.sortBitrate));
+        }
+    });
+}
+
+function songSortValue(card, mode) {
+    switch (mode) {
+    case 'quality':
+        return parsePositiveInt(card.dataset.sortBitrate, 0);
+    case 'size':
+        return parsePositiveInt(card.dataset.sortSize, 0);
+    case 'duration':
+        return parsePositiveInt(card.dataset.sortDuration || card.dataset.duration, 0);
+    default:
+        return parsePositiveInt(card.dataset.sortIndex, 0);
+    }
+}
+
+function applySongSort(root = document) {
+    const scope = root && typeof root.querySelector === 'function' ? root : document;
+    const list = (scope.matches && scope.matches('.result-list'))
+        ? scope
+        : (scope.querySelector('.result-list') || document.querySelector('.result-list'));
+    if (!list) return;
+    ensureSongSortIndexes(list);
+
+    const cards = Array.from(list.querySelectorAll('.song-card'));
+    const direction = songSortDirection === 'asc' ? 1 : -1;
+    cards.sort((a, b) => {
+        if (songSortMode === 'default') {
+            return parsePositiveInt(a.dataset.sortIndex, 0) - parsePositiveInt(b.dataset.sortIndex, 0);
+        }
+        const delta = songSortValue(a, songSortMode) - songSortValue(b, songSortMode);
+        if (delta !== 0) return delta * direction;
+        return parsePositiveInt(a.dataset.sortIndex, 0) - parsePositiveInt(b.dataset.sortIndex, 0);
+    });
+    cards.forEach(card => list.appendChild(card));
+}
+
+function syncSongSortControls(root = document) {
+    const scope = root && typeof root.querySelector === 'function' ? root : document;
+    const select = scope.querySelector('#song-sort-select') || document.getElementById('song-sort-select');
+    if (select) select.value = songSortMode;
+
+    const button = scope.querySelector('#song-sort-direction') || document.getElementById('song-sort-direction');
+    if (!button) return;
+    const descending = songSortDirection !== 'asc';
+    button.title = descending ? '降序' : '升序';
+    button.innerHTML = descending
+        ? '<i class="fa-solid fa-arrow-down-wide-short"></i>'
+        : '<i class="fa-solid fa-arrow-up-wide-short"></i>';
+}
+
+function setSongSortMode(mode) {
+    songSortMode = ['default', 'quality', 'size', 'duration'].includes(mode) ? mode : 'default';
+    syncSongSortControls();
+    applySongSort();
+}
+
+function toggleSongSortDirection() {
+    songSortDirection = songSortDirection === 'asc' ? 'desc' : 'asc';
+    syncSongSortControls();
+    applySongSort();
+}
+
+function bindSongSortControls(root = document) {
+    ensureSongSortIndexes(root);
+    syncSongSortControls(root);
+    applySongSort(root);
+}
+
 function isLocalMusicPageActive(root = document) {
     const scope = root && typeof root.querySelector === 'function' ? root : document;
     return !!scope.querySelector('#localMusicPageList[data-local-music-page="true"]');
@@ -1228,6 +1377,8 @@ function renderLocalMusicPageCard(track) {
             data-name="${escapeHTML(song.name)}"
             data-artist="${escapeHTML(song.artist)}"
             data-cover="${escapeHTML(cover)}"
+            data-sort-size="${parsePositiveInt(track?.size, 0)}"
+            data-sort-bitrate="${parsePositiveInt(song.extra?.bitrate, 0)}"
             data-extra='${escapeHTML(extraJSON)}'>
             <div class="checkbox-wrapper">
                 <input type="checkbox" class="song-checkbox" onclick="event.stopPropagation(); updateBatchToolbar();">
@@ -1371,6 +1522,7 @@ async function loadLocalMusicPage(page = 1, options = {}) {
 
         renderLocalMusicPagePagination(targetPage, totalPages);
         refreshDownloadLinks(list);
+        bindSongSortControls(list);
         bindSongCardCovers(list);
         updateBatchToolbar();
         highlightCard(currentPlayingId);
@@ -1461,6 +1613,11 @@ function inspectSong(card) {
                     bitrateTag.textContent = data.bitrate;
                     bitrateTag.className = "tag";
                 }
+                card.dataset.sortSize = String(parseSizeToBytes(data.size));
+                card.dataset.sortBitrate = String(parseBitrateToKbps(data.bitrate));
+                if (data.duration) {
+                    card.dataset.sortDuration = String(parsePositiveInt(data.duration, parsePositiveInt(card.dataset.duration, 0)));
+                }
             } else {
                 if (sizeTag) {
                     sizeTag.textContent = "无效";
@@ -1470,6 +1627,11 @@ function inspectSong(card) {
                     bitrateTag.textContent = "-";
                     bitrateTag.className = "tag";
                 }
+                card.dataset.sortSize = "0";
+                card.dataset.sortBitrate = "0";
+            }
+            if (songSortMode !== 'default') {
+                applySongSort();
             }
         })
         .catch(() => {
@@ -3441,6 +3603,7 @@ function updateCardWithSong(card, song, options = {}) {
     card.dataset.albumId = getSongAlbumId(song);
     card.dataset.album = song.album || '';
     card.dataset.duration = song.duration || 0;
+    card.dataset.sortDuration = String(parsePositiveInt(song.duration, 0));
     card.dataset.name = song.name || card.dataset.name;
     card.dataset.artist = song.artist || card.dataset.artist;
     card.dataset.cover = song.cover || '';
@@ -3506,6 +3669,13 @@ function updateCardWithSong(card, song, options = {}) {
         dl.href = buildDownloadURL(song.id, song.source, song.name, song.artist, song.album || '', song.cover || '', card.dataset.extra || '');
         dl.id = `dl-${song.id}`;
         dl.title = webSettings.downloadToLocal ? '保存到本地目录' : '下载歌曲';
+    }
+
+    const browserDl = card.querySelector('.btn-browser-download');
+    if (browserDl) {
+        browserDl.href = buildBrowserDownloadURL(song.id, song.source, song.name, song.artist, song.album || '', song.cover || '', card.dataset.extra || '');
+        browserDl.id = `browser-dl-${song.id}`;
+        browserDl.title = webSettings.embedDownload ? '浏览器下载（内嵌元数据）' : '浏览器下载';
     }
 
     const lrc = card.querySelector('.btn-lyric');

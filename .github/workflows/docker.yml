@@ -3,24 +3,19 @@ name: Build And Push Docker Image
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
 env:
-  IMAGE_NAME: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/go-music-dl
+  IMAGE_NAME: docker.io/guohuiyuan/go-music-dl
 
 jobs:
-  build:
+  docker:
     runs-on: ubuntu-latest
     permissions:
-      packages: write
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -96,6 +91,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}

@@ -200,6 +200,7 @@ fn start_backend(
 ) -> Option<Child> {
     let mut cmd = Command::new(backend_path);
     cmd.arg("web")
+        .arg("--desktop")
         .arg("--no-browser")
         .arg("-p")
         .arg(server_config::PORT)

@@ -171,9 +171,12 @@ func TestDownloadURLsCarryAlbumForMetadataEmbedding(t *testing.T) {
 	js := string(jsContent)
 	for _, want := range []string{
 		"function buildDownloadRequestURL(id, source, name, artist, album, cover, extra, options = {})",
+		"function buildBrowserDownloadURL(id, source, name, artist, album, cover, extra)",
 		"params.set('album', albumValue);",
 		"buildDownloadURL(ds.id, ds.source, ds.name, ds.artist, ds.album || ''",
 		"buildDownloadURL(song.id, song.source, song.name, song.artist, song.album || ''",
+		"buildBrowserDownloadURL(ds.id, ds.source, ds.name, ds.artist, ds.album || ''",
+		"buildBrowserDownloadURL(song.id, song.source, song.name, song.artist, song.album || ''",
 	} {
 		if !strings.Contains(js, want) {
 			t.Fatalf("app.js missing album download URL token %q", want)
@@ -186,6 +189,49 @@ func TestDownloadURLsCarryAlbumForMetadataEmbedding(t *testing.T) {
 	}
 	if !strings.Contains(string(htmlContent), `&album={{urlquery .Album}}`) {
 		t.Fatal("song_list.html download link should include album query parameter")
+	}
+	if !strings.Contains(string(htmlContent), `class="btn-circle btn-dl btn-browser-download"`) {
+		t.Fatal("song_list.html should render a dedicated browser download button")
+	}
+	if !strings.Contains(string(htmlContent), `title="浏览器下载"`) {
+		t.Fatal("browser download button should be labeled separately from save-to-local download")
+	}
+}
+
+func TestSongListIncludesSortControls(t *testing.T) {
+	jsContent, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatalf("ReadFile(app.js): %v", err)
+	}
+	js := string(jsContent)
+	for _, want := range []string{
+		"function setSongSortMode(mode)",
+		"function toggleSongSortDirection()",
+		"function applySongSort(root = document)",
+		"card.dataset.sortSize = String(parseSizeToBytes(data.size));",
+		"card.dataset.sortBitrate = String(parseBitrateToKbps(data.bitrate));",
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("app.js missing song sort token %q", want)
+		}
+	}
+
+	htmlContent, err := templateFS.ReadFile("templates/partials/song_list.html")
+	if err != nil {
+		t.Fatalf("ReadFile(song_list.html): %v", err)
+	}
+	html := string(htmlContent)
+	for _, want := range []string{
+		`id="song-sort-select"`,
+		`value="quality">按音质</option>`,
+		`value="size">按大小</option>`,
+		`value="duration">按时长</option>`,
+		`data-sort-size=`,
+		`data-sort-bitrate=`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("song_list.html missing sort token %q", want)
+		}
 	}
 }
 

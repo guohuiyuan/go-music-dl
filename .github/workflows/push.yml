@@ -2,7 +2,7 @@ name: 推送代码检查
 on:
   push:
     branches:
-      - master
+      - main
 jobs:
   golangci:
     name: lint
@@ -16,7 +16,7 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
         with:
-          ref: master
+          ref: main
           fetch-depth: 0
           submodules: 'recursive'
 

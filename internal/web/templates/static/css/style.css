@@ -70,11 +70,13 @@ h1 {
 .type-option input:checked + span { color: #10b981; }
 
 .input-group { display: flex; gap: 10px; margin-bottom: 25px; }
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
     flex: 1; padding: 14px 24px; border: 2px solid #e2e8f0; border-radius: 50px;
     font-size: 16px; outline: none; transition: all 0.3s; background: #f8fafc; min-width: 0;
 }
-input[type="text"]:focus { border-color: #10b981; background: #fff; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15); }
+input[type="text"]:focus,
+input[type="password"]:focus { border-color: #10b981; background: #fff; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15); }
 
 .search-btn {
     padding: 0 32px; border: none; border-radius: 50px; background: var(--primary-gradient); color: white;
@@ -97,6 +99,9 @@ input[type="text"]:focus { border-color: #10b981; background: #fff; box-shadow: 
 .ctrl-btn:hover { background: #edf2f7; color: #10b981; }
 .ctrl-btn.primary { background: #f7f9ff; color: #10b981; border: 1px solid #dbe3ff; padding: 6px 12px; font-weight: 600; border-radius: 999px; }
 .ctrl-btn.primary:hover { background: #eff3ff; }
+.song-sort-control { display: inline-flex; align-items: center; gap: 6px; padding: 4px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: var(--shadow); }
+.song-sort-control select { border: none; background: transparent; color: var(--text-main); font-size: 13px; font-weight: 600; outline: none; cursor: pointer; padding: 4px 2px; }
+.song-sort-control .sort-dir-btn { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #edf2f7; border-radius: 6px; }
 
 .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .source-selector.is-collapsed .source-grid { display: none; }
@@ -455,6 +460,89 @@ body.batch-mode .song-card { padding-left: 10px; }
 
 .settings-float { position: absolute; top: 30px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; }
 .settings-float:hover { color: #10b981; transform: rotate(90deg); }
+.auth-float { position: absolute; top: 82px; right: 30px; z-index: 20; margin: 0; }
+.auth-float button { background: white; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; }
+.auth-float button:hover { color: #e53e3e; transform: translateY(-2px); }
+
+.auth-page {
+    justify-content: center;
+    padding: 32px 20px;
+}
+
+.auth-shell {
+    width: 100%;
+    max-width: 420px;
+    z-index: 1;
+}
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 20px;
+    box-shadow: var(--shadow-active);
+    padding: 34px;
+    backdrop-filter: blur(10px);
+}
+
+.auth-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #10b981;
+    text-decoration: none;
+    font-weight: 800;
+    margin-bottom: 18px;
+}
+
+.auth-brand-icon {
+    font-size: 22px;
+}
+
+.auth-card h1 {
+    text-align: left;
+    margin-bottom: 10px;
+    font-size: 1.8rem;
+}
+
+.auth-hint {
+    margin: 0 0 24px;
+    color: var(--text-sub);
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.auth-error {
+    margin-bottom: 18px;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-weight: 700;
+    color: var(--text-main);
+    font-size: 14px;
+}
+
+.auth-field input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.auth-submit {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+}
 
 /* Modals */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
@@ -1248,6 +1336,10 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     
     .btn-circle { width: 34px; height: 34px; font-size: 13px; }
     .settings-float { top: 15px; right: 15px; width: 36px; height: 36px; }
+    .auth-float { top: 60px; right: 15px; }
+    .auth-float button { width: 36px; height: 36px; }
+    .auth-page { padding: 24px 14px; }
+    .auth-card { padding: 26px 20px; border-radius: 16px; }
     .modal { width: 92%; max-height: 85vh; padding: 20px; }
     .local-music-toolbar { align-items: stretch; }
     .local-music-dir { min-width: 0; width: 100%; }

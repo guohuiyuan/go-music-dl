@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	go web.Start("37777", false)
+	go web.StartDesktop("37777")
 
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		Debug:     false,
