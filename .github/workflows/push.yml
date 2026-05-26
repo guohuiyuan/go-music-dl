@@ -2,21 +2,21 @@ name: 推送代码检查
 on:
   push:
     branches:
-      - master
+      - main
 jobs:
   golangci:
     name: lint
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@master
+        uses: actions/setup-go@v5
         with:
           go-version: '1.25'
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
         with:
-          ref: master
+          ref: main
           fetch-depth: 0
           submodules: 'recursive'
 
@@ -26,9 +26,10 @@ jobs:
           go generate ./...
 
       - name: Run Lint
-        uses: golangci/golangci-lint-action@master
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          version: v2.12.2
+          args: --new-from-rev=HEAD~1 ./cmd/music-dl ./core ./internal/... ./winres/...
 
       - name: Commit back
         if: ${{ !github.head_ref }}
