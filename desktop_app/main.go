@@ -114,7 +114,7 @@ func main() {
 	os.Setenv("MUSIC_DL_CONFIG_DB", path+"/settings.db")
 	os.Setenv("MUSIC_DL_COOKIE_FILE", path+"/cookies.json")
 
-	go web.Start("37777", false)
+	go web.StartDesktop("37777")
 
 	go func() {
 		window := new(app.Window)

@@ -329,10 +329,30 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	})
 }
 
+type StartOptions struct {
+	ShouldOpenBrowser bool
+	DisableAuth       bool
+	ListenHost        string
+}
+
 func Start(port string, shouldOpenBrowser bool) {
+	StartWithOptions(port, StartOptions{ShouldOpenBrowser: shouldOpenBrowser})
+}
+
+func StartDesktop(port string) {
+	StartWithOptions(port, StartOptions{
+		DisableAuth: true,
+		ListenHost:  "127.0.0.1",
+	})
+}
+
+func StartWithOptions(port string, opts StartOptions) {
 	core.CM.Load()
-	if settings, err := core.GetWebAuthSettings(); err == nil {
-		if token, tokenErr := prepareSetupToken(settings); tokenErr == nil && token != "" {
+	if !opts.DisableAuth {
+		settings, err := core.GetWebAuthSettings()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to read web auth settings: %v\n", err)
+		} else if token, tokenErr := prepareSetupToken(settings); tokenErr == nil && token != "" {
 			fmt.Printf("Web setup token: %s\nOpen %s/setup and keep this startup terminal private until setup is complete.\n", token, RoutePrefix)
 		}
 	}
@@ -379,8 +399,7 @@ func Start(port string, shouldOpenBrowser bool) {
 	api.GET("/videogen.css", func(c *gin.Context) { c.FileFromFS("templates/static/css/videogen.css", http.FS(templateFS)) })
 	api.GET("/videogen.js", func(c *gin.Context) { c.FileFromFS("templates/static/js/videogen.js", http.FS(templateFS)) })
 	api.GET("/app.js", func(c *gin.Context) { c.FileFromFS("templates/static/js/app.js", http.FS(templateFS)) })
-	bindAuthRoutes(api)
-	api.Use(authRequired(core.GetWebAuthSettings))
+	bindAuthMiddleware(api, opts)
 	api.Static("/videos", videoDir)
 
 	api.GET("/render", func(c *gin.Context) {
@@ -424,7 +443,7 @@ func Start(port string, shouldOpenBrowser bool) {
 	RegisterVideogenRoutes(api, videoDir)
 	RegisterUpdateRoutes(api)
 
-	listenAddr := ":" + port
+	listenAddr := opts.ListenHost + ":" + port
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "address already in use") {
@@ -437,10 +456,18 @@ func Start(port string, shouldOpenBrowser bool) {
 
 	urlStr := "http://localhost:" + port + RoutePrefix
 	fmt.Printf("Web started at %s\n", urlStr)
-	if shouldOpenBrowser {
+	if opts.ShouldOpenBrowser {
 		go func() { time.Sleep(500 * time.Millisecond); core.OpenBrowser(urlStr) }()
 	}
 	if err := http.Serve(listener, r); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintf(os.Stderr, "Web server stopped with error: %v\n", err)
 	}
+}
+
+func bindAuthMiddleware(api *gin.RouterGroup, opts StartOptions) {
+	if opts.DisableAuth {
+		return
+	}
+	bindAuthRoutes(api)
+	api.Use(authRequired(core.GetWebAuthSettings))
 }

@@ -225,3 +225,25 @@ func TestAuthRequiredAllowsSignedSession(t *testing.T) {
 		t.Fatalf("body = %q, want owner", rec.Body.String())
 	}
 }
+
+func TestDesktopModeSkipsWebAuthMiddleware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	api := router.Group(RoutePrefix)
+	bindAuthMiddleware(api, StartOptions{DisableAuth: true})
+	api.GET("", func(c *gin.Context) {
+		c.String(http.StatusOK, "desktop")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, RoutePrefix, nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if rec.Body.String() != "desktop" {
+		t.Fatalf("body = %q, want desktop", rec.Body.String())
+	}
+}

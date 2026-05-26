@@ -9,7 +9,7 @@ on:
       - 'v*'
 
 env:
-  IMAGE_NAME: docker.io/neonn128/go-music-dl
+  IMAGE_NAME: docker.io/guohuiyuan/go-music-dl
 
 jobs:
   docker:
