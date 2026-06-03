@@ -8,13 +8,21 @@ import (
 )
 
 func configureBundledFFmpegFromNativeLibraryDir(nativeLibraryDir string) error {
-	nativeLibraryDir = filepath.Clean(strings.TrimSpace(nativeLibraryDir))
-	if nativeLibraryDir == "" || nativeLibraryDir == "." {
+	return configureBundledFFmpegTools(nativeLibraryDir, "libffmpeg.so", "libffprobe.so")
+}
+
+func configureBundledFFmpegFromExtractDir(dir string) error {
+	return configureBundledFFmpegTools(dir, "ffmpeg", "ffprobe")
+}
+
+func configureBundledFFmpegTools(dir, ffmpegName, ffprobeName string) error {
+	dir = filepath.Clean(strings.TrimSpace(dir))
+	if dir == "" || dir == "." {
 		return fmt.Errorf("empty native library dir")
 	}
 
-	ffmpegPath := filepath.Join(nativeLibraryDir, "libffmpeg.so")
-	ffprobePath := filepath.Join(nativeLibraryDir, "libffprobe.so")
+	ffmpegPath := filepath.Join(dir, ffmpegName)
+	ffprobePath := filepath.Join(dir, ffprobeName)
 	if err := validateBundledTool(ffmpegPath); err != nil {
 		return fmt.Errorf("ffmpeg: %w", err)
 	}
@@ -24,7 +32,7 @@ func configureBundledFFmpegFromNativeLibraryDir(nativeLibraryDir string) error {
 
 	_ = os.Setenv("MUSIC_DL_FFMPEG", ffmpegPath)
 	_ = os.Setenv("MUSIC_DL_FFPROBE", ffprobePath)
-	prependPathDir(nativeLibraryDir)
+	prependPathDir(dir)
 	return nil
 }
 

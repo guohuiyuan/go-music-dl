@@ -23,7 +23,12 @@ $expandedAbis = @($Abis | ForEach-Object { $_ -split "," } | ForEach-Object { $_
 
 foreach ($abi in $expandedAbis) {
         foreach ($tool in @("ffmpeg", "ffprobe")) {
-            $entryName = "lib/$abi/lib$tool.so"
+            $legacyLibEntryName = "lib/$abi/lib$tool.so"
+            if ($null -ne $zip.GetEntry($legacyLibEntryName)) {
+                throw "$apkFull must not contain $legacyLibEntryName; bundled executables belong under assets/ffmpeg"
+            }
+
+            $entryName = "assets/ffmpeg/$abi/$tool"
             $entry = $zip.GetEntry($entryName)
             if ($null -eq $entry) {
                 throw "$apkFull is missing $entryName"

@@ -149,7 +149,7 @@ ffmpeg -version
 `ffprobe` 属于 FFmpeg 工具集，主要用于本地音乐的时长、码率和标签探测；`ffmpeg` 主要用于非 MP3 音频的封面/歌词元数据写入。缺少它们不会影响程序启动，也不会阻塞本地音乐列表加载，只会降级相关增强能力。
 
 * **Docker 镜像**: `Dockerfile` 已安装 Alpine 的 `ffmpeg` 包，并在构建时校验 `ffmpeg` 与 `ffprobe` 都可用；Docker / Compose 部署通常无需额外安装。
-* **GitHub Release 的 Android APK**: `release.yml` 会在 APK 构建后下载 Android `arm` / `arm64` / `x86` / `x86_64` 的 `ffmpeg` 与 `ffprobe`，注入到 APK 的 `lib/<abi>/libffmpeg.so` 和 `lib/<abi>/libffprobe.so`，再重新 `zipalign` 与签名。Android App 启动后会自动从 `nativeLibraryDir` 定位这些内置二进制。
+* **GitHub Release 的 Android APK**: `release.yml` 会在 APK 构建后下载 Android `arm` / `arm64` / `x86` / `x86_64` 的 `ffmpeg` 与 `ffprobe`，写入 APK 的 `assets/ffmpeg/<abi>/`，再重新 `zipalign` 与签名。Android App 启动后会自动解压到应用私有目录并配置这些内置二进制路径。
 * **GitHub Release 的 CLI / 桌面 / iOS 包**: 仍不内置 `ffmpeg/ffprobe`，也不要求 CI 打包机安装它们；如果需要本地音乐探测或非 MP3 元数据内嵌，请在运行机器上按上面的命令自行安装 FFmpeg。
 * **Linux deb/rpm/AppImage**: 仍按外部系统工具处理，不强制声明硬依赖，避免在不同发行版上因为 FFmpeg 包源差异导致安装失败。
 
@@ -347,8 +347,8 @@ adb install -r music-dl.apk
 * 安装 `platform-tools`、`platforms;android-33`、`build-tools;34.0.0`、`ndk;27.0.12077973`
 * 下载 Android `arm` / `arm64` / `x86` / `x86_64` 的 `ffmpeg` 与 `ffprobe`
 * 执行 `package_app.bat`
-* 构建 APK 后注入 `lib/<abi>/libffmpeg.so` 与 `lib/<abi>/libffprobe.so`，重新 `zipalign` 并用发布 keystore 签名
-* 校验三个 APK 都包含对应 ABI 的 `ffmpeg/ffprobe` 且签名有效
+* 构建 APK 后注入 `assets/ffmpeg/<abi>/ffmpeg` 与 `assets/ffmpeg/<abi>/ffprobe`，重新 `zipalign` 并用发布 keystore 签名
+* 校验三个 APK 都包含对应 ABI 的 `ffmpeg/ffprobe`，不包含旧的 `libffmpeg.so/libffprobe.so` 条目，且签名有效
 * 上传 `music-dl_arm64-v8a.apk`、`music-dl_x86_64.apk`、`music-dl.apk` 到 Actions Artifacts 和 GitHub Release
 
 发布后可在 [Releases](https://github.com/guohuiyuan/go-music-dl/releases) 下载三个 APK，推荐优先使用 `music-dl_arm64-v8a.apk`；极个别设备若无法安装/运行，再下载 `music-dl.apk`（无分片兼容包）。

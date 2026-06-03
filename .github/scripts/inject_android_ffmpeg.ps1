@@ -105,7 +105,8 @@ function Inject-Tools {
                     if (-not (Test-Path $source)) {
                         throw "Missing bundled $tool for $abi at $source"
                     }
-                    Add-FileEntry -Zip $zip -Source $source -EntryName "lib/$abi/lib$tool.so"
+                    Remove-EntryIfExists -Zip $zip -Name "lib/$abi/lib$tool.so"
+                    Add-FileEntry -Zip $zip -Source $source -EntryName "assets/ffmpeg/$abi/$tool"
                 }
             }
         }
@@ -129,7 +130,7 @@ function Inject-Tools {
         }
 
         Copy-Item -LiteralPath $alignedApk -Destination $apkFull -Force
-        Write-Host "Bundled ffmpeg and ffprobe into $apkFull"
+        Write-Host "Bundled ffmpeg and ffprobe assets into $apkFull"
     }
     finally {
         Remove-Item -LiteralPath $workRoot -Recurse -Force -ErrorAction SilentlyContinue
