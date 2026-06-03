@@ -26,3 +26,4 @@ __debug_bin*
 *.keystore
 *.keystore.base64
 .env
+.tmp-gogio-internal/

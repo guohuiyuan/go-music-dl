@@ -10,9 +10,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Add-Type -AssemblyName System.IO.Compression
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-
 function Get-LatestBuildTools {
     param([string]$SdkHome)
 
@@ -31,39 +28,76 @@ function Get-LatestBuildTools {
     return $buildTools.FullName
 }
 
-function Remove-EntryIfExists {
+function Remove-ApkEntries {
     param(
-        [System.IO.Compression.ZipArchive]$Zip,
-        [string]$Name
+        [string]$ApkPath,
+        [string]$Aapt
     )
 
-    $entry = $Zip.GetEntry($Name)
-    if ($null -ne $entry) {
-        $entry.Delete()
+    $entries = @(& $Aapt list $ApkPath)
+    if ($LASTEXITCODE -ne 0) {
+        throw "aapt list failed for $ApkPath"
+    }
+
+    $removeEntries = @(
+        $entries | Where-Object {
+            $_ -like "META-INF/*" -or
+            $_ -like "assets/ffmpeg/*" -or
+            $_ -match "^lib/[^/]+/lib(ffmpeg|ffprobe)\.so$"
+        }
+    )
+
+    if ($removeEntries.Count -eq 0) {
+        return
+    }
+
+    & $Aapt remove $ApkPath @removeEntries
+    if ($LASTEXITCODE -ne 0) {
+        throw "aapt remove failed for $ApkPath"
     }
 }
 
-function Add-FileEntry {
+function Add-ApkAssets {
     param(
-        [System.IO.Compression.ZipArchive]$Zip,
-        [string]$Source,
-        [string]$EntryName
+        [string]$ApkPath,
+        [string[]]$Abis,
+        [string]$AssetsRootFull,
+        [string]$Aapt,
+        [string]$WorkRoot
     )
 
-    Remove-EntryIfExists -Zip $Zip -Name $EntryName
-    $entry = $Zip.CreateEntry($EntryName, [System.IO.Compression.CompressionLevel]::Optimal)
-    $inputStream = [IO.File]::OpenRead($Source)
-    try {
-        $outputStream = $entry.Open()
-        try {
-            $inputStream.CopyTo($outputStream)
+    $stageRoot = Join-Path $WorkRoot "aapt-assets"
+    $relativePaths = New-Object System.Collections.Generic.List[string]
+
+    foreach ($abi in $Abis) {
+        foreach ($tool in @("ffmpeg", "ffprobe")) {
+            $source = Join-Path $AssetsRootFull (Join-Path $abi $tool)
+            if (-not (Test-Path $source)) {
+                throw "Missing bundled $tool for $abi at $source"
+            }
+
+            $relativePath = "assets/ffmpeg/$abi/$tool"
+            $destination = Join-Path $stageRoot (Join-Path "assets\ffmpeg\$abi" $tool)
+            New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($destination)) -Force | Out-Null
+            Copy-Item -LiteralPath $source -Destination $destination -Force
+            $relativePaths.Add($relativePath)
         }
-        finally {
-            $outputStream.Dispose()
+    }
+
+    if ($relativePaths.Count -eq 0) {
+        return
+    }
+
+    Push-Location $stageRoot
+    try {
+        $relativePathArray = @($relativePaths.ToArray())
+        & $Aapt add $ApkPath @relativePathArray
+        if ($LASTEXITCODE -ne 0) {
+            throw "aapt add failed for $ApkPath"
         }
     }
     finally {
-        $inputStream.Dispose()
+        Pop-Location
     }
 }
 
@@ -72,6 +106,7 @@ function Inject-Tools {
         [string]$ApkPath,
         [string[]]$Abis,
         [string]$AssetsRootFull,
+        [string]$Aapt,
         [string]$ZipAlign,
         [string]$ApkSigner,
         [string]$KeystoreFileFull,
@@ -92,29 +127,10 @@ function Inject-Tools {
         $alignedApk = Join-Path $workRoot ("aligned-" + [IO.Path]::GetFileName($apkFull))
         Copy-Item -LiteralPath $apkFull -Destination $unsignedApk -Force
 
-        $zip = [IO.Compression.ZipArchive]::new(
-            [IO.File]::Open($unsignedApk, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite),
-            [IO.Compression.ZipArchiveMode]::Update
-        )
-        try {
-            @($zip.Entries | Where-Object { $_.FullName -like "META-INF/*" }) | ForEach-Object { $_.Delete() }
+        Remove-ApkEntries -ApkPath $unsignedApk -Aapt $Aapt
+        Add-ApkAssets -ApkPath $unsignedApk -Abis $Abis -AssetsRootFull $AssetsRootFull -Aapt $Aapt -WorkRoot $workRoot
 
-            foreach ($abi in $Abis) {
-                foreach ($tool in @("ffmpeg", "ffprobe")) {
-                    $source = Join-Path $AssetsRootFull (Join-Path $abi $tool)
-                    if (-not (Test-Path $source)) {
-                        throw "Missing bundled $tool for $abi at $source"
-                    }
-                    Remove-EntryIfExists -Zip $zip -Name "lib/$abi/lib$tool.so"
-                    Add-FileEntry -Zip $zip -Source $source -EntryName "assets/ffmpeg/$abi/$tool"
-                }
-            }
-        }
-        finally {
-            $zip.Dispose()
-        }
-
-        & $ZipAlign -f 4 $unsignedApk $alignedApk
+        & $ZipAlign -f -p 4 $unsignedApk $alignedApk
         if ($LASTEXITCODE -ne 0) {
             throw "zipalign failed for $apkFull"
         }
@@ -140,9 +156,13 @@ function Inject-Tools {
 $assetsRootFull = [IO.Path]::GetFullPath($AssetsRoot)
 $keystoreFileFull = [IO.Path]::GetFullPath($KeystoreFile)
 $buildTools = Get-LatestBuildTools -SdkHome $AndroidHome
+$aapt = Join-Path $buildTools "aapt.exe"
 $zipAlign = Join-Path $buildTools "zipalign.exe"
 $apkSigner = Join-Path $buildTools "apksigner.bat"
 
+if (-not (Test-Path $aapt)) {
+    throw "aapt not found at $aapt"
+}
 if (-not (Test-Path $zipAlign)) {
     throw "zipalign not found at $zipAlign"
 }
@@ -161,6 +181,7 @@ foreach ($spec in $apkSpecs) {
         -ApkPath $spec.Path `
         -Abis $spec.Abis `
         -AssetsRootFull $assetsRootFull `
+        -Aapt $aapt `
         -ZipAlign $zipAlign `
         -ApkSigner $apkSigner `
         -KeystoreFileFull $keystoreFileFull `
