@@ -398,7 +398,7 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 		extra := make(map[string]string)
 		switch v := raw["extra"].(type) {
 		case string:
-			json.Unmarshal([]byte(v), &extra)
+			_ = json.Unmarshal([]byte(v), &extra)
 		case map[string]interface{}:
 			for k, val := range v {
 				if s, ok := val.(string); ok {
@@ -427,7 +427,7 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 				return
 			}
 			// 立即把新下载的文件写入 SQLite 索引（下次加载立即可见）
-			go syncLocalMusicIndex()
+			syncLocalMusicIndexAsync()
 		}()
 
 		c.JSON(http.StatusOK, gin.H{"status": "started"})
@@ -435,7 +435,7 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 
 	// reindexLocalMusic 手动触发全量重建 SQLite 索引
 	api.POST("/local_music/reindex", func(c *gin.Context) {
-		go syncLocalMusicIndex()
+		syncLocalMusicIndexAsync()
 		// 同时清空内存缓存，让下次访问从新索引加载
 		localMusicScanCacheMu.Lock()
 		localMusicScanCache = localMusicScanSnapshot{}
