@@ -337,6 +337,55 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 		c.JSON(http.StatusOK, gin.H{"groups": groups})
 	})
 
+	// autoCacheLocalMusic 播放时后台下载缓存
+	api.POST("/local_music/auto_cache", func(c *gin.Context) {
+		var req struct {
+			ID      string            `json:"id" binding:"required"`
+			Source  string            `json:"source" binding:"required"`
+			Name    string            `json:"name"`
+			Artist  string            `json:"artist"`
+			Album   string            `json:"album"`
+			Cover   string            `json:"cover"`
+			Extra   map[string]string `json:"extra"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+		if isLocalMusicSource(req.Source) {
+			c.JSON(http.StatusOK, gin.H{"status": "skipped", "reason": "already local"})
+			return
+		}
+
+		settings := core.GetWebSettings()
+		song := &model.Song{
+			ID:     req.ID,
+			Source: req.Source,
+			Name:   req.Name,
+			Artist: req.Artist,
+			Album:  req.Album,
+			Cover:  req.Cover,
+			Extra:  req.Extra,
+		}
+
+		// 后台异步下载，不阻塞播放
+		go func() {
+			result, err := core.SaveSongToFileWithTemplate(song, settings.DownloadDir, true, true, settings.DownloadFilenameTemplate)
+			if err != nil || result == nil {
+				return
+			}
+			// 下载完成后刷新本地音乐索引缓存
+			localMusicScanCacheMu.Lock()
+			localMusicMetaCacheMu.Lock()
+			localMusicMetaCache = make(map[string]*localMusicTrack)
+			localMusicScanCache = localMusicScanSnapshot{}
+			localMusicMetaCacheMu.Unlock()
+			localMusicScanCacheMu.Unlock()
+		}()
+
+		c.JSON(http.StatusOK, gin.H{"status": "started"})
+	})
+
 	colAPI := api.Group("/collections")
 	colAPI.POST("/:id/local_music", func(c *gin.Context) {
 		collection, err := loadCollection(c.Param("id"))

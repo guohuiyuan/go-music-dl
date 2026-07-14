@@ -818,6 +818,56 @@ function bindSongCardCovers(root = document) {
 // === 本地音乐匹配缓存 ===
 let localMusicMatchCache = {};
 let batchMatchTimer = null;
+let autoCachePending = {};   // 防止重复缓存请求
+let autoCacheTimer = null;
+
+function scheduleAutoCache(audio) {
+    // 跳过本地文件和已发起缓存的
+    const src = audio.source || '';
+    if (src === 'local' || src === 'local-file') return;
+    const key = audio.custom_id || audio.name || '';
+    if (!key || autoCachePending[key]) return;
+
+    autoCachePending[key] = true;
+    if (autoCacheTimer) clearTimeout(autoCacheTimer);
+    // 延迟 2 秒，避免卡顿当前播放
+    autoCacheTimer = setTimeout(() => autoCacheTrack(audio), 2000);
+}
+
+async function autoCacheTrack(audio) {
+    try {
+        const resp = await fetch(API_ROOT + '/local_music/auto_cache', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: audio.custom_id || '',
+                source: audio.source || '',
+                name: audio.name || '',
+                artist: audio.artist || '',
+                album: audio.album || '',
+                cover: audio.cover || '',
+                extra: audio.extra || {}
+            })
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.status === 'started') {
+            // 缓存成功后标记本地匹配
+            const key = audio.custom_id || audio.name || '';
+            if (key && audio.custom_id) {
+                localMusicMatchCache[audio.custom_id] = {
+                    id: audio.custom_id,
+                    qi: -1
+                };
+                // 更新页面上的标签
+                const card = document.querySelector(`.song-card[data-id="${audio.custom_id}"]`);
+                if (card) {
+                    addLocalMatchBadge(card, { id: audio.custom_id, ext: '', size: 0 });
+                }
+            }
+        }
+    } catch (_) {}
+}
 
 function scheduleBatchLocalMusicMatch() {
     // 只对搜索结果页做匹配（本地音乐页不需要）
@@ -3785,7 +3835,7 @@ ap.on('listswitch', (e) => {
     const newAudio = ap.list.audios[index];
     if (newAudio && newAudio.custom_id) {
         currentPlayingId = newAudio.custom_id;
-        window.currentPlayingId = currentPlayingId; 
+        window.currentPlayingId = currentPlayingId;
         highlightCard(currentPlayingId);
         syncAllPlayButtons();
 
@@ -3804,6 +3854,9 @@ ap.on('listswitch', (e) => {
                 });
             }
         }
+    }
+    if (newAudio && newAudio.source !== 'local' && newAudio.source !== 'local-file') {
+        scheduleAutoCache(newAudio);
     }
     syncMediaSession(newAudio || getCurrentAPlayerAudio());
     scheduleMediaSessionSync(newAudio || getCurrentAPlayerAudio(), 180);
