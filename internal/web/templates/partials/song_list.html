@@ -67,6 +67,9 @@
             <button type="button" class="ctrl-btn primary" onclick="document.getElementById('localMusicPageUploadInput')?.click()">
                 <i class="fa-solid fa-upload"></i> 上传本地音乐
             </button>
+            <button type="button" class="ctrl-btn primary" onclick="checkDuplicateSongs()" title="检测重复歌曲">
+                <i class="fa-solid fa-triangle-exclamation"></i> 重复检测
+            </button>
             {{ end }}
             <button type="button" class="ctrl-btn primary" onclick="playAllSongs()">
                 <i class="fa-solid fa-play"></i> 播放全部

@@ -339,33 +339,57 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 
 	// autoCacheLocalMusic 播放时后台下载缓存
 	api.POST("/local_music/auto_cache", func(c *gin.Context) {
-		var req struct {
-			ID      string            `json:"id" binding:"required"`
-			Source  string            `json:"source" binding:"required"`
-			Name    string            `json:"name"`
-			Artist  string            `json:"artist"`
-			Album   string            `json:"album"`
-			Cover   string            `json:"cover"`
-			Extra   map[string]string `json:"extra"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
+		rawBody, _ := io.ReadAll(c.Request.Body)
+
+		// 使用 map[string]interface{} 兼容 extra 为字符串或对象的情况
+		var raw map[string]interface{}
+		if err := json.Unmarshal(rawBody, &raw); err != nil {
+			fmt.Printf("[auto_cache] FAIL err=%v raw=%s\n", err, string(rawBody))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 			return
 		}
-		if isLocalMusicSource(req.Source) {
+
+		id, _ := raw["id"].(string)
+		src, _ := raw["source"].(string)
+		if id == "" || src == "" {
+			fmt.Printf("[auto_cache] missing id or source: raw=%s\n", string(rawBody))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id or source"})
+			return
+		}
+		if isLocalMusicSource(src) {
 			c.JSON(http.StatusOK, gin.H{"status": "skipped", "reason": "already local"})
 			return
 		}
 
+		name, _ := raw["name"].(string)
+		artist, _ := raw["artist"].(string)
+		album, _ := raw["album"].(string)
+		cover, _ := raw["cover"].(string)
+
+		// extra 可能是 JSON 字符串或 map
+		extra := make(map[string]string)
+		switch v := raw["extra"].(type) {
+		case string:
+			json.Unmarshal([]byte(v), &extra)
+		case map[string]interface{}:
+			for k, val := range v {
+				if s, ok := val.(string); ok {
+					extra[k] = s
+				}
+			}
+		}
+
+		fmt.Printf("[auto_cache] OK id=%q src=%q name=%q\n", id, src, name)
+
 		settings := core.GetWebSettings()
 		song := &model.Song{
-			ID:     req.ID,
-			Source: req.Source,
-			Name:   req.Name,
-			Artist: req.Artist,
-			Album:  req.Album,
-			Cover:  req.Cover,
-			Extra:  req.Extra,
+			ID:     id,
+			Source: src,
+			Name:   name,
+			Artist: artist,
+			Album:  album,
+			Cover:  cover,
+			Extra:  extra,
 		}
 
 		// 后台异步下载，不阻塞播放

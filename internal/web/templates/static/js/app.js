@@ -819,7 +819,6 @@ function bindSongCardCovers(root = document) {
 let localMusicMatchCache = {};
 let batchMatchTimer = null;
 let autoCachePending = {};   // 防止重复缓存请求
-let autoCacheTimer = null;
 
 function scheduleAutoCache(audio) {
     // 跳过本地文件和已发起缓存的
@@ -829,9 +828,8 @@ function scheduleAutoCache(audio) {
     if (!key || autoCachePending[key]) return;
 
     autoCachePending[key] = true;
-    if (autoCacheTimer) clearTimeout(autoCacheTimer);
-    // 延迟 2 秒，避免卡顿当前播放
-    autoCacheTimer = setTimeout(() => autoCacheTrack(audio), 2000);
+    // 延迟 2 秒后各自独立触发，不受后续切歌影响
+    setTimeout(() => autoCacheTrack(audio), 2000);
 }
 
 async function autoCacheTrack(audio) {
@@ -1366,7 +1364,18 @@ function changePageSize(size) {
     const dropdown = document.getElementById('page-size-select');
     if (dropdown) dropdown.value = String(size);
 
-    // 直接完整刷新页面，确保服务端重新搜索/分页
+    // 本地音乐页：走 AJAX 分页
+    if (isLocalMusicPageActive()) {
+        // 更新工具栏的 pageSize 数据
+        const toolbar = document.getElementById('batch-toolbar');
+        if (toolbar) toolbar.dataset.pageSize = String(size);
+        // 也更新 webSettings 中的值
+        webSettings.webPageSize = parseInt(size, 10);
+        loadLocalMusicPage(1, { updateHistory: true, scroll: true });
+        return;
+    }
+
+    // 其他页面：完整刷新
     const url = new URL(window.location.href);
     url.searchParams.set('page_size', String(size));
     url.searchParams.set('page', '1');
@@ -1770,135 +1779,101 @@ function initializeLocalMusicPage(root = document) {
     loadLocalMusicPage(getCurrentLocalMusicPage(), {
         updateHistory: false
     });
-    loadDuplicateGroups();
 }
 
-// === 本地音乐重复检测 ===
-async function loadDuplicateGroups() {
+// === 本地音乐重复检测（手动触发弹窗）===
+async function checkDuplicateSongs() {
+    // 显示 loading 弹窗
+    showDuplicateModal(null, true);
     try {
         const resp = await fetch(API_ROOT + '/local_music/duplicates');
-        if (!resp.ok) return;
+        if (!resp.ok) throw new Error('API error');
         const data = await resp.json();
-        if (!data.groups || data.groups.length === 0) return;
-
-        renderDuplicateSection(data.groups);
+        showDuplicateModal(data.groups || [], false);
     } catch (_) {
-        // 静默失败
+        showDuplicateModal([], false);
     }
 }
 
-function renderDuplicateSection(groups) {
-    // 移除旧的重复杂表
-    const existing = document.getElementById('duplicate-section');
-    if (existing) existing.remove();
+function showDuplicateModal(groups, loading) {
+    // 移除旧弹窗
+    const old = document.getElementById('duplicate-modal-overlay');
+    if (old) old.remove();
 
-    const container = document.createElement('div');
-    container.id = 'duplicate-section';
-    container.style.cssText = 'margin-top:30px;padding:16px;background:#fff8f0;border:1px solid #febd69;border-radius:12px;';
+    const overlay = document.createElement('div');
+    overlay.id = 'duplicate-modal-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-    const title = document.createElement('h3');
-    title.style.cssText = 'margin:0 0 12px 0;font-size:16px;color:#c45500;display:flex;align-items:center;gap:8px;';
-    title.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> 疑似重复歌曲';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:16px;width:100%;max-width:640px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    const count = document.createElement('span');
-    count.style.cssText = 'font-weight:normal;font-size:13px;color:#718096;margin-left:auto;';
-    count.textContent = `${groups.length} 组`;
-    title.appendChild(count);
+    // Header
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;padding:20px 24px 16px;border-bottom:1px solid #eee;';
+    header.innerHTML = '<h3 style="margin:0;font-size:17px;color:#c45500;"><i class="fa-solid fa-triangle-exclamation"></i> 重复歌曲检测</h3>';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'margin-left:auto;font-size:18px;background:none;border:none;cursor:pointer;color:#999;padding:4px 8px;';
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    modal.appendChild(header);
 
-    const toggleBtn = document.createElement('button');
-    toggleBtn.type = 'button';
-    toggleBtn.style.cssText = 'font-size:12px;padding:2px 10px;background:none;border:1px solid #ccc;border-radius:4px;cursor:pointer;color:#666;';
-    toggleBtn.textContent = '收起';
-    let collapsed = false;
+    // Body
+    const body = document.createElement('div');
+    body.style.cssText = 'overflow-y:auto;padding:16px 24px;flex:1;';
 
-    const list = document.createElement('div');
-    list.id = 'duplicate-list';
+    if (loading) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#999;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">正在扫描...</p></div>';
+    } else if (!groups || groups.length === 0) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#10b981;"><i class="fa-solid fa-circle-check fa-2x"></i><p style="margin-top:12px;">未发现重复歌曲 🎉</p></div>';
+    } else {
+        groups.forEach((g, gi) => {
+            const gp = document.createElement('div');
+            gp.style.cssText = 'margin-bottom:14px;padding:12px;background:#fff8f0;border:1px solid #f0d5a0;border-radius:8px;';
+            gp.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">${gi + 1}. ${escapeHTML(g.name)} — ${escapeHTML(g.artist)}</div>`;
 
-    groups.forEach((g, gi) => {
-        const group = document.createElement('div');
-        group.style.cssText = 'margin-bottom:12px;padding:10px;background:#fff;border-radius:8px;border:1px solid #f0d5a0;';
+            g.songs.forEach(s => {
+                const sizeStr = s.size ? (s.size / 1048576).toFixed(1) + 'MB' : '?';
+                const durStr = s.duration ? Math.floor(s.duration / 60) + ':' + String(s.duration % 60).padStart(2, '0') : '?';
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 8px;background:#fff;border-radius:4px;margin-bottom:3px;';
+                row.innerHTML = `<span style="flex:1;color:#555;">${s.ext || '?'} · ${sizeStr} · ${durStr}</span>`;
 
-        const header = document.createElement('div');
-        header.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:6px;color:#333;';
-        header.textContent = `${gi + 1}. ${g.name} — ${g.artist}`;
+                const playBtn = document.createElement('button');
+                playBtn.type = 'button';
+                playBtn.style.cssText = 'font-size:11px;padding:2px 8px;background:#10b981;color:#fff;border:none;border-radius:4px;cursor:pointer;';
+                playBtn.textContent = '播放';
+                playBtn.onclick = () => {
+                    ap.list.clear();
+                    ap.list.add([{ name: s.name, artist: s.artist, url: buildStreamURL(s.id, 'local', s.name, s.artist, '', '', ''), cover: '', lrc: '', theme: '#10b981', custom_id: s.id, source: 'local', duration: s.duration || 0 }]);
+                    ap.play();
+                };
 
-        const songList = document.createElement('div');
-        songList.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.style.cssText = 'font-size:11px;padding:2px 8px;background:#e53e3e;color:#fff;border:none;border-radius:4px;cursor:pointer;';
+                delBtn.textContent = '删除';
+                delBtn.onclick = async () => {
+                    if (!confirm(`确定删除 "${s.name}"?`)) return;
+                    try {
+                        const r = await fetch(`${API_ROOT}/local_music?id=${encodeURIComponent(s.id)}`, { method: 'DELETE' });
+                        if (r.ok) row.remove();
+                    } catch (_) {}
+                };
 
-        g.songs.forEach(s => {
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 8px;background:#fafafa;border-radius:4px;';
-
-            const info = document.createElement('span');
-            info.style.cssText = 'flex:1;color:#555;';
-            const sizeStr = s.size ? (s.size / 1048576).toFixed(1) + 'MB' : '?';
-            const durStr = s.duration ? Math.floor(s.duration / 60) + ':' + String(s.duration % 60).padStart(2, '0') : '?';
-            info.textContent = `${s.ext || '?'} · ${sizeStr} · ${durStr}`;
-
-            const playBtn = document.createElement('button');
-            playBtn.type = 'button';
-            playBtn.style.cssText = 'font-size:11px;padding:2px 8px;background:#10b981;color:#fff;border:none;border-radius:4px;cursor:pointer;';
-            playBtn.textContent = '播放';
-            playBtn.onclick = () => {
-                ap.list.clear();
-                ap.list.add([{
-                    name: s.name,
-                    artist: s.artist,
-                    url: buildStreamURL(s.id, 'local', s.name, s.artist, '', '', ''),
-                    cover: '',
-                    lrc: '',
-                    theme: '#10b981',
-                    custom_id: s.id,
-                    source: 'local',
-                    duration: s.duration || 0,
-                }]);
-                ap.play();
-            };
-
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.style.cssText = 'font-size:11px;padding:2px 8px;background:#e53e3e;color:#fff;border:none;border-radius:4px;cursor:pointer;';
-            delBtn.textContent = '删除';
-            delBtn.onclick = async () => {
-                if (!confirm(`确定删除 "${s.name}"?`)) return;
-                try {
-                    const r = await fetch(`${API_ROOT}/local_music?id=${encodeURIComponent(s.id)}`, { method: 'DELETE' });
-                    if (r.ok) {
-                        row.remove();
-                        // 检查该组是否还有剩余
-                        const remaining = group.querySelectorAll('[data-dup-row]');
-                        if (remaining.length <= 1) group.remove();
-                    }
-                } catch (_) {}
-            };
-
-            row.dataset.dupRow = '1';
-            row.appendChild(info);
-            row.appendChild(playBtn);
-            row.appendChild(delBtn);
-            songList.appendChild(row);
+                row.appendChild(playBtn);
+                row.appendChild(delBtn);
+                gp.appendChild(row);
+            });
+            body.appendChild(gp);
         });
-
-        group.appendChild(header);
-        group.appendChild(songList);
-        list.appendChild(group);
-    });
-
-    toggleBtn.addEventListener('click', () => {
-        collapsed = !collapsed;
-        list.style.display = collapsed ? 'none' : '';
-        toggleBtn.textContent = collapsed ? '展开' : '收起';
-    });
-
-    container.appendChild(title);
-    container.appendChild(toggleBtn);
-    container.appendChild(list);
-
-    // 插入到列表下方
-    const resultList = document.querySelector('.result-list');
-    if (resultList && resultList.parentNode) {
-        resultList.parentNode.insertBefore(container, resultList.nextSibling);
     }
+
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
 }
 
 function songFromCard(card) {
@@ -3868,14 +3843,18 @@ ap.on('play', () => {
     const audio = (typeof idx === 'number') ? ap.list.audios[idx] : null;
     if (audio && audio.custom_id) {
         currentPlayingId = audio.custom_id;
-        window.currentPlayingId = currentPlayingId; 
+        window.currentPlayingId = currentPlayingId;
         highlightCard(currentPlayingId);
     }
     syncAllPlayButtons();
     syncMediaSession(audio || getCurrentAPlayerAudio());
     scheduleMediaSessionSync(audio || getCurrentAPlayerAudio(), 180);
     KaraokeLyrics.load(audio || getCurrentAPlayerAudio());
-    
+
+    if (audio && audio.source !== 'local' && audio.source !== 'local-file') {
+        scheduleAutoCache(audio);
+    }
+
     if (window.VideoGen && window.VideoGen.updatePlayBtnState) {
         window.VideoGen.updatePlayBtnState(true);
     }
