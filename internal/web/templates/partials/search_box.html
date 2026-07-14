@@ -3,6 +3,7 @@
     <h1>🎵 <a href="https://github.com/guohuiyuan/go-music-dl" target="_blank" style="color: inherit; text-decoration: none;">music-dl</a></h1>
     <form action="{{.Root}}/search" method="get" id="search-form">
         <input type="hidden" name="page" value="1">
+        <input type="hidden" name="page_size" id="page-size-hidden" value="{{.PageSize}}">
         <div class="search-type-switch">
             <label class="type-option">
                 <input type="radio" name="type" value="song"

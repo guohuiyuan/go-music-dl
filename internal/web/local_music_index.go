@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -9,7 +10,15 @@ import (
 
 	"github.com/guohuiyuan/music-lib/model"
 	"gorm.io/gorm/clause"
-)// LocalMusicIndex 是下载目录的搜索索引行。磁盘文件仍是唯一真相，
+)
+
+func formatSizeForIndex(size int64) string {
+	if size == 0 {
+		return "-"
+	}
+	mb := float64(size) / 1024 / 1024
+	return fmt.Sprintf("%.2f MB", mb)
+}// LocalMusicIndex 是下载目录的搜索索引行。磁盘文件仍是唯一真相，
 // 该表只用于加速对大量本地文件的关键词搜索。主键沿用 base64(相对路径)。
 type LocalMusicIndex struct {
 	ID        string    `gorm:"column:id;primaryKey"`
@@ -121,6 +130,86 @@ func syncLocalMusicIndexAsync() {
 	go func() {
 		_ = syncLocalMusicIndex()
 	}()
+}
+
+// loadTracksFromIndex 从 SQLite 索引表分页读取本地音乐，不走文件系统 IO。
+// 远快于 scanLocalMusicTracks（跳过逐文件读 ID3 标签）。
+func loadTracksFromIndex(offset int, limit int) ([]*localMusicTrack, int, bool) {
+	if db == nil {
+		return nil, 0, false
+	}
+
+	var total int64
+	if err := db.Model(&LocalMusicIndex{}).Count(&total).Error; err != nil || total == 0 {
+		return nil, 0, false
+	}
+
+	var rows []LocalMusicIndex
+	if limit <= 0 {
+		limit = 200
+	}
+	if err := db.Order("mod_time DESC").Offset(offset).Limit(limit).Find(&rows).Error; err != nil {
+		return nil, 0, false
+	}
+
+	rootAbs, _ := filepath.Abs(localMusicDownloadDir())
+	tracks := make([]*localMusicTrack, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		// 快速校验文件是否还在磁盘上
+		absPath := filepath.Join(rootAbs, filepath.FromSlash(row.RelPath))
+		if info, statErr := os.Stat(absPath); statErr != nil || info.IsDir() {
+			continue
+		}
+		cover := row.Cover
+		if cover == "" && row.HasCover {
+			cover = RoutePrefix + "/local_music/cover?id=" + url.QueryEscape(row.ID)
+		}
+		tracks = append(tracks, &localMusicTrack{
+			ID:       row.ID,
+			Source:   localMusicSource,
+			Name:     row.Name,
+			Artist:   row.Artist,
+			Album:    row.Album,
+			Cover:    cover,
+			Duration: row.Duration,
+			Filename: filepath.Base(row.RelPath),
+			RelPath:  row.RelPath,
+			Ext:      row.Ext,
+			Size:     row.Size,
+			SizeText: formatSizeForIndex(row.Size),
+			Extra:    localMusicIndexExtra(row),
+		})
+	}
+
+	if len(tracks) == 0 {
+		return nil, 0, false
+	}
+	return tracks, int(total), true
+}
+
+// syncTracksToIndex 扫描完成后批量同步到 SQLite 索引
+func syncTracksToIndex(tracks []*localMusicTrack) {
+	if db == nil || len(tracks) == 0 {
+		return
+	}
+	runStart := time.Now()
+	rows := make([]LocalMusicIndex, 0, len(tracks))
+	for _, t := range tracks {
+		if t == nil {
+			continue
+		}
+		rows = append(rows, localMusicTrackToIndexRow(t, runStart))
+	}
+	if len(rows) > 0 {
+		_ = db.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"rel_path", "name", "artist", "album", "duration", "size",
+				"ext", "cover", "has_cover", "has_lyric", "mod_time", "scanned_at",
+			}),
+		}).CreateInBatches(rows, 200).Error
+	}
 }
 
 // upsertLocalMusicIndexRow 针对单个文件做定向 upsert（上传后用）。

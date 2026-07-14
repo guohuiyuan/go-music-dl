@@ -21,6 +21,17 @@
         </div>
 
         <div style="display:flex; gap:10px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
+            {{ if gt .TotalCount 0 }}
+            <div class="page-size-control" title="每页显示条数">
+                <select id="page-size-select" aria-label="每页条数" onchange="changePageSize(this.value)">
+                    <option value="20" {{ if eq .PageSize 20 }}selected{{ end }}>20条/页</option>
+                    <option value="30" {{ if eq .PageSize 30 }}selected{{ end }}>30条/页</option>
+                    <option value="50" {{ if eq .PageSize 50 }}selected{{ end }}>50条/页</option>
+                    <option value="100" {{ if eq .PageSize 100 }}selected{{ end }}>100条/页</option>
+                    <option value="200" {{ if eq .PageSize 200 }}selected{{ end }}>200条/页</option>
+                </select>
+            </div>
+            {{ end }}
             {{ if gt .TotalCount 1 }}
             <div class="song-sort-control" id="song-sort-control">
                 <select id="song-sort-select" aria-label="歌曲排序" onchange="setSongSortMode(this.value)">
@@ -55,6 +66,12 @@
             <input id="localMusicPageUploadInput" type="file" accept=".mp3,.flac,.m4a,.ogg,.wav,.wma,.aac,audio/*" onchange="uploadLocalMusicForPage(this)" hidden>
             <button type="button" class="ctrl-btn primary" onclick="document.getElementById('localMusicPageUploadInput')?.click()">
                 <i class="fa-solid fa-upload"></i> 上传本地音乐
+            </button>
+            <button type="button" class="ctrl-btn primary" onclick="checkDuplicateSongs()" title="检测重复歌曲">
+                <i class="fa-solid fa-triangle-exclamation"></i> 重复检测
+            </button>
+            <button type="button" class="ctrl-btn primary" id="btn-reindex" onclick="reindexLocalMusic()" title="重建本地音乐索引（发现新下载文件）">
+                <i class="fa-solid fa-arrows-rotate"></i> 刷新索引
             </button>
             {{ end }}
             <button type="button" class="ctrl-btn primary" onclick="playAllSongs()">
@@ -280,18 +297,19 @@
         {{ end }}
     </ul>
 
-    {{ if gt .TotalPages 1 }}
+    {{ if and (gt .TotalPages 1) (ne .SearchType "local_music") }}
     <div class="pagination-bar"
          data-current-page="{{ .Page }}"
          data-total-pages="{{ .TotalPages }}"
+         data-page-size="{{ .PageSize }}"
          data-shortcut-hint="PgUp / PgDn"
          title="Shortcut: PgUp / PgDn">
-        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} - 1)" {{ if le .Page 1 }}disabled{{ end }}>
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} - 1, {{ .PageSize }})" {{ if le .Page 1 }}disabled{{ end }}>
             <i class="fa-solid fa-chevron-left"></i> 上一页
         </button>
         <span class="pagination-text">第 {{ .Page }} / {{ .TotalPages }} 页</span>
         <span class="pagination-shortcut-hint">PgUp / PgDn</span>
-        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} + 1)" {{ if ge .Page .TotalPages }}disabled{{ end }}>
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} + 1, {{ .PageSize }})" {{ if ge .Page .TotalPages }}disabled{{ end }}>
             下一页 <i class="fa-solid fa-chevron-right"></i>
         </button>
     </div>
