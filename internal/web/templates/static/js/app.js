@@ -1782,6 +1782,18 @@ function initializeLocalMusicPage(root = document) {
 }
 
 // === 本地音乐重复检测（手动触发弹窗）===
+async function reindexLocalMusic() {
+    const btn = document.getElementById('btn-reindex');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 刷新中...'; }
+    try {
+        await fetch(API_ROOT + '/local_music/reindex', { method: 'POST' });
+        // 等 2 秒让后台索引重建
+        await new Promise(r => setTimeout(r, 2000));
+        loadLocalMusicPage(getCurrentLocalMusicPage(), { force: true, scroll: false });
+    } catch (_) {}
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> 刷新索引'; }
+}
+
 async function checkDuplicateSongs() {
     // 显示 loading 弹窗
     showDuplicateModal(null, true);

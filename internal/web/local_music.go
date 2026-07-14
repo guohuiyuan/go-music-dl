@@ -123,16 +123,44 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 
 	api.GET("/local_music", func(c *gin.Context) {
 		forceRefresh := c.Query("refresh") == "1" || c.Query("force") == "1"
+		offset := parseLocalMusicRangeInt(c.Query("offset"), 0)
+		limit := parseLocalMusicRangeInt(c.Query("limit"), 0)
+
+		// 快速路径：从 SQLite 索引加载（无文件 IO）
+		if !forceRefresh && db != nil {
+			if tracks, total, ok := loadTracksFromIndex(offset, limit); ok && total > 0 {
+				c.JSON(http.StatusOK, gin.H{
+					"download_dir": filepath.ToSlash(localMusicDownloadDir()),
+					"exists":       true,
+					"tracks":       tracks,
+					"total":        total,
+					"offset":       offset,
+					"limit":        limit,
+					"has_more":     offset+len(tracks) < total,
+					"refreshing":   false,
+					"scanned_at":   time.Now(),
+				})
+				// 后台异步刷新文件系统变更
+				refreshLocalMusicScanAsync(localMusicDownloadDir())
+				return
+			}
+		}
+
+		// 慢路径：文件系统扫描
 		tracks, dir, exists, err, refreshing, scannedAt := scanLocalMusicTracksCached(forceRefresh)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		offset := parseLocalMusicRangeInt(c.Query("offset"), 0)
-		limit := parseLocalMusicRangeInt(c.Query("limit"), 0)
 		pageTracks := paginateLocalMusicTracks(tracks, offset, limit)
 		markAlreadyAddedLocalTracks(c.Query("collection_id"), pageTracks)
+
+		// 扫描完成后同步到 SQLite 索引（异步）
+		if !refreshing && len(tracks) > 0 {
+			go syncTracksToIndex(tracks)
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"download_dir": filepath.ToSlash(dir),
 			"exists":       exists,
@@ -398,15 +426,23 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 			if err != nil || result == nil {
 				return
 			}
-			// 下载完成后刷新本地音乐索引缓存
-			localMusicScanCacheMu.Lock()
-			localMusicMetaCacheMu.Lock()
-			localMusicMetaCache = make(map[string]*localMusicTrack)
-			localMusicScanCache = localMusicScanSnapshot{}
-			localMusicMetaCacheMu.Unlock()
-			localMusicScanCacheMu.Unlock()
+			// 立即把新下载的文件写入 SQLite 索引（下次加载立即可见）
+			go syncLocalMusicIndex()
 		}()
 
+		c.JSON(http.StatusOK, gin.H{"status": "started"})
+	})
+
+	// reindexLocalMusic 手动触发全量重建 SQLite 索引
+	api.POST("/local_music/reindex", func(c *gin.Context) {
+		go syncLocalMusicIndex()
+		// 同时清空内存缓存，让下次访问从新索引加载
+		localMusicScanCacheMu.Lock()
+		localMusicScanCache = localMusicScanSnapshot{}
+		localMusicScanCacheMu.Unlock()
+		localMusicMetaCacheMu.Lock()
+		localMusicMetaCache = make(map[string]*localMusicTrack)
+		localMusicMetaCacheMu.Unlock()
 		c.JSON(http.StatusOK, gin.H{"status": "started"})
 	})
 

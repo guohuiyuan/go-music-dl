@@ -70,6 +70,9 @@
             <button type="button" class="ctrl-btn primary" onclick="checkDuplicateSongs()" title="检测重复歌曲">
                 <i class="fa-solid fa-triangle-exclamation"></i> 重复检测
             </button>
+            <button type="button" class="ctrl-btn primary" id="btn-reindex" onclick="reindexLocalMusic()" title="重建本地音乐索引（发现新下载文件）">
+                <i class="fa-solid fa-arrows-rotate"></i> 刷新索引
+            </button>
             {{ end }}
             <button type="button" class="ctrl-btn primary" onclick="playAllSongs()">
                 <i class="fa-solid fa-play"></i> 播放全部
