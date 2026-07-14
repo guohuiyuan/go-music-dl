@@ -102,14 +102,15 @@
     <div class="pagination-bar"
          data-current-page="{{ .Page }}"
          data-total-pages="{{ .TotalPages }}"
+         data-page-size="{{ .PageSize }}"
          data-shortcut-hint="PgUp / PgDn"
          title="Shortcut: PgUp / PgDn">
-        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} - 1)" {{ if le .Page 1 }}disabled{{ end }}>
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} - 1, {{ .PageSize }})" {{ if le .Page 1 }}disabled{{ end }}>
             <i class="fa-solid fa-chevron-left"></i> 上一页
         </button>
         <span class="pagination-text">第 {{ .Page }} / {{ .TotalPages }} 页</span>
         <span class="pagination-shortcut-hint">PgUp / PgDn</span>
-        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} + 1)" {{ if ge .Page .TotalPages }}disabled{{ end }}>
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} + 1, {{ .PageSize }})" {{ if ge .Page .TotalPages }}disabled{{ end }}>
             下一页<i class="fa-solid fa-chevron-right"></i>
         </button>
     </div>

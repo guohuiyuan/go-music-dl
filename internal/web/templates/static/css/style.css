@@ -106,6 +106,9 @@ input[type="password"]:focus { border-color: #10b981; background: #fff; box-shad
 .song-sort-control select { border: none; background: transparent; color: #10b981; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; padding: 4px 4px; }
 .song-sort-control .sort-dir-btn { width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #dbe3ff; border-radius: 999px; background: white; color: #10b981; transition: background 0.2s, color 0.2s, transform 0.2s; }
 .song-sort-control .sort-dir-btn:hover { background: #10b981; color: white; transform: translateY(-1px); }
+.page-size-control { display: inline-flex; align-items: center; padding: 3px 4px 3px 10px; background: #f7f9ff; border: 1px solid #dbe3ff; border-radius: 999px; transition: background 0.2s; }
+.page-size-control:hover { background: #eff3ff; }
+.page-size-control select { border: none; background: transparent; color: #10b981; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; padding: 4px 4px; }
 
 .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .source-selector.is-collapsed .source-grid { display: none; }

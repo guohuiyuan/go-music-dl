@@ -87,6 +87,24 @@ type localMusicTrack struct {
 	modTime time.Time
 }
 
+type localMusicDupItem struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Artist   string `json:"artist"`
+	Size     int64  `json:"size"`
+	Duration int    `json:"duration"`
+	Ext      string `json:"ext"`
+	RelPath  string `json:"rel_path"`
+}
+
+func extractBitrateFromAudioFile(absPath string) int {
+	info, err := os.Stat(absPath)
+	if err != nil || info.Size() == 0 {
+		return 0
+	}
+	return 0 // 简单占位，不阻塞匹配流程
+}
+
 func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 	api.GET("/local_music_page", func(c *gin.Context) {
 		errMsg := ""
@@ -183,6 +201,140 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// batchMatchLocalMusic 批量匹配搜索结果的歌曲是否本地已有
+	api.POST("/local_music/batch_match", func(c *gin.Context) {
+		var req []struct {
+			Name   string `json:"name" binding:"required"`
+			Artist string `json:"artist"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil || len(req) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		if db == nil {
+			c.JSON(http.StatusOK, gin.H{"matches": []interface{}{}})
+			return
+		}
+
+		type matchResult struct {
+			QueryIndex int    `json:"qi"`
+			ID         string `json:"id"`
+			Name       string `json:"name"`
+			Artist     string `json:"artist"`
+			Bitrate    int    `json:"bitrate,omitempty"`
+			Size       int64  `json:"size,omitempty"`
+			Ext        string `json:"ext,omitempty"`
+		}
+		matches := make([]matchResult, 0)
+
+		for i, item := range req {
+			name := strings.TrimSpace(item.Name)
+			artist := strings.TrimSpace(item.Artist)
+			if name == "" {
+				continue
+			}
+
+			// 先用 name 精确匹配，再模糊匹配
+			var rows []LocalMusicIndex
+			query := db.Where("name = ?", name)
+			if artist != "" {
+				query = query.Where("artist = ?", artist)
+			}
+			if err := query.Limit(1).Find(&rows).Error; err != nil || len(rows) == 0 {
+				// 回退：模糊匹配（name LIKE）
+				if err := db.Where("name LIKE ?", "%"+name+"%").
+					Limit(1).Find(&rows).Error; err != nil || len(rows) == 0 {
+					continue
+				}
+			}
+
+			rootAbs, _ := filepath.Abs(localMusicDownloadDir())
+			absPath := filepath.Join(rootAbs, filepath.FromSlash(rows[0].RelPath))
+			if info, statErr := os.Stat(absPath); statErr != nil || info.IsDir() {
+				continue
+			}
+
+			matches = append(matches, matchResult{
+				QueryIndex: i,
+				ID:         rows[0].ID,
+				Name:       rows[0].Name,
+				Artist:     rows[0].Artist,
+				Bitrate:    extractBitrateFromAudioFile(absPath),
+				Size:       rows[0].Size,
+				Ext:        rows[0].Ext,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"matches": matches})
+	})
+
+	// getLocalMusicDuplicates 检测疑似重复的本地歌曲
+	api.GET("/local_music/duplicates", func(c *gin.Context) {
+		if db == nil {
+			c.JSON(http.StatusOK, gin.H{"groups": []interface{}{}})
+			return
+		}
+
+		type dupGroup struct {
+			Name   string              `json:"name"`
+			Artist string              `json:"artist"`
+			Songs  []localMusicDupItem `json:"songs"`
+		}
+
+		type dupRow struct {
+			Name     string
+			Artist   string
+			Count    int
+			MaxSize  int64
+			MaxBr    int
+			AudioCnt int
+		}
+
+		var rows []dupRow
+		if err := db.Model(&LocalMusicIndex{}).
+			Select("name, artist, COUNT(*) as count, MAX(size) as max_size, MAX(CAST(duration AS INTEGER)) as max_br, COUNT(*) as audio_cnt").
+			Group("name, artist").
+			Having("COUNT(*) > 1").
+			Order("count DESC").
+			Limit(200).
+			Find(&rows).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		groups := make([]dupGroup, 0, len(rows))
+		for _, row := range rows {
+			var songs []LocalMusicIndex
+			db.Where("name = ? AND artist = ?", row.Name, row.Artist).
+				Order("size DESC").
+				Find(&songs)
+
+			rootAbs, _ := filepath.Abs(localMusicDownloadDir())
+			items := make([]localMusicDupItem, 0, len(songs))
+			for _, s := range songs {
+				absPath := filepath.Join(rootAbs, filepath.FromSlash(s.RelPath))
+				if info, statErr := os.Stat(absPath); statErr != nil || info.IsDir() {
+					continue
+				}
+				items = append(items, localMusicDupItem{
+					ID:       s.ID,
+					Name:     s.Name,
+					Artist:   s.Artist,
+					Size:     s.Size,
+					Duration: s.Duration,
+					Ext:      s.Ext,
+					RelPath:  s.RelPath,
+				})
+			}
+			if len(items) >= 2 {
+				groups = append(groups, dupGroup{Name: row.Name, Artist: row.Artist, Songs: items})
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"groups": groups})
 	})
 
 	colAPI := api.Group("/collections")

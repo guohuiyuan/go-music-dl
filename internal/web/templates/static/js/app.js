@@ -815,6 +815,79 @@ function bindSongCardCovers(root = document) {
     });
 }
 
+// === 本地音乐匹配缓存 ===
+let localMusicMatchCache = {};
+let batchMatchTimer = null;
+
+function scheduleBatchLocalMusicMatch() {
+    // 只对搜索结果页做匹配（本地音乐页不需要）
+    if (isLocalMusicPageActive()) return;
+    if (batchMatchTimer) clearTimeout(batchMatchTimer);
+    batchMatchTimer = setTimeout(batchMatchLocalMusic, 300);
+}
+
+async function batchMatchLocalMusic() {
+    const cards = Array.from(document.querySelectorAll('.song-card'));
+    const onlineCards = cards.filter(card => {
+        const src = card.dataset.source || '';
+        return src !== 'local' && src !== 'local-file';
+    });
+    if (onlineCards.length === 0) return;
+
+    const queries = onlineCards.map(card => ({
+        name: card.dataset.name || '',
+        artist: card.dataset.artist || ''
+    }));
+
+    try {
+        const resp = await fetch(API_ROOT + '/local_music/batch_match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(queries)
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.matches || data.matches.length === 0) return;
+
+        for (const m of data.matches) {
+            const card = onlineCards[m.qi];
+            if (!card) continue;
+            // 缓存匹配结果（key = 歌曲id）
+            localMusicMatchCache[card.dataset.id] = m;
+            // 添加 "本地已有" 标签
+            addLocalMatchBadge(card, m);
+        }
+    } catch (_) {
+        // 静默失败
+    }
+}
+
+function addLocalMatchBadge(card, match) {
+    // 避免重复添加
+    if (card.querySelector('.tag-local-match')) return;
+    const tagsEl = card.querySelector('.tags');
+    if (!tagsEl) return;
+    const badge = document.createElement('span');
+    badge.className = 'tag tag-local-match';
+    badge.title = `本地已有: ${match.ext || '音频'} (${formatSizeBytes(match.size || 0)})，播放将优先使用本地文件`;
+    badge.textContent = '本地已有';
+    badge.style.cssText = 'background:#d4edda;color:#155724;cursor:default;';
+    // 插入到 source tag 后面
+    const srcTag = tagsEl.querySelector('.tag-src');
+    if (srcTag && srcTag.nextSibling) {
+        tagsEl.insertBefore(badge, srcTag.nextSibling);
+    } else {
+        tagsEl.appendChild(badge);
+    }
+}
+
+function formatSizeBytes(bytes) {
+    if (!bytes || bytes <= 0) return '';
+    if (bytes < 1024) return bytes + 'B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + 'KB';
+    return (bytes / 1048576).toFixed(1) + 'MB';
+}
+
 function initializePageContent(root = document) {
     resetAutoSwitchInvalidState();
     bindSourceSelectorButtons(root);
@@ -834,6 +907,7 @@ function initializePageContent(root = document) {
     syncAllPlayButtons();
     syncMediaSession();
     initializeLocalMusicPage(root);
+    scheduleBatchLocalMusicMatch();
 }
 
 function shouldHandleInternalNavigation(link, event) {
@@ -1215,7 +1289,7 @@ function goToUserPlaylists() {
     }
 }
 
-function goToPage(page) {
+function goToPage(page, pageSize) {
     const target = parseInt(page, 10);
     if (!Number.isFinite(target) || target < 1) return;
     if (isLocalMusicPageActive()) {
@@ -1227,7 +1301,26 @@ function goToPage(page) {
     }
     const url = new URL(window.location.href);
     url.searchParams.set('page', String(target));
+    const ps = parseInt(pageSize, 10);
+    if (Number.isFinite(ps) && ps > 0) {
+        url.searchParams.set('page_size', String(ps));
+    }
     navigateTo(url.toString());
+}
+
+function changePageSize(size) {
+    // 同时更新隐藏的 form 输入和下拉框
+    const hiddenInput = document.getElementById('page-size-hidden');
+    if (hiddenInput) hiddenInput.value = String(size);
+
+    const dropdown = document.getElementById('page-size-select');
+    if (dropdown) dropdown.value = String(size);
+
+    // 直接完整刷新页面，确保服务端重新搜索/分页
+    const url = new URL(window.location.href);
+    url.searchParams.set('page_size', String(size));
+    url.searchParams.set('page', '1');
+    window.location.href = url.toString();
 }
 
 function parsePositiveInt(value, fallbackValue) {
@@ -1627,6 +1720,135 @@ function initializeLocalMusicPage(root = document) {
     loadLocalMusicPage(getCurrentLocalMusicPage(), {
         updateHistory: false
     });
+    loadDuplicateGroups();
+}
+
+// === 本地音乐重复检测 ===
+async function loadDuplicateGroups() {
+    try {
+        const resp = await fetch(API_ROOT + '/local_music/duplicates');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.groups || data.groups.length === 0) return;
+
+        renderDuplicateSection(data.groups);
+    } catch (_) {
+        // 静默失败
+    }
+}
+
+function renderDuplicateSection(groups) {
+    // 移除旧的重复杂表
+    const existing = document.getElementById('duplicate-section');
+    if (existing) existing.remove();
+
+    const container = document.createElement('div');
+    container.id = 'duplicate-section';
+    container.style.cssText = 'margin-top:30px;padding:16px;background:#fff8f0;border:1px solid #febd69;border-radius:12px;';
+
+    const title = document.createElement('h3');
+    title.style.cssText = 'margin:0 0 12px 0;font-size:16px;color:#c45500;display:flex;align-items:center;gap:8px;';
+    title.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> 疑似重复歌曲';
+
+    const count = document.createElement('span');
+    count.style.cssText = 'font-weight:normal;font-size:13px;color:#718096;margin-left:auto;';
+    count.textContent = `${groups.length} 组`;
+    title.appendChild(count);
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.style.cssText = 'font-size:12px;padding:2px 10px;background:none;border:1px solid #ccc;border-radius:4px;cursor:pointer;color:#666;';
+    toggleBtn.textContent = '收起';
+    let collapsed = false;
+
+    const list = document.createElement('div');
+    list.id = 'duplicate-list';
+
+    groups.forEach((g, gi) => {
+        const group = document.createElement('div');
+        group.style.cssText = 'margin-bottom:12px;padding:10px;background:#fff;border-radius:8px;border:1px solid #f0d5a0;';
+
+        const header = document.createElement('div');
+        header.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:6px;color:#333;';
+        header.textContent = `${gi + 1}. ${g.name} — ${g.artist}`;
+
+        const songList = document.createElement('div');
+        songList.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+
+        g.songs.forEach(s => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 8px;background:#fafafa;border-radius:4px;';
+
+            const info = document.createElement('span');
+            info.style.cssText = 'flex:1;color:#555;';
+            const sizeStr = s.size ? (s.size / 1048576).toFixed(1) + 'MB' : '?';
+            const durStr = s.duration ? Math.floor(s.duration / 60) + ':' + String(s.duration % 60).padStart(2, '0') : '?';
+            info.textContent = `${s.ext || '?'} · ${sizeStr} · ${durStr}`;
+
+            const playBtn = document.createElement('button');
+            playBtn.type = 'button';
+            playBtn.style.cssText = 'font-size:11px;padding:2px 8px;background:#10b981;color:#fff;border:none;border-radius:4px;cursor:pointer;';
+            playBtn.textContent = '播放';
+            playBtn.onclick = () => {
+                ap.list.clear();
+                ap.list.add([{
+                    name: s.name,
+                    artist: s.artist,
+                    url: buildStreamURL(s.id, 'local', s.name, s.artist, '', '', ''),
+                    cover: '',
+                    lrc: '',
+                    theme: '#10b981',
+                    custom_id: s.id,
+                    source: 'local',
+                    duration: s.duration || 0,
+                }]);
+                ap.play();
+            };
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.style.cssText = 'font-size:11px;padding:2px 8px;background:#e53e3e;color:#fff;border:none;border-radius:4px;cursor:pointer;';
+            delBtn.textContent = '删除';
+            delBtn.onclick = async () => {
+                if (!confirm(`确定删除 "${s.name}"?`)) return;
+                try {
+                    const r = await fetch(`${API_ROOT}/local_music?id=${encodeURIComponent(s.id)}`, { method: 'DELETE' });
+                    if (r.ok) {
+                        row.remove();
+                        // 检查该组是否还有剩余
+                        const remaining = group.querySelectorAll('[data-dup-row]');
+                        if (remaining.length <= 1) group.remove();
+                    }
+                } catch (_) {}
+            };
+
+            row.dataset.dupRow = '1';
+            row.appendChild(info);
+            row.appendChild(playBtn);
+            row.appendChild(delBtn);
+            songList.appendChild(row);
+        });
+
+        group.appendChild(header);
+        group.appendChild(songList);
+        list.appendChild(group);
+    });
+
+    toggleBtn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        list.style.display = collapsed ? 'none' : '';
+        toggleBtn.textContent = collapsed ? '展开' : '收起';
+    });
+
+    container.appendChild(title);
+    container.appendChild(toggleBtn);
+    container.appendChild(list);
+
+    // 插入到列表下方
+    const resultList = document.querySelector('.result-list');
+    if (resultList && resultList.parentNode) {
+        resultList.parentNode.insertBefore(container, resultList.nextSibling);
+    }
 }
 
 function songFromCard(card) {
@@ -4048,17 +4270,26 @@ function playAllAndJumpTo(btn) {
         const imgEl = card.querySelector('.cover-wrapper img');
         if (imgEl && imgEl.src) coverUrl = imgEl.src;
 
+        // 优先使用本地音乐文件
+        const localMatch = localMusicMatchCache[ds.id];
+        const useLocal = localMatch && localMatch.id;
+        const streamId = useLocal ? localMatch.id : ds.id;
+        const streamSource = useLocal ? 'local' : ds.source;
+        const streamUrl = useLocal
+            ? buildStreamURL(localMatch.id, 'local', localMatch.name || ds.name, localMatch.artist || ds.artist, ds.album || '', ds.cover || '', ds.extra || '')
+            : buildStreamURL(ds.id, ds.source, ds.name, ds.artist, ds.album || '', ds.cover || '', ds.extra || '');
+
         playlist.push({
             name: ds.name,
             artist: ds.artist,
             album: ds.album || '',
-            url: buildStreamURL(ds.id, ds.source, ds.name, ds.artist, ds.album || '', ds.cover || '', ds.extra || ''),
+            url: streamUrl,
             cover: coverUrl,
             lrc: lyricURLs.line,
             raw_lrc: lyricURLs.auto,
             theme: '#10b981',
             custom_id: ds.id,
-            source: ds.source,
+            source: useLocal ? 'local' : ds.source,
             duration: parsePositiveInt(ds.duration, 0),
             extra: ds.extra || ''
         });
