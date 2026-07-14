@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
+    <title>music-dl - 聚合搜索与解析</title>
+    <link rel="icon" href="{{.Root}}/icon.png" type="image/png">
+    
+    <link rel="stylesheet" href="{{.Root}}/style.css">
+    <link rel="stylesheet" href="{{.Root}}/videogen.css">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sakana-widget@2.7.1/lib/sakana.min.css"/>
+</head>
+<body>
+
+<div id="back-to-top" class="back-to-top" onclick="scrollToTop()">
+    <i class="fa-solid fa-arrow-up"></i>
+</div>
+
+<div class="settings-float" onclick="openSystemConfig()" title="系统配置">
+    <i class="fa-solid fa-gear"></i>
+</div>
+<form id="auth-float-form" class="auth-float auth-login" action="{{.Root}}/logout" method="post" title="登录">
+    <button id="auth-float-button" type="submit">
+        <i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i>
+    </button>
+</form>
+
+<div class="container">
+    {{template "search_box" .}}
+
+    {{template "playlist_categories" .}}
+
+    {{template "playlist_source_tabs" .}}
+
+    {{template "playlist_grid" .}}
+
+    {{template "song_list" .}}
+</div>
+
+{{template "modals" .}}
+
+<div id="aplayer"></div>
+
+<div id="sakana-container" class="sakana-container">
+    <div id="sakana-widget"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+
+<script>
+    window.API_ROOT = "{{.Root}}";
+    window.sakanaInstance = null;
+    
+
+    function initSakanaWidget() {
+        if (window.innerWidth > 768) {
+            window.sakanaInstance = new SakanaWidget().mount('#sakana-widget');
+        }
+    }
+
+</script>
+
+<script src="{{.Root}}/app.js"></script>
+{{template "videogen_modal" .}}
+<script src="{{.Root}}/videogen.js"></script>
+
+<script async onload="initSakanaWidget()" src="https://cdn.jsdelivr.net/npm/sakana-widget@2.7.1/lib/sakana.min.js"></script>
+
+</body>
+</html>

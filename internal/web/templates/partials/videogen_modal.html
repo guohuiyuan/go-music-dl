@@ -1,0 +1,99 @@
+{{define "videogen_modal"}}
+<div id="vg-modal" class="vg-overlay">
+    <div id="vg-bg" class="vg-bg-layer">
+        <img id="vg-bg-img" class="vg-bg-content is-image" src="">
+        <video id="vg-bg-video" class="vg-bg-content" autoplay loop muted style="display:none;"></video>
+    </div>
+
+    <div class="vg-close" onclick="VideoGen.close()"><i class="fa-solid fa-xmark"></i></div>
+
+    <div class="vg-container" id="vg-ui-container">
+        <div class="vg-left">
+            <div class="vg-disc-container" id="vg-disc-container">
+                <div class="vg-visualizer" id="vg-visualizer"></div>
+                <div class="vg-disc-wrap">
+                    <div class="vg-cover-container" id="vg-cover-container">
+                        <img id="vg-cover-img" class="vg-cover-content" src="">
+                        <video id="vg-cover-video" class="vg-cover-content" autoplay loop muted style="display:none;"></video>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vg-info">
+                <div id="vg-title" class="vg-title"></div>
+                <div id="vg-artist" class="vg-artist"></div>
+                <div class="vg-progress-wrapper">
+                    <span id="vg-time-current">00:00</span>
+                    <input type="range" id="vg-seek-bar" class="vg-seek-bar" value="0" step="0.1" min="0" max="100">
+                    <span id="vg-time-total">00:00</span>
+                </div>
+                <div class="vg-playback-row">
+                    <div class="vg-ctrl-icon" onclick="VideoGen.playPrev()" title="上一首"><i class="fa-solid fa-backward-step"></i></div>
+                    <div class="vg-ctrl-icon vg-play-center" onclick="VideoGen.togglePlay()" title="播放/暂停">
+                        <i id="vg-play-toggle-icon" class="fa-solid fa-play"></i>
+                    </div>
+                    <div class="vg-ctrl-icon" onclick="VideoGen.playNext()" title="下一首"><i class="fa-solid fa-forward-step"></i></div>
+
+                    <div class="vg-vol-group">
+                        <i class="fa-solid fa-volume-high vg-ctrl-icon" id="vg-vol-icon" onclick="VideoGen.toggleMute()" title="静音/恢复" style="width: auto; height: auto;"></i>
+                        <input type="range" id="vg-volume-bar" class="vg-seek-bar" value="70" step="1" min="0" max="100">
+                        <span id="vg-vol-text" class="vg-vol-text">70%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vg-controls" id="vg-controls">
+                <div id="vg-feature-change-cover" data-vg-setting="vgChangeCover" style="display:none;">
+                    <input type="file" id="vg-file-input" accept="image/*,video/mp4" style="display:none;" onchange="VideoGen.handleFileSelect(this)">
+                    <button class="vg-btn-icon" onclick="document.getElementById('vg-file-input').click()" title="更换封面/背景">
+                        <i class="fa-regular fa-image"></i>
+                    </button>
+                </div>
+
+                <div id="vg-feature-change-audio" data-vg-setting="vgChangeAudio" style="display:none;">
+                    <input type="file" id="vg-audio-input" accept="audio/*" style="display:none;" onchange="VideoGen.handleAudioSelect(this)">
+                    <button class="vg-btn-icon" onclick="document.getElementById('vg-audio-input').click()" title="更换本地音频 (仅限网页预览)">
+                        <i class="fa-solid fa-music"></i>
+                    </button>
+                </div>
+
+                <div id="vg-feature-change-lyric" data-vg-setting="vgChangeLyric" style="display:none;">
+                    <input type="file" id="vg-lyric-input" accept=".lrc,.txt" style="display:none;" onchange="VideoGen.handleLyricSelect(this)">
+                    <button class="vg-btn-icon" onclick="document.getElementById('vg-lyric-input').click()" title="更换本地歌词 (.lrc)">
+                        <i class="fa-solid fa-file-lines"></i>
+                    </button>
+                </div>
+
+                <div id="vg-feature-export-video" data-vg-setting="vgExportVideo" style="display:none;">
+                    <button class="vg-btn-gen" onclick="VideoGen.startRendering()">
+                        <i class="fa-solid fa-clapperboard"></i> 导出视频
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="vg-right">
+            <div class="vg-lyrics-header">LYRICS PREVIEW</div>
+            <div id="vg-lyrics" class="vg-lyrics-box"></div>
+        </div>
+    </div>
+
+    <div id="vg-status-loading" class="vg-status">
+        <div style="font-size:30px; margin-bottom:10px;"><i class="fa-solid fa-compact-disc fa-spin"></i></div>
+        <h3 id="vg-status-text">正在分析音频...</h3>
+        <div class="vg-progress-bar"><div id="vg-progress-fill" class="vg-progress-fill"></div></div>
+        <p id="vg-status-sub" style="opacity:0.7; font-size:12px; margin-top:10px;">渲染期间不会影响当前音乐播放</p>
+    </div>
+
+    <div id="vg-status-success" class="vg-status">
+        <div style="font-size: 60px; color: #48bb78; margin-bottom: 20px;"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>生成成功！</h3>
+        <div style="display:flex; gap:15px; margin-top:30px;">
+            <a id="vg-dl-link" href="#" target="_blank" class="vg-btn-gen" download>
+                <i class="fa-solid fa-download"></i> 点击下载
+            </a>
+            <button onclick="VideoGen.reset()" class="vg-btn-gen">返回</button>
+        </div>
+    </div>
+</div>
+{{end}}

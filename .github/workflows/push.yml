@@ -1,0 +1,48 @@
+name: 推送代码检查
+on:
+  push:
+    branches:
+      - main
+jobs:
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Tidy Modules
+        run: |
+          go mod tidy
+          go generate ./...
+
+      - name: Run Lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.12.2
+          args: --new-from-rev=HEAD~1 ./cmd/music-dl ./core ./internal/... ./winres/...
+
+      - name: Commit back
+        if: ${{ !github.head_ref }}
+        continue-on-error: true
+        run: |
+          git config --local user.name 'github-actions[bot]'
+          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m "chore(lint): 改进代码样式"
+
+      - name: Create Pull Request
+        if: ${{ !github.head_ref }}
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v8
+        with:
+          title: "chore(lint): 改进代码样式"

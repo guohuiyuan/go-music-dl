@@ -1,0 +1,15 @@
+services:
+  music-dl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music-dl-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 🌟 核心修正：同样挂载到 /home/appuser/data
+      - ./data:/home/appuser/data
+    environment:
+      - TZ=Asia/Shanghai
+    command: [ "./music-dl", "web", "--port", "8080", "--no-browser" ]

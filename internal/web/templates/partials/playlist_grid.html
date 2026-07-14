@@ -1,0 +1,118 @@
+{{define "playlist_grid"}}
+{{ if .IsLocalColPage }}
+    <div class="list-header" style="margin-bottom: 20px;">
+        <div>
+            <span class="result-count" style="font-size: 16px;"><i class="fa-solid fa-folder-open"></i> 本地歌单（共 {{ len .Playlists }} 个）</span>
+        </div>
+        <button type="button" class="btn-pill btn-pill-primary" onclick="showEditCollectionModal()">
+            <i class="fa-solid fa-plus"></i> 新建歌单
+        </button>
+    </div>
+{{ end }}
+
+{{ if .Playlists }}
+    <div class="list-header" style="margin-bottom: 15px;">
+        <div>
+            <span class="result-count">
+                <i class="fa-solid {{ if eq .SearchType "album" }}fa-compact-disc{{ else }}fa-list{{ end }}"></i>
+                找到 <span class="count">{{ .TotalCount }}</span> {{ if eq .SearchType "album" }}张专辑{{ else }}个歌单{{ end }}
+            </span>
+            {{ if gt .TotalCount 0 }}
+            <div class="page-summary">当前第 {{ .Page }} / {{ .TotalPages }} 页，显示 {{ .PageStart }} - {{ .PageEnd }} / {{ .TotalCount }}</div>
+            {{ end }}
+        </div>
+    </div>
+    <div class="playlist-grid-container">
+        {{ range .Playlists }}
+        {{ $detailURL := playlistDetailURL $.Root $.SearchType . }}
+        {{ $collectionKind := playlistExtraValue . "collection_kind" }}
+        {{ $contentType := playlistExtraValue . "content_type" }}
+        {{ $remoteSource := playlistExtraValue . "remote_source" }}
+        {{ $editable := playlistExtraValue . "editable" }}
+        <div class="playlist-card" onclick="navigateTo('{{ $detailURL }}')">
+            <div class="playlist-cover" onclick="event.stopPropagation(); navigateTo('{{ $detailURL }}')">
+                <img src="{{ .Cover }}" loading="lazy" onerror="this.src='https://via.placeholder.com/400?text=Cover'">
+                <span class="tag {{ if eq .Source "local" }}tag-local{{ else }}tag-src{{ end }}" style="position:absolute; top:5px; right:5px; margin:0; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    {{ if eq .Source "local" }}
+                        {{ if eq $collectionKind "imported" }}外部导入{{ else }}自建歌单{{ end }}
+                    {{ else }}
+                        {{ .Source }}
+                    {{ end }}
+                </span>
+            </div>
+            <div class="playlist-meta">
+                <div class="playlist-title" onclick="event.stopPropagation(); navigateTo('{{ $detailURL }}')">
+                    {{ .Name }}
+                    {{ if .Link }}
+                    <a href="{{ .Link }}" target="_blank" class="external-link-icon" title="打开原始页面" onclick="event.stopPropagation()">
+                        <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 12px;"></i>
+                    </a>
+                    {{ end }}
+                </div>
+                <div class="playlist-author"><i class="fa-regular fa-user"></i> {{ .Creator }}</div>
+                {{ if and (eq .Source "local") (eq $collectionKind "imported") }}
+                <div class="playlist-author">
+                    <i class="fa-solid {{ if eq $contentType "album" }}fa-compact-disc{{ else }}fa-list{{ end }}"></i>
+                    {{ if eq $contentType "album" }}导入专辑{{ else }}导入歌单{{ end }}{{ if $remoteSource }} · {{ $remoteSource }}{{ end }}
+                </div>
+                {{ end }}
+
+                <div class="playlist-card-actions">
+                    <div class="playlist-count">共 {{ .TrackCount }} 首</div>
+
+                    {{ if eq .Source "local" }}
+                    <div style="display:flex; gap:6px;">
+                        {{ if eq $editable "true" }}
+                        <button class="col-action-btn" title="编辑歌单"
+                                data-id="{{.ID}}"
+                                data-name="{{.Name}}"
+                                data-description="{{.Description}}"
+                                data-cover="{{.Cover}}"
+                                onclick="event.stopPropagation(); showEditCollectionModalFromButton(this)">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        {{ end }}
+                        <button class="col-action-btn del" onclick="event.stopPropagation(); deleteCollection('{{.ID}}')" title="删除歌单">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                    {{ else if or (eq $.SearchType "playlist") (eq $.SearchType "album") }}
+                    <button type="button"
+                            class="ctrl-btn primary"
+                            title="{{ if eq $.SearchType "album" }}导入到本地歌单列表，保存为外部导入专辑；仅保留元数据，不保存具体歌曲明细。{{ else }}导入到本地歌单列表，保存为外部导入歌单；仅保留元数据，不保存具体歌曲明细。{{ end }}"
+                            data-name="{{.Name}}"
+                            data-description="{{.Description}}"
+                            data-cover="{{.Cover}}"
+                            data-creator="{{.Creator}}"
+                            data-track-count="{{.TrackCount}}"
+                            data-source="{{.Source}}"
+                            data-external-id="{{.ID}}"
+                            data-link="{{.Link}}"
+                            data-content-type="{{$.SearchType}}"
+                            onclick="event.stopPropagation(); importCollectionFromButton(this)">
+                        <i class="fa-solid fa-download"></i> 导入本地
+                    </button>
+                    {{ end }}
+                </div>
+            </div>
+        </div>
+        {{ end }}
+    </div>
+    {{ if gt .TotalPages 1 }}
+    <div class="pagination-bar"
+         data-current-page="{{ .Page }}"
+         data-total-pages="{{ .TotalPages }}"
+         data-shortcut-hint="PgUp / PgDn"
+         title="Shortcut: PgUp / PgDn">
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} - 1)" {{ if le .Page 1 }}disabled{{ end }}>
+            <i class="fa-solid fa-chevron-left"></i> 上一页
+        </button>
+        <span class="pagination-text">第 {{ .Page }} / {{ .TotalPages }} 页</span>
+        <span class="pagination-shortcut-hint">PgUp / PgDn</span>
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} + 1)" {{ if ge .Page .TotalPages }}disabled{{ end }}>
+            下一页<i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+    {{ end }}
+{{end}}
+{{end}}

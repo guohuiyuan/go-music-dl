@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=music-dl-desktop-go
+Comment=A Go desktop GUI for music-dl
+Exec=music-dl-desktop-go
+Icon=music-dl-desktop-go
+Terminal=false
+Categories=AudioVideo;

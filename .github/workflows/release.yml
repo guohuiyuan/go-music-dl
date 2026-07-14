@@ -1,0 +1,890 @@
+name: Release (CLI & Desktop)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # 1. Build macOS CLI installer packages for GoReleaser extra files
+  build-cli-macos-packages:
+    name: Build CLI macOS packages (${{ matrix.goarch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: macos-15-intel
+            goarch: amd64
+          - runner: macos-14
+            goarch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build CLI (macOS)
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w" -o ./dist/music-dl ./cmd/music-dl
+        env:
+          CGO_ENABLED: 0
+          GOOS: darwin
+          GOARCH: ${{ matrix.goarch }}
+
+      - name: Verify CLI binary
+        run: |
+          test -x ./dist/music-dl
+          ./dist/music-dl --help > /dev/null
+
+      - name: Package CLI (macOS)
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ -z "$version" ]; then
+            version="0.1.0"
+          fi
+
+          pkg_root="dist/pkgroot"
+          dmg_root="dist/dmg-root"
+
+          mkdir -p "${pkg_root}/usr/local/bin"
+          mkdir -p "${dmg_root}"
+
+          cp ./dist/music-dl "${pkg_root}/usr/local/bin/music-dl"
+          cp ./dist/music-dl "${dmg_root}/music-dl"
+          chmod +x "${pkg_root}/usr/local/bin/music-dl" "${dmg_root}/music-dl"
+
+          cat > "${dmg_root}/README.txt" <<'EOF'
+          Copy music-dl to a directory in your PATH, such as /usr/local/bin.
+          EOF
+
+          pkgbuild \
+            --root "${pkg_root}" \
+            --identifier com.guohuiyuan.go-music-dl.cli \
+            --version "${version}" \
+            --install-location / \
+            "go-music-dl_darwin_${{ matrix.goarch }}.pkg"
+
+          hdiutil create \
+            -volname "go-music-dl" \
+            -srcfolder "${dmg_root}" \
+            -ov \
+            -format UDZO \
+            "go-music-dl_darwin_${{ matrix.goarch }}.dmg"
+
+      - name: Verify CLI packages
+        run: |
+          test -f "go-music-dl_darwin_${{ matrix.goarch }}.pkg"
+          hdiutil verify "go-music-dl_darwin_${{ matrix.goarch }}.dmg"
+
+      - name: Upload CLI macOS packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-macos-packages-${{ matrix.goarch }}
+          path: |
+            go-music-dl_darwin_${{ matrix.goarch }}.dmg
+            go-music-dl_darwin_${{ matrix.goarch }}.pkg
+
+  # 2. CLI release by GoReleaser
+  goreleaser:
+    needs:
+      - build-cli-macos-packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Download macOS CLI packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cli-macos-packages-*
+          path: extra-release-assets
+          merge-multiple: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 3. desktop_go release assets, named like .goreleaser.yml archives
+  build-desktop-go:
+    name: Build desktop_go (${{ matrix.goos }}-${{ matrix.goarch }})
+    needs:
+      - goreleaser
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cgo_enabled: 1
+            binary_name: music-dl-desktop-go
+            archive_name: music-dl-desktop-go_linux_amd64.tar.gz
+          - runner: macos-15-intel
+            goos: darwin
+            goarch: amd64
+            cgo_enabled: 1
+            binary_name: music-dl-desktop-go
+            archive_name: music-dl-desktop-go_darwin_amd64.tar.gz
+          - runner: macos-14
+            goos: darwin
+            goarch: arm64
+            cgo_enabled: 1
+            binary_name: music-dl-desktop-go
+            archive_name: music-dl-desktop-go_darwin_arm64.tar.gz
+          - runner: windows-latest
+            goos: windows
+            goarch: amd64
+            cgo_enabled: 0
+            binary_name: music-dl-desktop-go.exe
+            archive_name: music-dl-desktop-go_windows_amd64.zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install Linux Dependencies
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev imagemagick libfuse2 rpm
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Install macOS Packaging Tools
+        if: matrix.goos == 'darwin'
+        run: brew install create-dmg
+
+      - name: Prepare Windows Resources
+        if: matrix.goos == 'windows'
+        shell: powershell
+        run: |
+          go install github.com/tc-hib/go-winres@latest
+          go generate ./...
+          go-winres make --in .\winres\desktop_go.winres.json --out .\desktop_go\rsrc
+
+      - name: Build desktop_go (Unix)
+        if: matrix.goos != 'windows'
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w" -o "./dist/${{ matrix.binary_name }}" ./desktop_go
+        env:
+          CGO_ENABLED: ${{ matrix.cgo_enabled }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+      - name: Build desktop_go (Windows)
+        if: matrix.goos == 'windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          go build -trimpath -ldflags "-H windowsgui -s -w" -o ".\dist\${{ matrix.binary_name }}" ./desktop_go
+        env:
+          CGO_ENABLED: ${{ matrix.cgo_enabled }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+      - name: Package desktop_go (Linux)
+        if: matrix.goos == 'linux'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ -z "$version" ]; then
+            version="0.1.0"
+          fi
+
+          package_root="music-dl-desktop-go_${{ matrix.goos }}_${{ matrix.goarch }}"
+          mkdir -p "dist/${package_root}/usr/bin"
+          mkdir -p "dist/${package_root}/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "dist/${package_root}/usr/share/applications"
+          cp "./dist/${{ matrix.binary_name }}" "dist/${package_root}/usr/bin/music-dl-desktop-go"
+          convert desktop/icon.png -resize 256x256! "dist/${package_root}/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png"
+          cp "./desktop_go/app.desktop" "dist/${package_root}/usr/share/applications/music-dl-desktop-go.desktop"
+          tar -C dist -czf "${{ matrix.archive_name }}" "${package_root}"
+
+          cat > dist/nfpm.yaml <<EOF
+          name: music-dl-desktop-go
+          arch: ${{ matrix.goarch }}
+          platform: linux
+          version: ${version}
+          section: utils
+          priority: optional
+          maintainer: guohuiyuan
+          description: Go desktop build of go-music-dl
+          homepage: https://github.com/guohuiyuan/go-music-dl
+          license: AGPL-3.0
+          contents:
+            - src: ./dist/${{ matrix.binary_name }}
+              dst: /usr/bin/music-dl-desktop-go
+              file_info:
+                mode: 0755
+            - src: ./dist/${package_root}/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png
+              dst: /usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png
+            - src: ./desktop_go/app.desktop
+              dst: /usr/share/applications/music-dl-desktop-go.desktop
+          EOF
+
+          "$(go env GOPATH)/bin/nfpm" package --config dist/nfpm.yaml --packager deb --target "music-dl-desktop-go-linux-${{ matrix.goarch }}.deb"
+          "$(go env GOPATH)/bin/nfpm" package --config dist/nfpm.yaml --packager rpm --target "music-dl-desktop-go-linux-${{ matrix.goarch }}.rpm"
+
+          rm -rf AppDir
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/
+          mkdir -p AppDir/usr/share/applications/
+          cp "./dist/${{ matrix.binary_name }}" AppDir/usr/bin/music-dl-desktop-go
+          cp "dist/${package_root}/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png" AppDir/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png
+          cp "./desktop_go/app.desktop" AppDir/usr/share/applications/music-dl-desktop-go.desktop
+
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png --desktop-file AppDir/usr/share/applications/music-dl-desktop-go.desktop
+          appimage=$(find . -maxdepth 1 -type f -name '*.AppImage' ! -name 'linuxdeploy-x86_64.AppImage' | head -n 1)
+          mv "$appimage" "music-dl-desktop-go-linux-${{ matrix.goarch }}.AppImage"
+
+      - name: Package desktop_go (macOS)
+        if: matrix.goos == 'darwin'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ -z "$version" ]; then
+            version="0.1.0"
+          fi
+
+          package_root="music-dl-desktop-go_${{ matrix.goos }}_${{ matrix.goarch }}"
+          app_dir="dist/${package_root}/music-dl-desktop-go.app"
+          mkdir -p "${app_dir}/Contents/MacOS"
+          mkdir -p "${app_dir}/Contents/Resources"
+          cp "./dist/${{ matrix.binary_name }}" "${app_dir}/Contents/MacOS/music-dl-desktop-go"
+          chmod +x "${app_dir}/Contents/MacOS/music-dl-desktop-go"
+
+          mkdir -p music-dl-desktop-go.iconset
+          sips -z 16 16 desktop/icon.png --out music-dl-desktop-go.iconset/icon_16x16.png
+          sips -z 32 32 desktop/icon.png --out music-dl-desktop-go.iconset/icon_16x16@2x.png
+          sips -z 32 32 desktop/icon.png --out music-dl-desktop-go.iconset/icon_32x32.png
+          sips -z 64 64 desktop/icon.png --out music-dl-desktop-go.iconset/icon_32x32@2x.png
+          sips -z 128 128 desktop/icon.png --out music-dl-desktop-go.iconset/icon_128x128.png
+          sips -z 256 256 desktop/icon.png --out music-dl-desktop-go.iconset/icon_128x128@2x.png
+          sips -z 256 256 desktop/icon.png --out music-dl-desktop-go.iconset/icon_256x256.png
+          sips -z 512 512 desktop/icon.png --out music-dl-desktop-go.iconset/icon_256x256@2x.png
+          sips -z 512 512 desktop/icon.png --out music-dl-desktop-go.iconset/icon_512x512.png
+          iconutil -c icns music-dl-desktop-go.iconset -o "${app_dir}/Contents/Resources/music-dl-desktop-go.icns"
+
+          cat > "${app_dir}/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>music-dl-desktop-go</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.guohuiyuan.musicdl.desktopgo</string>
+            <key>CFBundleName</key>
+            <string>music-dl-desktop-go</string>
+            <key>CFBundleDisplayName</key>
+            <string>music-dl-desktop-go</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>CFBundleShortVersionString</key>
+            <string>0.1.0</string>
+            <key>CFBundleIconFile</key>
+            <string>music-dl-desktop-go</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.15</string>
+            <key>NSAppTransportSecurity</key>
+            <dict>
+              <key>NSAllowsLocalNetworking</key>
+              <true/>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+          plutil -lint "${app_dir}/Contents/Info.plist"
+          codesign --force --deep --sign - "${app_dir}"
+          codesign --verify --deep --strict "${app_dir}"
+          tar -C dist -czf "${{ matrix.archive_name }}" "${package_root}"
+
+          rm -rf bundle
+          mkdir -p bundle/dmg-root
+          cp -R "${app_dir}" bundle/dmg-root/
+          create-dmg --volname "music-dl-desktop-go Installer" --window-pos 200 120 --window-size 800 400 --app-drop-link 600 185 "music-dl-desktop-go-macos-${{ matrix.goarch }}.dmg" "bundle/dmg-root"
+          productbuild --component "${app_dir}" /Applications "music-dl-desktop-go-macos-${{ matrix.goarch }}.pkg"
+
+      - name: Package desktop_go (Windows)
+        if: matrix.goos == 'windows'
+        shell: powershell
+        run: |
+          Compress-Archive -Path ".\dist\${{ matrix.binary_name }}" -DestinationPath "${{ matrix.archive_name }}" -Force
+
+      - name: Verify desktop_go package (Linux)
+        if: matrix.goos == 'linux'
+        run: |
+          tar -tzf "${{ matrix.archive_name }}" | grep -F "usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png"
+          tar -tzf "${{ matrix.archive_name }}" | grep -F "usr/share/applications/music-dl-desktop-go.desktop"
+          dpkg-deb -c "music-dl-desktop-go-linux-${{ matrix.goarch }}.deb" | grep -F "usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png"
+          rpm -qlp "music-dl-desktop-go-linux-${{ matrix.goarch }}.rpm" | grep -F "/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png"
+          ./music-dl-desktop-go-linux-${{ matrix.goarch }}.AppImage --appimage-extract > /dev/null
+          test -f squashfs-root/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-go.png
+          rm -rf squashfs-root
+
+      - name: Verify desktop_go package (macOS)
+        if: matrix.goos == 'darwin'
+        run: |
+          tar -tzf "${{ matrix.archive_name }}" | grep -F "music-dl-desktop-go.app/Contents/Resources/music-dl-desktop-go.icns"
+          tar -tzf "${{ matrix.archive_name }}" | grep -F "music-dl-desktop-go.app/Contents/Info.plist"
+          test -f "music-dl-desktop-go-macos-${{ matrix.goarch }}.dmg"
+          test -f "music-dl-desktop-go-macos-${{ matrix.goarch }}.pkg"
+          hdiutil verify "music-dl-desktop-go-macos-${{ matrix.goarch }}.dmg"
+          ats_value="$(plutil -extract NSAppTransportSecurity.NSAllowsLocalNetworking raw -o - "dist/music-dl-desktop-go_${{ matrix.goos }}_${{ matrix.goarch }}/music-dl-desktop-go.app/Contents/Info.plist")"
+          test "$ats_value" = "1" || test "$ats_value" = "true"
+          codesign --verify --deep --strict "dist/music-dl-desktop-go_${{ matrix.goos }}_${{ matrix.goarch }}/music-dl-desktop-go.app"
+
+      - name: Verify desktop_go package (Windows)
+        if: matrix.goos == 'windows'
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path ".\dist\${{ matrix.binary_name }}"))
+          if ($null -eq $icon) { throw "desktop_go executable has no icon" }
+          if ($icon.Size.Width -lt 16 -or $icon.Size.Height -lt 16) { throw "desktop_go icon is unexpectedly small" }
+
+      - name: Upload desktop_go Artifacts (Linux)
+        if: matrix.goos == 'linux'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.archive_name }}
+            music-dl-desktop-go-linux-${{ matrix.goarch }}.deb
+            music-dl-desktop-go-linux-${{ matrix.goarch }}.rpm
+            music-dl-desktop-go-linux-${{ matrix.goarch }}.AppImage
+
+      - name: Upload desktop_go Artifacts (macOS)
+        if: matrix.goos == 'darwin'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.archive_name }}
+            music-dl-desktop-go-macos-${{ matrix.goarch }}.dmg
+            music-dl-desktop-go-macos-${{ matrix.goarch }}.pkg
+
+      - name: Upload desktop_go Artifacts (Windows)
+        if: matrix.goos == 'windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.archive_name }}
+
+  # 4. Android APK build via package_app.bat
+  build-android-apk:
+    name: Build Android APK
+    needs:
+      - goreleaser
+    runs-on: windows-latest
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Resolve Android SDK Paths
+        shell: cmd
+        run: |
+          set "SDKMANAGER="
+
+          if not defined SDKMANAGER if defined ANDROID_SDK_ROOT if exist "%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\sdkmanager.bat" set "SDKMANAGER=%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\sdkmanager.bat"
+          if not defined SDKMANAGER if defined ANDROID_SDK_ROOT if exist "%ANDROID_SDK_ROOT%\cmdline-tools\bin\sdkmanager.bat" set "SDKMANAGER=%ANDROID_SDK_ROOT%\cmdline-tools\bin\sdkmanager.bat"
+          if not defined SDKMANAGER if defined ANDROID_HOME if exist "%ANDROID_HOME%\cmdline-tools\latest\bin\sdkmanager.bat" set "SDKMANAGER=%ANDROID_HOME%\cmdline-tools\latest\bin\sdkmanager.bat"
+          if not defined SDKMANAGER if defined ANDROID_HOME if exist "%ANDROID_HOME%\cmdline-tools\bin\sdkmanager.bat" set "SDKMANAGER=%ANDROID_HOME%\cmdline-tools\bin\sdkmanager.bat"
+
+          if not defined SDKMANAGER for /f "delims=" %%p in ('where sdkmanager.bat 2^>nul') do if not defined SDKMANAGER set "SDKMANAGER=%%p"
+
+          if not defined SDKMANAGER (
+            echo ERROR: sdkmanager.bat not found after setup-android.
+            where sdkmanager.bat
+            exit /b 1
+          )
+
+          set "DETECTED_ANDROID_HOME="
+          if defined ANDROID_SDK_ROOT if exist "%ANDROID_SDK_ROOT%\cmdline-tools" set "DETECTED_ANDROID_HOME=%ANDROID_SDK_ROOT%"
+          if not defined DETECTED_ANDROID_HOME if defined ANDROID_HOME if exist "%ANDROID_HOME%\cmdline-tools" set "DETECTED_ANDROID_HOME=%ANDROID_HOME%"
+
+          if not defined DETECTED_ANDROID_HOME (
+            for %%I in ("%SDKMANAGER%\..\..\..\..") do set "SDK_ROOT_CANDIDATE1=%%~fI"
+            for %%I in ("%SDKMANAGER%\..\..\..") do set "SDK_ROOT_CANDIDATE2=%%~fI"
+
+            if exist "%SDK_ROOT_CANDIDATE1%\cmdline-tools" (
+              set "DETECTED_ANDROID_HOME=%SDK_ROOT_CANDIDATE1%"
+            ) else (
+              set "DETECTED_ANDROID_HOME=%SDK_ROOT_CANDIDATE2%"
+            )
+          )
+
+          if not exist "%DETECTED_ANDROID_HOME%\platform-tools" mkdir "%DETECTED_ANDROID_HOME%\platform-tools"
+
+          echo SDKMANAGER=%SDKMANAGER%>> %GITHUB_ENV%
+          echo ANDROID_HOME=%DETECTED_ANDROID_HOME%>> %GITHUB_ENV%
+          echo ANDROID_SDK_ROOT=%DETECTED_ANDROID_HOME%>> %GITHUB_ENV%
+
+          echo Using SDKMANAGER=%SDKMANAGER%
+          echo Using ANDROID_HOME=%DETECTED_ANDROID_HOME%
+
+      - name: Install Android Packages
+        shell: cmd
+        run: |
+          if not defined SDKMANAGER (
+            echo ERROR: SDKMANAGER env is empty.
+            exit /b 1
+          )
+          call "%SDKMANAGER%" --licenses < NUL
+          call "%SDKMANAGER%" "platform-tools" "platforms;android-33" "build-tools;34.0.0" "ndk;27.0.12077973"
+
+      - name: Download Android FFmpeg binaries
+        shell: powershell
+        run: |
+          .\.github\scripts\download_android_ffmpeg.ps1 -OutputRoot .\desktop_app\ffmpeg\android
+
+      - name: Decode Android signing keystore
+        shell: powershell
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          [IO.File]::WriteAllBytes("release.keystore", [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+      - name: Build APK
+        shell: cmd
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEYSTORE_FILE: ..\release.keystore
+          MUSIC_DL_BUNDLE_ANDROID_FFMPEG: "1"
+        run: |
+          package_app.bat
+
+      - name: Remove Android signing keystore
+        if: always()
+        shell: cmd
+        run: |
+          del /q release.keystore
+
+      - name: Verify APK
+        shell: cmd
+        run: |
+          if not exist "music-dl.apk" (
+            echo ERROR: music-dl.apk not found
+            exit /b 1
+          )
+          if not exist "music-dl_arm64-v8a.apk" (
+            echo ERROR: music-dl_arm64-v8a.apk not found
+            exit /b 1
+          )
+          if not exist "music-dl_x86_64.apk" (
+            echo ERROR: music-dl_x86_64.apk not found
+            exit /b 1
+          )
+
+      - name: Verify bundled Android FFmpeg
+        shell: powershell
+        run: |
+          .\.github\scripts\verify_android_ffmpeg_apk.ps1 -ApkPath .\music-dl.apk -Abis armeabi-v7a,arm64-v8a,x86,x86_64
+          .\.github\scripts\verify_android_ffmpeg_apk.ps1 -ApkPath .\music-dl_arm64-v8a.apk -Abis arm64-v8a
+          .\.github\scripts\verify_android_ffmpeg_apk.ps1 -ApkPath .\music-dl_x86_64.apk -Abis x86_64
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: music-dl-android-apk
+          path: |
+            music-dl.apk
+            music-dl_arm64-v8a.apk
+            music-dl_x86_64.apk
+
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            music-dl.apk
+            music-dl_arm64-v8a.apk
+            music-dl_x86_64.apk
+
+  # 5. iOS app build via Gio UI
+  build-ios-app:
+    name: Build iOS App
+    needs:
+      - goreleaser
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build unsigned iOS signing package
+        env:
+          IOS_UNSIGNED_ONLY: "1"
+          IOS_APP_ID: ${{ vars.IOS_APP_ID }}
+        run: |
+          chmod +x package_ios.sh
+          ./package_ios.sh
+
+      - name: Upload unsigned iOS signing package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: music-dl-ios-unsigned-signing-package
+          path: music-dl-ios-unsigned.ipa
+
+      - name: Upload unsigned iOS signing package to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: music-dl-ios-unsigned.ipa
+
+      - name: Check iOS signing inputs
+        id: ios_signing
+        env:
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+        run: |
+          if [ -n "$IOS_PROVISION_PROFILE_BASE64" ] && [ -n "$IOS_CERTIFICATE_P12_BASE64" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping iOS IPA: IOS_PROVISION_PROFILE_BASE64 and IOS_CERTIFICATE_P12_BASE64 are required for a real device IPA."
+          fi
+
+      - name: Import iOS signing certificate
+        if: steps.ios_signing.outputs.enabled == 'true'
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          printf '%s' "$IOS_CERTIFICATE_P12_BASE64" | base64 --decode > ios_certificate.p12
+          security import ios_certificate.p12 -k build.keychain -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12
+          security list-keychains -d user -s build.keychain
+          security default-keychain -s build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+      - name: Decode iOS provisioning profile
+        if: steps.ios_signing.outputs.enabled == 'true'
+        env:
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          printf '%s' "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode > ios.mobileprovision
+
+      - name: Build iOS IPA
+        if: steps.ios_signing.outputs.enabled == 'true'
+        env:
+          IOS_PROVISION_PROFILE: ${{ github.workspace }}/ios.mobileprovision
+          IOS_APP_ID: ${{ vars.IOS_APP_ID }}
+        run: |
+          chmod +x package_ios.sh
+          ./package_ios.sh
+
+      - name: Upload iOS App Artifact
+        if: steps.ios_signing.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: music-dl-ios-app
+          path: music-dl-ios.ipa
+
+      - name: Upload iOS App to Release
+        if: steps.ios_signing.outputs.enabled == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: music-dl-ios.ipa
+
+  # 6. Windows desktop build
+  build-windows-desktop:
+    needs:
+      - goreleaser
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            arch_name: amd64
+          - target: i686-pc-windows-msvc
+            arch_name: 386
+          - target: aarch64-pc-windows-msvc
+            arch_name: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      - name: Build Go Backend
+        run: |
+          go build -ldflags "-s -w" -o music-dl.exe ./cmd/music-dl
+        env:
+          CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: ${{ matrix.arch_name }}
+
+      - name: Build Rust Desktop
+        run: |
+          cd desktop
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Package Desktop
+        shell: powershell
+        run: |
+          mkdir dist
+          copy desktop/target/${{ matrix.target }}/release/music-dl-desktop-rust.exe dist/music-dl-desktop-rust.exe
+          Compress-Archive -Path dist/* -DestinationPath music-dl-desktop-rust-windows-${{ matrix.arch_name }}.zip
+
+      - name: Verify Desktop Icon
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path ".\desktop\target\${{ matrix.target }}\release\music-dl-desktop-rust.exe"))
+          if ($null -eq $icon) { throw "desktop executable has no icon" }
+          if ($icon.Size.Width -lt 16 -or $icon.Size.Height -lt 16) { throw "desktop icon is unexpectedly small" }
+
+      - name: Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: music-dl-desktop-rust-windows-${{ matrix.arch_name }}.zip
+
+  # 7. macOS desktop build
+  build-macos:
+    needs:
+      - goreleaser
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            arch_name: amd64
+          - target: aarch64-apple-darwin
+            arch_name: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      - name: Install Packaging Tools
+        run: brew install create-dmg
+
+      - name: Build Go Backend
+        run: |
+          go build -ldflags "-s -w" -o music-dl ./cmd/music-dl
+        env:
+          CGO_ENABLED: 0
+          GOOS: darwin
+          GOARCH: ${{ matrix.arch_name }}
+
+      - name: Build Rust Desktop
+        run: |
+          cd desktop
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Create DMG & PKG
+        run: |
+          mkdir -p bundle/music-dl-desktop-rust.app/Contents/MacOS
+          mkdir -p bundle/music-dl-desktop-rust.app/Contents/Resources
+          mkdir -p bundle/dmg-root
+
+          cp desktop/target/${{ matrix.target }}/release/music-dl-desktop-rust bundle/music-dl-desktop-rust.app/Contents/MacOS/music-dl-desktop-rust
+          chmod +x bundle/music-dl-desktop-rust.app/Contents/MacOS/music-dl-desktop-rust
+
+          mkdir MusicDL.iconset
+          sips -z 16 16 desktop/icon.png --out MusicDL.iconset/icon_16x16.png
+          sips -z 32 32 desktop/icon.png --out MusicDL.iconset/icon_16x16@2x.png
+          sips -z 32 32 desktop/icon.png --out MusicDL.iconset/icon_32x32.png
+          sips -z 64 64 desktop/icon.png --out MusicDL.iconset/icon_32x32@2x.png
+          sips -z 128 128 desktop/icon.png --out MusicDL.iconset/icon_128x128.png
+          sips -z 256 256 desktop/icon.png --out MusicDL.iconset/icon_128x128@2x.png
+          sips -z 256 256 desktop/icon.png --out MusicDL.iconset/icon_256x256.png
+          sips -z 512 512 desktop/icon.png --out MusicDL.iconset/icon_256x256@2x.png
+          sips -z 512 512 desktop/icon.png --out MusicDL.iconset/icon_512x512.png
+          iconutil -c icns MusicDL.iconset -o bundle/music-dl-desktop-rust.app/Contents/Resources/music-dl-desktop-rust.icns
+
+          cat > bundle/music-dl-desktop-rust.app/Contents/Info.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>music-dl-desktop-rust</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.guohuiyuan.musicdl.desktoprust</string>
+            <key>CFBundleName</key>
+            <string>music-dl-desktop-rust</string>
+            <key>CFBundleDisplayName</key>
+            <string>music-dl-desktop-rust</string>
+            <key>CFBundleIconFile</key>
+            <string>music-dl-desktop-rust</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>0.1.0</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.15</string>
+            <key>NSAppTransportSecurity</key>
+            <dict>
+              <key>NSAllowsLocalNetworking</key>
+              <true/>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+          plutil -lint bundle/music-dl-desktop-rust.app/Contents/Info.plist
+          codesign --force --deep --sign - bundle/music-dl-desktop-rust.app
+          codesign --verify --deep --strict bundle/music-dl-desktop-rust.app
+
+          cp -R bundle/music-dl-desktop-rust.app bundle/dmg-root/
+          create-dmg --volname "music-dl-desktop-rust Installer" --window-pos 200 120 --window-size 800 400 --app-drop-link 600 185 "music-dl-desktop-rust-macos-${{ matrix.arch_name }}.dmg" "bundle/dmg-root"
+          productbuild --component bundle/music-dl-desktop-rust.app /Applications "music-dl-desktop-rust-macos-${{ matrix.arch_name }}.pkg"
+
+      - name: Verify macOS Desktop Icon
+        run: |
+          test -f bundle/music-dl-desktop-rust.app/Contents/Resources/music-dl-desktop-rust.icns
+          test -f bundle/music-dl-desktop-rust.app/Contents/Info.plist
+          ats_value="$(plutil -extract NSAppTransportSecurity.NSAllowsLocalNetworking raw -o - bundle/music-dl-desktop-rust.app/Contents/Info.plist)"
+          test "$ats_value" = "1" || test "$ats_value" = "true"
+          hdiutil verify "music-dl-desktop-rust-macos-${{ matrix.arch_name }}.dmg"
+          codesign --verify --deep --strict bundle/music-dl-desktop-rust.app
+
+      - name: Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            music-dl-desktop-rust-macos-*.dmg
+            music-dl-desktop-rust-macos-*.pkg
+
+  # 8. Linux desktop build
+  build-linux-desktop:
+    needs:
+      - goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev imagemagick libfuse2 rpm
+          cargo install cargo-deb
+          cargo install cargo-generate-rpm
+
+      - name: Build Go Backend
+        run: go build -ldflags "-s -w" -o music-dl ./cmd/music-dl
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: amd64
+
+      - name: Build Rust Desktop
+        run: |
+          cd desktop
+          cargo build --release
+
+      - name: Package Desktop (Deb, RPM, AppImage)
+        run: |
+          cd desktop
+          cargo deb --no-build --output ../music-dl-desktop-rust-linux-amd64.deb
+
+          cargo generate-rpm
+          mv target/generate-rpm/*.rpm ../music-dl-desktop-rust-linux-amd64.rpm
+
+          cd ..
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/
+          mkdir -p AppDir/usr/share/applications/
+          cp desktop/target/release/music-dl-desktop-rust AppDir/usr/bin/music-dl-desktop-rust
+          convert desktop/icon.png -resize 256x256! AppDir/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-rust.png
+          echo -e "[Desktop Entry]\nType=Application\nName=music-dl-desktop-rust\nExec=music-dl-desktop-rust\nIcon=music-dl-desktop-rust\nCategories=AudioVideo;" > AppDir/usr/share/applications/music-dl-desktop-rust.desktop
+
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-rust.png --desktop-file AppDir/usr/share/applications/music-dl-desktop-rust.desktop
+          appimage=$(find . -maxdepth 1 -type f -name '*.AppImage' ! -name 'linuxdeploy-x86_64.AppImage' | head -n 1)
+          mv "$appimage" music-dl-desktop-rust-linux-amd64.AppImage
+
+      - name: Verify Linux Desktop Icons
+        run: |
+          dpkg-deb -c music-dl-desktop-rust-linux-amd64.deb | grep -F "usr/share/icons/hicolor/256x256/apps/music-dl-desktop-rust.png"
+          rpm -qlp music-dl-desktop-rust-linux-amd64.rpm | grep -F "/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-rust.png"
+          ./music-dl-desktop-rust-linux-amd64.AppImage --appimage-extract > /dev/null
+          test -f squashfs-root/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-rust.png
+          rm -rf squashfs-root
+
+      - name: Upload Desktop Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.deb
+            *.rpm
+            music-dl-desktop-rust-linux-amd64.AppImage

@@ -1,0 +1,307 @@
+{{define "song_list"}}
+{{ if or .Result .ColID (eq .SearchType "local_music") }}
+{{ $isLocalMusicPage := eq .SearchType "local_music" }}
+    <div class="list-header">
+        <div>
+            {{ if .ColID }}
+            <span class="result-count" style="font-size: 16px;"><i class="fa-solid fa-folder-open"></i> 正在查看: <span style="color:#10b981; margin-left: 5px;">{{ .ColName }}</span>（共 {{ .TotalCount }} 首）</span>
+            {{ else if eq .SearchType "local_music" }}
+            <span class="result-count"><i class="fa-solid fa-music"></i> 本地音乐（共 <span class="count" id="localMusicPageTotal">{{ .TotalCount }}</span> 首）</span>
+            {{ else }}
+            <span class="result-count"><i class="fa-solid fa-music"></i> 找到 <span class="count">{{ .TotalCount }}</span> 首歌曲</span>
+            {{ if .PlaylistLink }}
+                <a href="{{ .PlaylistLink }}" target="_blank" class="playlist-source-link">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> 打开原始页面
+                </a>
+            {{ end }}
+            {{ end }}
+            {{ if gt .TotalCount 0 }}
+            <div class="page-summary">当前第 {{ .Page }} / {{ .TotalPages }} 页，显示 {{ .PageStart }} - {{ .PageEnd }} / {{ .TotalCount }}</div>
+            {{ end }}
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
+            {{ if gt .TotalCount 1 }}
+            <div class="song-sort-control" id="song-sort-control">
+                <select id="song-sort-select" aria-label="歌曲排序" onchange="setSongSortMode(this.value)">
+                    <option value="default">默认排序</option>
+                    <option value="quality">按音质</option>
+                    <option value="size">按大小</option>
+                    <option value="duration">按时长</option>
+                </select>
+                <button type="button" class="ctrl-btn sort-dir-btn" id="song-sort-direction" title="降序" onclick="toggleSongSortDirection()">
+                    <i class="fa-solid fa-arrow-down-wide-short"></i>
+                </button>
+            </div>
+            {{ end }}
+            {{ if .ImportCollection }}
+            <button type="button"
+                    class="ctrl-btn primary"
+                    title="{{ .ImportCollection.HoverText }}"
+                    data-name="{{.ImportCollection.Name}}"
+                    data-description="{{.ImportCollection.Description}}"
+                    data-cover="{{.ImportCollection.Cover}}"
+                    data-creator="{{.ImportCollection.Creator}}"
+                    data-track-count="{{.ImportCollection.TrackCount}}"
+                    data-source="{{.ImportCollection.Source}}"
+                    data-external-id="{{.ImportCollection.ExternalID}}"
+                    data-link="{{.ImportCollection.Link}}"
+                    data-content-type="{{.ImportCollection.ContentType}}"
+                    onclick="importCollectionFromButton(this)">
+                <i class="fa-solid fa-download"></i> 导入本地
+            </button>
+            {{ end }}
+            {{ if eq .SearchType "local_music" }}
+            <input id="localMusicPageUploadInput" type="file" accept=".mp3,.flac,.m4a,.ogg,.wav,.wma,.aac,audio/*" onchange="uploadLocalMusicForPage(this)" hidden>
+            <button type="button" class="ctrl-btn primary" onclick="document.getElementById('localMusicPageUploadInput')?.click()">
+                <i class="fa-solid fa-upload"></i> 上传本地音乐
+            </button>
+            {{ end }}
+            <button type="button" class="ctrl-btn primary" onclick="playAllSongs()">
+                <i class="fa-solid fa-play"></i> 播放全部
+            </button>
+            <button type="button" class="ctrl-btn primary" id="btn-batch-toggle" onclick="toggleBatchMode()">
+                <i class="fa-solid fa-list-check"></i> 批量操作
+            </button>
+        </div>
+    </div>
+
+    <div class="batch-toolbar" id="batch-toolbar" data-current-page="{{ .Page }}" data-total-pages="{{ .TotalPages }}" data-total-count="{{ .TotalCount }}" data-page-size="{{ .PageSize }}" data-local-music="{{ if $isLocalMusicPage }}true{{ else }}false{{ end }}">
+        <div class="batch-info">
+            <div>
+                <label><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this)"> 全选</label>
+                <span style="margin-left: 5px; color: #718096; font-size:12px;">已选 <span id="selected-count" style="color: #10b981; font-weight: bold;">0</span></span>
+            </div>
+            {{ if not $isLocalMusicPage }}
+            <button class="btn-pill btn-pill-warn" onclick="selectInvalidSongs()">
+                <i class="fa-solid fa-triangle-exclamation"></i> 选择无效
+            </button>
+            {{ end }}
+        </div>
+        <div class="batch-actions">
+            {{ if $isLocalMusicPage }}
+            <button class="btn-pill btn-pill-fav" id="btn-batch-fav-local" onclick="batchAddLocalMusicToCollection()" disabled>
+                <i class="fa-regular fa-heart"></i> 批量收藏
+            </button>
+            <button class="btn-pill btn-pill-warn" id="btn-batch-delete-local" onclick="batchDeleteLocalMusic()" disabled>
+                <i class="fa-solid fa-trash"></i> 批量删除
+            </button>
+            {{ else }}
+            {{ if .CanRemoveSongs }}
+            <button class="btn-pill btn-pill-warn" id="btn-batch-remove-collection" onclick="batchRemoveFromCollection('{{.ColID}}')" disabled>
+                <i class="fa-solid fa-heart-crack"></i> 批量取消收藏
+            </button>
+            {{ else }}
+            <button class="btn-pill btn-pill-fav" id="btn-batch-fav" onclick="batchAddToCollection()" disabled>
+                <i class="fa-regular fa-heart"></i> 批量收藏
+            </button>
+            {{ end }}
+            <button class="btn-pill btn-pill-switch" id="btn-batch-switch" onclick="batchSwitchSource()" disabled>
+                <i class="fa-solid fa-arrows-rotate"></i> 批量换源
+            </button>
+            <button class="btn-pill btn-pill-dl" id="btn-batch-dl" onclick="batchDownload()" disabled>
+                <i class="fa-solid fa-download"></i> 批量下载
+            </button>
+            {{ end }}
+        </div>
+    </div>
+
+    {{ if $isLocalMusicPage }}
+    <div id="localMusicPageHint" class="local-music-page-hint" style="display:none;"></div>
+    {{ end }}
+
+    <ul class="result-list" {{ if $isLocalMusicPage }}id="localMusicPageList" data-local-music-page="true"{{ end }}>
+        {{ range .Result }}
+        {{ $song := . }}
+        {{ $artists := artistTokens .Artist }}
+        {{ $albumID := albumID . }}
+        {{ $isLocalSong := or $isLocalMusicPage (eq .Source "local") (eq .Source "local-file") }}
+        <li class="song-card"
+            data-id="{{.ID}}"
+            data-source="{{.Source}}"
+            data-album-id="{{ $albumID }}"
+            data-album="{{.Album}}"
+            data-duration="{{.Duration}}"
+            data-name="{{.Name}}"
+            data-artist="{{.Artist}}"
+            data-cover="{{.Cover}}"
+            data-sort-size="{{ if .Extra }}{{ index .Extra "size" }}{{ end }}"
+            data-sort-bitrate="{{ if .Extra }}{{ index .Extra "bitrate" }}{{ end }}"
+            data-extra='{{tojson .Extra}}'>
+
+            <div class="checkbox-wrapper">
+                <input type="checkbox" class="song-checkbox" onclick="event.stopPropagation(); updateBatchToolbar();">
+            </div>
+
+            <div class="cover-wrapper">
+                {{ if .Cover }}
+                    <img src="{{ .Cover }}" alt="{{ .Name }}" loading="lazy" onerror="this.src='https://via.placeholder.com/150?text=Music'">
+                {{ else }}
+                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:24px;">🎵</div>
+                    <img src="https://via.placeholder.com/150?text=Music" style="display:none;">
+                {{ end }}
+            </div>
+            <div class="song-info">
+                <h3>
+                    {{ if .Link }}
+                        <a href="{{ .Link }}" target="_blank" class="song-title-link" title="打开原始链接">{{ .Name }}</a>
+                    {{ else }}
+                        {{ .Name }}
+                    {{ end }}
+                </h3>
+                <div class="artist-line">
+                    <i class="fa-regular fa-user artist-icon"></i>
+                    {{ if $isLocalSong }}
+                        {{ if .Artist }}
+                            <span>{{ .Artist }}</span>
+                        {{ else }}
+                            <span>未知歌手</span>
+                        {{ end }}
+                        {{ if .Album }}
+                            <span class="meta-separator">&middot;</span>
+                            <span class="meta-link-disabled album-link">{{ .Album }}</span>
+                        {{ end }}
+                    {{ else }}
+                    {{ if gt (len $artists) 0 }}
+                        {{ range $index, $artist := $artists }}
+                            {{ if gt $index 0 }}<span class="meta-separator">/</span>{{ end }}
+                            <a href="{{$.Root}}/search?q={{urlquery $artist}}&type=song&exact_artist={{urlquery $artist}}&sources={{urlquery $song.Source}}" class="meta-link artist-link">{{ $artist }}</a>
+                        {{ end }}
+                    {{ else }}
+                        <span>-</span>
+                    {{ end }}
+                    {{ if .Album }}
+                        <span class="meta-separator">&middot;</span>
+                        {{ if $albumID }}
+                            <a href="{{$.Root}}/album?id={{urlquery $albumID}}&source={{urlquery $song.Source}}" class="meta-link album-link">{{ .Album }}</a>
+                        {{ else }}
+                            <a href="{{$.Root}}/album_jump?name={{urlquery .Album}}&artist={{urlquery .Artist}}&source={{urlquery $song.Source}}" class="meta-link album-link">{{ .Album }}</a>
+                        {{ end }}
+                    {{ end }}
+                    {{ end }}
+                </div>
+                <div class="tags">
+                    <span class="tag {{ if $isLocalSong }}tag-local{{ else }}tag-src{{ end }}">{{ if $isLocalSong }}本地{{ else }}{{ .Source }}{{ end }}</span>
+                    <span class="tag tag-duration">{{ if .FormatDuration }}{{ .FormatDuration }}{{ else }}-{{ end }}</span>
+                    <span class="tag tag-loading" id="size-{{.ID}}"><i class="fa fa-spinner fa-spin"></i></span>
+                    <span class="tag tag-loading" id="bitrate-{{.ID}}"><i class="fa fa-circle-notch fa-spin"></i></span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="button" class="btn-circle btn-play" title="播放"
+                        onclick="playAllAndJumpTo(this)">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+
+                {{ if $isLocalMusicPage }}
+                <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单"
+                        onclick="openAddToCollectionModal(this)">
+                    <i class="fa-regular fa-heart"></i>
+                </button>
+
+                {{ if index .Extra "lyric" }}
+                <a href="{{$.Root}}/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{.Album}}&duration={{.Duration}}&extra={{urlquery (tojson .Extra)}}"
+                   id="lrc-{{.ID}}" class="btn-circle btn-dl btn-lyric" title="下载歌词" target="_blank">
+                    <i class="fa-solid fa-file-lines"></i>
+                </a>
+                {{ end }}
+
+                {{ if .Cover }}
+                <a href="{{$.Root}}/local_music/cover?id={{urlquery .ID}}&download=1&name={{urlquery .Name}}&artist={{urlquery .Artist}}"
+                   class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank">
+                    <i class="fa-regular fa-image"></i>
+                </a>
+                {{ end }}
+
+                <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐"
+                        onclick="deleteLocalMusicFromButton(this)">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                {{ end }}
+
+                {{ if not $isLocalMusicPage }}
+                {{ if or (not $isLocalSong) (ne $.ColID "") }}
+                <button type="button" class="btn-circle btn-switch" title="换源"
+                        onclick="switchSource(this)">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+                {{ end }}
+
+                {{ if $.CanRemoveSongs }}
+                <button type="button" class="btn-circle btn-fav" title="移出当前歌单"
+                        onclick="removeSongFromCollection(this, '{{$.ColID}}', '{{.ID}}', '{{.Source}}')">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                {{ else }}
+                <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单"
+                        onclick="openAddToCollectionModal(this)">
+                    <i class="fa-regular fa-heart"></i>
+                </button>
+                {{ end }}
+
+                {{ if not $isLocalSong }}
+                <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
+                   id="dl-{{.ID}}" class="btn-circle btn-dl btn-download" title="保存到本地目录" target="_blank">
+                    <i class="fa-solid fa-download"></i>
+                </a>
+                <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
+                   id="browser-dl-{{.ID}}" class="btn-circle btn-dl btn-browser-download" title="浏览器下载" target="_blank">
+                    <i class="fa-solid fa-cloud-arrow-down"></i>
+                </a>
+                {{ end }}
+
+                <a href="{{$.Root}}/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{.Album}}&duration={{.Duration}}&extra={{urlquery (tojson .Extra)}}"
+                   id="lrc-{{.ID}}" class="btn-circle btn-dl btn-lyric" title="下载歌词" target="_blank">
+                    <i class="fa-solid fa-file-lines"></i>
+                </a>
+
+                {{ if $isLocalSong }}
+                <a href="{{$.Root}}/local_music/cover?id={{urlquery .ID}}&download=1&name={{urlquery .Name}}&artist={{urlquery .Artist}}"
+                   class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank">
+                    <i class="fa-regular fa-image"></i>
+                </a>
+                {{ else }}
+                <a href="{{$.Root}}/download_cover?url={{ .Cover }}&name={{ .Name }}&artist={{ .Artist }}"
+                   class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank">
+                    <i class="fa-regular fa-image"></i>
+                </a>
+                {{ end }}
+
+                {{ if and $isLocalSong (eq $.ColID "") }}
+                <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐"
+                        onclick="deleteLocalMusicFromButton(this)">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                {{ end }}
+                {{ end }}
+            </div>
+        </li>
+        {{ end }}
+    </ul>
+
+    {{ if gt .TotalPages 1 }}
+    <div class="pagination-bar"
+         data-current-page="{{ .Page }}"
+         data-total-pages="{{ .TotalPages }}"
+         data-shortcut-hint="PgUp / PgDn"
+         title="Shortcut: PgUp / PgDn">
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} - 1)" {{ if le .Page 1 }}disabled{{ end }}>
+            <i class="fa-solid fa-chevron-left"></i> 上一页
+        </button>
+        <span class="pagination-text">第 {{ .Page }} / {{ .TotalPages }} 页</span>
+        <span class="pagination-shortcut-hint">PgUp / PgDn</span>
+        <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} + 1)" {{ if ge .Page .TotalPages }}disabled{{ end }}>
+            下一页 <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+    {{ end }}
+{{ else if .Keyword }}
+    {{ if not .Error }}
+    <div class="no-results">
+        <i class="fa-solid fa-music" style="font-size: 40px; margin-bottom: 10px; display:block;"></i>
+        <p>未找到符合条件的资源</p>
+    </div>
+    {{ end }}
+{{ end }}
+{{end}}

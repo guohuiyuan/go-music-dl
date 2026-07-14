@@ -1,0 +1,97 @@
+version: 2
+project_name: go-music-dl
+env:
+  - GO111MODULE=on
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+    - go install github.com/tc-hib/go-winres@latest
+    - go-winres make --in ./winres/winres.json --out ./cmd/music-dl/rsrc
+builds:
+  # 1. Linux & macOS 构建 (统一在这里)
+  - id: unix
+    env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    goos:
+      - linux
+      - darwin   # [新增] 添加 darwin 支持 macOS CLI 构建
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - 6
+      - 7
+    main: ./cmd/music-dl
+    binary: music-dl
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+  # 2. Windows 构建 (保持不变)
+  - id: win
+    env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    goos:
+      - windows
+    goarch:
+      - amd64
+    main: ./cmd/music-dl
+    binary: music-dl
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+checksum:
+  name_template: "go-music-dl_checksums.txt"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - fix typo
+      - Merge pull request
+      - Merge branch
+      - Merge remote-tracking
+      - go mod tidy
+
+release:
+  mode: append
+  extra_files:
+    - glob: ./extra-release-assets/go-music-dl_darwin_*.dmg
+    - glob: ./extra-release-assets/go-music-dl_darwin_*.pkg
+
+archives:
+  # Linux & macOS 打包格式 (tar.gz)
+  - id: unix
+    ids:
+      - unix
+    name_template: "go-music-dl_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    formats:
+      - tar.gz
+
+  # Windows 打包格式 (zip)
+  - id: win
+    ids:
+      - win
+    name_template: "go-music-dl_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    formats:
+      - zip
+
+nfpms:
+  - license: AGPL 3.0
+    homepage: https://github.com/guohuiyuan/go-music-dl
+    file_name_template: "go-music-dl_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    formats:
+      - deb
+      - rpm
+    maintainer: guohuiyuan

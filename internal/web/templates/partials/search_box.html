@@ -1,0 +1,92 @@
+{{define "search_box"}}
+<div class="search-box">
+    <h1>🎵 <a href="https://github.com/guohuiyuan/go-music-dl" target="_blank" style="color: inherit; text-decoration: none;">music-dl</a></h1>
+    <form action="{{.Root}}/search" method="get" id="search-form">
+        <input type="hidden" name="page" value="1">
+        <div class="search-type-switch">
+            <label class="type-option">
+                <input type="radio" name="type" value="song"
+                    {{ if or (eq .SearchType "song") (eq .SearchType "local_music") (not .SearchType) }}checked{{ end }}
+                    onchange="toggleSearchType(this.value)">
+                <span>单曲搜索</span>
+            </label>
+            <label class="type-option">
+                <input type="radio" name="type" value="playlist"
+                    {{ if eq .SearchType "playlist" }}checked{{ end }}
+                    onchange="toggleSearchType(this.value)">
+                <span>歌单搜索</span>
+            </label>
+            <label class="type-option">
+                <input type="radio" name="type" value="album"
+                    {{ if eq .SearchType "album" }}checked{{ end }}
+                    onchange="toggleSearchType(this.value)">
+                <span>专辑搜索</span>
+            </label>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="search-keyword" name="q" value="{{.Keyword}}" placeholder="{{.SearchPlaceholder}}" required autocomplete="off">
+            <button type="submit" class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+
+        <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <button type="button" class="btn-pill btn-pill-primary" onclick="goToRecommend()"
+                style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); border: none; box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4); justify-content:center;">
+                <i class="fa-solid fa-fire"></i> 每日推荐歌单
+            </button>
+            <button type="button" class="btn-pill btn-pill-fav" onclick="openCollectionManager()">
+                <i class="fa-solid fa-folder-open"></i> 本地歌单
+            </button>
+            <button type="button" class="btn-pill btn-pill-fav" onclick="openLocalMusicPage()">
+                <i class="fa-solid fa-music"></i> 本地音乐
+            </button>
+            <button type="button" class="btn-pill btn-pill-category" onclick="goToPlaylistCategories()">
+                <i class="fa-solid fa-table-cells-large"></i> 歌单分类
+            </button>
+            <button type="button" class="btn-pill btn-pill-mine" onclick="goToUserPlaylists()">
+                <i class="fa-solid fa-heart"></i> 我的歌单
+            </button>
+        </div>
+
+        {{ if .Error }}
+        <div class="error-msg">
+            <i class="fa-solid fa-circle-exclamation"></i> {{ .Error }}
+        </div>
+        {{ end }}
+
+        <div class="source-selector" id="source-selector">
+            <div class="source-header">
+                <button type="button" class="source-collapse-btn" onclick="toggleSourceSelector()" aria-expanded="true" aria-controls="source-grid">
+                    <span class="source-title">搜索源设置</span>
+                    <i class="fa-solid fa-chevron-up source-collapse-icon" aria-hidden="true"></i>
+                </button>
+                <div class="source-actions">
+                    <button type="button" class="ctrl-btn" id="btn-all">全选</button>
+                    <button type="button" class="ctrl-btn" id="btn-none">清空</button>
+                </div>
+            </div>
+
+            <div class="source-grid" id="source-grid">
+                {{ range $source := .AllSources }}
+                <label>
+                    <input type="checkbox" name="sources" value="{{ $source }}" class="source-checkbox"
+                        data-playlist-supported="{{ index $.PlaylistSupported $source }}"
+                        data-album-supported="{{ index $.AlbumSupported $source }}"
+                        data-category-supported="{{ index $.CategorySupported $source }}"
+                        data-user-playlist-supported="{{ index $.UserPlaylistSupported $source }}"
+                        {{ if $.Selected }}
+                            {{ range $.Selected }}{{ if eq . $source }}checked{{ end }}{{ end }}
+                        {{ else }}
+                            {{ range $.DefaultSources }}{{ if eq . $source }}checked{{ end }}{{ end }}
+                        {{ end }}>
+                    <div class="source-card">
+                        <div class="source-name">{{ $source }}</div>
+                        <div class="source-desc">{{ index $.SourceDescriptions $source }}</div>
+                    </div>
+                </label>
+                {{ end }}
+            </div>
+        </div>
+    </form>
+</div>
+{{end}}

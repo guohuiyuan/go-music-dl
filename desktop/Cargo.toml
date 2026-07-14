@@ -1,0 +1,36 @@
+[package]
+name = "music-dl-desktop-rust"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "A desktop GUI for music-dl"
+authors = ["guohuiyuan"]
+repository = "https://github.com/guohuiyuan/go-music-dl"
+
+[dependencies]
+tao = "0.30"
+wry = "0.42"
+image = "0.25"
+open = "3"
+
+[build-dependencies]
+winres = "0.1"
+
+[package.metadata.deb]
+maintainer = "guohuiyuan"
+copyright = "2026, guohuiyuan"
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/music-dl-desktop-rust", "usr/bin/music-dl-desktop-rust", "755"],
+    ["icon.png", "usr/share/icons/hicolor/256x256/apps/music-dl-desktop-rust.png", "644"],
+    ["music-dl.desktop", "usr/share/applications/music-dl-desktop-rust.desktop", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/music-dl-desktop-rust", dest = "/usr/bin/music-dl-desktop-rust", mode = "755" },
+    { source = "icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/music-dl-desktop-rust.png", mode = "644" },
+    { source = "music-dl.desktop", dest = "/usr/share/applications/music-dl-desktop-rust.desktop", mode = "644" },
+]

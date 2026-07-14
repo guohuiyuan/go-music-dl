@@ -1,0 +1,60 @@
+{{define "playlist_categories"}}
+{{ if .PlaylistCategoryCurrent }}
+    {{ with .PlaylistCategoryCurrent }}
+    <div class="category-current-bar">
+        <div class="category-current-info">
+            <span class="category-current-badge"><i class="fa-solid fa-layer-group"></i> 当前分类</span>
+            <div class="category-current-title">{{ .SourceName }}<span class="category-current-sep">·</span>{{ .CategoryName }}</div>
+            <div class="category-current-subtitle">点击歌单卡片可进入详情，或返回选择其他分类。</div>
+        </div>
+        <a class="btn-pill btn-pill-switch" href="{{$.Root}}/playlist_categories" onclick="event.preventDefault(); navigateTo(this.href)">
+            <i class="fa-solid fa-arrow-left"></i> 返回分类
+        </a>
+    </div>
+    {{ end }}
+{{ end }}
+
+{{ if .PlaylistCategorySources }}
+<section class="category-panel">
+    <header class="category-panel-header">
+        <div class="category-panel-title">
+            <h2><i class="fa-solid fa-table-cells-large"></i> 歌单分类</h2>
+            <p>选择音乐源，挑选喜欢的分类，进入对应歌单列表。</p>
+        </div>
+    </header>
+
+    <div class="category-source-tabs" role="tablist">
+        {{ range $idx, $src := .PlaylistCategorySources }}
+        <button type="button"
+            class="category-source-tab{{ if eq $idx 0 }} is-active{{ end }}"
+            role="tab"
+            data-target="category-panel-{{ $src.Source }}"
+            onclick="switchCategorySource(this)">
+            <span class="category-source-tab-name">{{ $src.Name }}</span>
+            <span class="category-source-tab-count">{{ $src.Count }}</span>
+        </button>
+        {{ end }}
+    </div>
+
+    <div class="category-source-panels">
+        {{ range $idx, $src := .PlaylistCategorySources }}
+        <div class="category-source-panel{{ if eq $idx 0 }} is-active{{ end }}" id="category-panel-{{ $src.Source }}" role="tabpanel">
+            {{ range $src.Groups }}
+            <div class="category-group">
+                <div class="category-group-title"><span>{{ .Name }}</span></div>
+                <div class="category-chip-list">
+                    {{ range .Categories }}
+                    <a class="category-chip{{ if .Hot }} is-hot{{ end }}" href="{{ .URL }}" onclick="event.preventDefault(); navigateTo(this.href)">
+                        <span class="category-chip-name">{{ .Name }}</span>
+                        {{ if .Hot }}<span class="category-chip-tag">HOT</span>{{ end }}
+                    </a>
+                    {{ end }}
+                </div>
+            </div>
+            {{ end }}
+        </div>
+        {{ end }}
+    </div>
+</section>
+{{ end }}
+{{end}}

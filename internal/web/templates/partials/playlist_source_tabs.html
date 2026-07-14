@@ -1,0 +1,84 @@
+{{define "playlist_source_tabs"}}
+{{ $root := .Root }}
+{{ if .PlaylistSourceTabs }}
+{{ $tabsData := .PlaylistSourceTabs }}
+{{ if $tabsData.Tabs }}
+<section class="category-panel playlist-tabs-panel" data-tabs-id="{{ $tabsData.ID }}">
+    <header class="category-panel-header">
+        <div class="category-panel-title">
+            <h2><i class="fa-solid {{ $tabsData.Icon }}"></i> {{ $tabsData.Title }}</h2>
+            {{ if $tabsData.Subtitle }}<p>{{ $tabsData.Subtitle }}</p>{{ end }}
+        </div>
+    </header>
+
+    <div class="category-source-tabs" role="tablist">
+        {{ range $idx, $tab := $tabsData.Tabs }}
+        <button type="button"
+            class="category-source-tab{{ if eq $idx 0 }} is-active{{ end }}"
+            role="tab"
+            data-target="playlist-tabs-{{ $tabsData.ID }}-{{ $tab.Source }}"
+            onclick="switchCategorySource(this)">
+            <span class="category-source-tab-name">{{ $tab.Name }}</span>
+            <span class="category-source-tab-count">{{ $tab.Count }}</span>
+        </button>
+        {{ end }}
+    </div>
+
+    <div class="category-source-panels">
+        {{ range $idx, $tab := $tabsData.Tabs }}
+        <div class="category-source-panel{{ if eq $idx 0 }} is-active{{ end }}"
+             id="playlist-tabs-{{ $tabsData.ID }}-{{ $tab.Source }}"
+             role="tabpanel">
+            {{ if $tab.Error }}
+            <div class="category-source-empty error"><i class="fa-solid fa-circle-exclamation"></i> {{ $tab.Error }}</div>
+            {{ else if not $tab.Playlists }}
+            <div class="category-source-empty"><i class="fa-regular fa-folder-open"></i> {{ $tabsData.Empty }}</div>
+            {{ else }}
+            <div class="playlist-tabs-grid">
+                {{ range $tab.Playlists }}
+                {{ $detailURL := playlistDetailURL $root "playlist" . }}
+                <div class="playlist-card" onclick="navigateTo('{{ $detailURL }}')">
+                    <div class="playlist-cover">
+                        <img src="{{ .Cover }}" loading="lazy" onerror="this.src='https://via.placeholder.com/400?text=Cover'">
+                        <span class="tag tag-src" style="position:absolute; top:5px; right:5px; margin:0; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">{{ .Source }}</span>
+                    </div>
+                    <div class="playlist-meta">
+                        <div class="playlist-title">
+                            {{ .Name }}
+                            {{ if .Link }}
+                            <a href="{{ .Link }}" target="_blank" class="external-link-icon" title="打开原始页面" onclick="event.stopPropagation()">
+                                <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 12px;"></i>
+                            </a>
+                            {{ end }}
+                        </div>
+                        {{ if .Creator }}<div class="playlist-author"><i class="fa-regular fa-user"></i> {{ .Creator }}</div>{{ end }}
+                        <div class="playlist-card-actions">
+                            <div class="playlist-count">{{ if gt .TrackCount 0 }}共 {{ .TrackCount }} 首{{ else }}进入查看{{ end }}</div>
+                            <button type="button"
+                                    class="ctrl-btn primary"
+                                    title="导入到本地歌单列表，保存为外部导入歌单；仅保留元数据，不保存具体歌曲明细。"
+                                    data-name="{{.Name}}"
+                                    data-description="{{.Description}}"
+                                    data-cover="{{.Cover}}"
+                                    data-creator="{{.Creator}}"
+                                    data-track-count="{{.TrackCount}}"
+                                    data-source="{{.Source}}"
+                                    data-external-id="{{.ID}}"
+                                    data-link="{{.Link}}"
+                                    data-content-type="playlist"
+                                    onclick="event.stopPropagation(); importCollectionFromButton(this)">
+                                <i class="fa-solid fa-download"></i> 导入本地
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+        </div>
+        {{ end }}
+    </div>
+</section>
+{{ end }}
+{{ end }}
+{{end}}

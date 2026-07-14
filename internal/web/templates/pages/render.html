@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>正在渲染视频...</title>
+    <link rel="icon" href="{{.Root}}/icon.png" type="image/png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6/css/all.min.css">
+    <style>
+        :root {
+            /* 换成新的翠绿色渐变 */
+            --primary-gradient: linear-gradient(135deg, #34d399 0%, #059669 100%);
+        }
+        body { 
+            margin: 0; padding: 0; font-family: -apple-system, sans-serif;
+            background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: center;
+            min-height: 100dvh; overflow: hidden; box-sizing: border-box;
+        }
+        /* 模糊动态背景，呼应主界面毛玻璃风格 */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary-gradient); opacity: 0.15; filter: blur(60px); z-index: -1;
+            transform: scale(1.2);
+        }
+        .container { 
+            background: rgba(30, 41, 59, 0.65); backdrop-filter: blur(20px);
+            padding: 40px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            width: 90%; max-width: 540px; text-align: center; border: 1px solid rgba(255,255,255,0.1);
+            box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
+        }
+        h2 { margin-top: 0; font-weight: 800; font-size: clamp(20px, 5vw, 26px); color: #f8fafc; }
+        .progress-bar { 
+            width: 100%; height: 10px; background: rgba(0,0,0,0.5); 
+            border-radius: 5px; margin: 25px 0; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .progress-fill { height: 100%; background: var(--primary-gradient); width: 0%; transition: width 0.1s linear; }
+        .status-text { color: #cbd5e1; font-size: clamp(12px, 3.5vw, 14px); margin-bottom: 5px; font-weight: 500; }
+        
+        .spinner { 
+            display: inline-block; width: 45px; height: 45px; border: 3px solid rgba(255,255,255,0.1); 
+            border-left-color: #10b981; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; 
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .btn { 
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px 35px; background: var(--primary-gradient); color: #fff; 
+            text-decoration: none; border-radius: 30px; font-size: 16px; font-weight: bold; 
+            margin-top: 20px; box-shadow: 0 4px 15px rgba(16,185,129,0.4); transition: transform 0.2s; 
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16,185,129,0.6); }
+        
+        .preview-wrapper { 
+            margin-top: 25px; border-radius: 12px; overflow: hidden; 
+            border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 480px; 
+            aspect-ratio: 16/9; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+        #preview-canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
+        
+        /* 手机端深度适配 */
+        @media (max-width: 768px) {
+            .container { padding: 30px 20px; border-radius: 20px; }
+            .preview-wrapper { margin-top: 20px; }
+            .spinner { width: 35px; height: 35px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-layer"></div>
+    <div class="container">
+        <div id="loading-ui" style="width: 100%;">
+            <div class="spinner"></div>
+            <h2 id="title">准备超清渲染环境</h2>
+            <div class="status-text" id="status-text">初始化中...</div>
+            <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+            <div class="status-text" style="opacity: 0.7;"><i class="fa-solid fa-mug-hot"></i> 您可以切回主界面继续听歌，渲染将在后台完成</div>
+            
+            <div class="preview-wrapper">
+                <canvas id="preview-canvas"></canvas>
+            </div>
+        </div>
+
+        <div id="success-ui" style="display: none; width: 100%;">
+            <i class="fa-solid fa-circle-check" style="font-size: 60px; color: #48bb78; margin-bottom: 20px;"></i>
+            <h2>生成成功！</h2>
+            <div class="status-text">您的 1080P 超清视频已就绪</div>
+            <a id="dl-link" class="btn" href="#"><i class="fa-solid fa-download"></i> 下载高清视频</a>
+            <div style="margin-top: 25px;">
+                <button onclick="window.close()" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; text-decoration:underline; font-size: 14px;">关闭本窗口</button>
+            </div>
+        </div>
+
+        <div id="error-ui" style="display: none; width: 100%;">
+            <i class="fa-solid fa-circle-xmark" style="font-size: 60px; color: #e53e3e; margin-bottom: 20px;"></i>
+            <h2>渲染失败</h2>
+            <div class="status-text" id="error-text" style="word-break: break-all; color: #fca5a5;">未知错误</div>
+        </div>
+    </div>
+
+    <script>
+        window.API_ROOT = "{{.Root}}";
+        window.isRenderWorker = true;
+        // 从触发页面 (opener) 获取歌曲数据
+        if (window.opener && window.opener.__vgRenderData) {
+            window.renderData = window.opener.__vgRenderData;
+            document.title = "渲染中 - " + window.renderData.name;
+        } else {
+            document.getElementById('loading-ui').style.display = 'none';
+            document.getElementById('error-ui').style.display = 'block';
+            document.getElementById('error-text').textContent = "无法获取渲染数据，请从主页面重新发起请求。";
+        }
+    </script>
+    <script src="{{.Root}}/videogen.js"></script>
+</body>
+</html>

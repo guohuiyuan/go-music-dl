@@ -1,0 +1,248 @@
+{{define "modals"}}
+<div id="cookieModal" class="modal-overlay" style="z-index: 1001;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>设置 Cookies</h3>
+            <div class="modal-close" onclick="document.getElementById('cookieModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div class="cookie-list">
+                {{ range $source := .AllSources }}
+                <div class="cookie-item">
+                    <label>{{ $source }}</label>
+                    <div class="cookie-input-row">
+                        <input type="text" id="cookie-{{$source}}" placeholder="在此粘贴 Cookie...">
+                        {{ if eq $source "qq" }}
+                        {{ if index $.QRLoginSupported "qq" }}
+                        <button type="button" class="cookie-qr-btn" onclick="startQRLogin('qq')"><i class="fa-brands fa-qq"></i> QQ扫码</button>
+                        {{ end }}
+                        {{ if index $.QRLoginSupported "qq_wx" }}
+                        <button type="button" class="cookie-qr-btn cookie-qr-btn-wx" onclick="startQRLogin('qq_wx')"><i class="fa-brands fa-weixin"></i> 微信扫码</button>
+                        {{ end }}
+                        {{ else }}
+                        {{ if index $.QRLoginSupported $source }}
+                        <button type="button" class="cookie-qr-btn" onclick="startQRLogin('{{$source}}')"><i class="fa-solid fa-qrcode"></i> 扫码</button>
+                        {{ end }}
+                        {{ end }}
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-embed-download">
+                    <input type="checkbox" id="setting-embed-download">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">下载时内嵌元数据（封面、歌词）</span>
+                </label>
+                <p class="setting-hint">影响"保存到本地目录"和"浏览器下载"两种方式；播放始终使用流式下载，不内嵌元数据。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-download-dir">本地下载目录</label>
+                <div class="download-dir-control">
+                    <select id="setting-download-dir-preset" aria-label="本地下载目录预设" aria-describedby="setting-download-dir-hint">
+                        <option value="data/downloads">PC 默认：data/downloads</option>
+                        <option value="downloads">PC 简洁：downloads</option>
+                        <option value="D:/Music/Downloads">PC 示例：D:/Music/Downloads</option>
+                        <option value="/sdcard/Music">Android 默认：/sdcard/Music</option>
+                        <option value="/storage/emulated/0/Music">Android 兼容：/storage/emulated/0/Music</option>
+                        <option value="/sdcard/Download">Android 下载：/sdcard/Download</option>
+                        <option value="__custom__">自定义目录...</option>
+                    </select>
+                    <input type="text" id="setting-download-dir" aria-describedby="setting-download-dir-hint" placeholder="例如: data/downloads、D:/Music/Downloads 或 /sdcard/Music">
+                </div>
+                <p id="setting-download-dir-hint" class="setting-hint" style="margin-left: 0;">选择预设会自动填入路径，也可以手填相对目录或绝对目录。Android 建议使用 <code>/sdcard/Music</code>，便于系统音乐应用识别。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-download-filename-template">音乐文件名模板</label>
+                <input type="text" id="setting-download-filename-template" placeholder="{name} - {artist}">
+                <p class="setting-hint" style="margin-left: 0;">支持 <code>{name}</code>、<code>{artist}</code>、<code>{album}</code>、<code>{source}</code>、<code>{id}</code>、<code>{ext}</code>。未写 <code>{ext}</code> 时会自动追加扩展名；可用 <code>/</code> 或 <code>\</code> 创建相对子目录，例如 <code>{artist}/{album}/{name} - {artist}.{ext}</code>。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-floating-lyrics">
+                    <input type="checkbox" id="setting-floating-lyrics">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">播放音乐时显示悬浮歌词</span>
+                </label>
+                <p class="setting-hint">关闭后，播放音乐时不显示底部悬浮歌词。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-web-page-size">Web 每页条数</label>
+                <input type="number" id="setting-web-page-size" min="1" max="200" step="1" placeholder="默认 30">
+                <p class="setting-hint" style="margin-left: 0;">用于网页分页显示，默认 30。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-cli-page-size">CLI 每页条数</label>
+                <input type="number" id="setting-cli-page-size" min="1" max="200" step="1" placeholder="默认 20">
+                <p class="setting-hint" style="margin-left: 0;">用于 TUI 分页显示，默认 20。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-auto-switch-invalid-sources">
+                    <input type="checkbox" id="setting-auto-switch-invalid-sources">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">自动选择无效音源并批量换源</span>
+                </label>
+                <p class="setting-hint">音乐列表检测完成后，会自动选中当前列表全部无效歌曲并执行批量换源，默认开启。</p>
+            </div>
+            <button type="button" class="cookie-item setting-item setting-link-row" onclick="openAboutAppModal()">
+                <span class="setting-link-icon"><i class="fa-solid fa-circle-info"></i></span>
+                <span class="setting-link-body">
+                    <span class="setting-link-title">关于 go-music-dl</span>
+                    <span class="setting-link-desc">查看当前版本并检查 GitHub 是否有新版</span>
+                </span>
+                <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
+            </button>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-change-cover">
+                    <input type="checkbox" id="setting-vg-change-cover">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“更换封面/背景”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的本地封面/背景替换入口，默认隐藏。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-change-audio">
+                    <input type="checkbox" id="setting-vg-change-audio">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“更换音频”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的本地音频替换入口，默认隐藏。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-change-lyric">
+                    <input type="checkbox" id="setting-vg-change-lyric">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“更换歌词”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的本地歌词替换入口，默认隐藏。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-export-video">
+                    <input type="checkbox" id="setting-vg-export-video">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“导出视频”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的导出视频入口，默认隐藏。</p>
+            </div>
+            <button class="btn-save" onclick="saveCookies()">保存设置</button>
+        </div>
+    </div>
+</div>
+
+<div id="appUpdateModal" class="modal-overlay" style="z-index: 1008;">
+    <div class="modal app-update-modal">
+        <div class="modal-header">
+            <div>
+                <h3 id="appUpdateTitle">检查更新</h3>
+                <p id="appUpdateSummary" class="app-update-summary">正在读取 GitHub 版本信息</p>
+            </div>
+            <div class="modal-close" onclick="closeUpdateModal()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <span id="updateCheckStatus" class="setting-inline-status"></span>
+            <div class="update-modal-actions">
+                <button type="button" class="btn-pill btn-pill-dl" onclick="closeUpdateModal()">关闭</button>
+                <button type="button" id="appUpdateOpenRepoBtn" class="btn-pill btn-pill-primary" onclick="openLatestUpdatePage('release')"><i class="fa-solid fa-arrow-up-right-from-square"></i> 打开发布页</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="qrLoginModal" class="modal-overlay" style="z-index: 1007;">
+    <div class="modal qr-login-modal">
+        <div class="modal-header">
+            <h3 id="qrLoginTitle">扫码登录</h3>
+            <div class="modal-close" onclick="closeQRLoginModal()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div class="qr-login-card">
+                <div class="qr-login-frame">
+                    <canvas id="qrLoginCanvas" width="260" height="260"></canvas>
+                    <img id="qrLoginImage" class="qr-login-image" alt="扫码登录二维码">
+                    <div id="qrLoginLoading" class="qr-login-loading">正在生成二维码...</div>
+                </div>
+                <div id="qrLoginStatus" class="qr-login-status">请稍候</div>
+                <div id="qrLoginSMSPanel" class="qr-login-sms" style="display: none;">
+                    <div class="qr-login-sms-row">
+                        <input id="qrLoginSMSCode" class="qr-login-sms-input" type="text" inputmode="numeric" maxlength="8" placeholder="输入验证码">
+                        <button id="qrLoginSendSMSBtn" type="button" class="btn-pill btn-pill-primary" onclick="sendSodaSMSCode()">发送验证码</button>
+                    </div>
+                    <button id="qrLoginValidateSMSBtn" type="button" class="btn-pill btn-pill-dl qr-login-sms-submit" onclick="validateSodaSMSCode()">确认登录</button>
+                </div>
+                <div class="qr-login-actions">
+                    <button type="button" class="btn-pill btn-pill-primary" onclick="restartQRLogin()"><i class="fa-solid fa-rotate-right"></i> 刷新二维码</button>
+                    <button type="button" class="btn-pill btn-pill-dl" onclick="closeQRLoginModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="editCollectionModal" class="modal-overlay" style="z-index: 1005;">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3 id="editColTitle">新建歌单</h3>
+            <div class="modal-close" onclick="document.getElementById('editCollectionModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editColId">
+            <div class="cookie-item">
+                <label>歌单名称 <span style="color:#e53e3e;">*</span></label>
+                <input type="text" id="editColName" placeholder="例如: 睡前听的歌" maxlength="30">
+            </div>
+            <div class="cookie-item">
+                <label>描述</label>
+                <input type="text" id="editColDesc" placeholder="简单描述一下...">
+            </div>
+            <div class="cookie-item">
+                <label>封面图片 (URL)</label>
+                <input type="text" id="editColCover" placeholder="留空则自动生成随机封面">
+            </div>
+            <button type="button" class="btn-save" onclick="saveCollection()">保存歌单</button>
+        </div>
+    </div>
+</div>
+
+<div id="addToCollectionModal" class="modal-overlay" style="z-index: 1004;">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>收藏到我的歌单</h3>
+            <div class="modal-close" onclick="document.getElementById('addToCollectionModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 14px; color: var(--text-sub);">选择或管理歌单</span>
+                <button class="btn-pill btn-pill-primary" style="padding: 6px 12px; font-size: 12px;" onclick="showEditCollectionModal()">
+                    <i class="fa-solid fa-plus"></i> 新建
+                </button>
+            </div>
+            <div id="addColList"></div>
+        </div>
+    </div>
+</div>
+<div id="localMusicModal" class="modal-overlay" style="z-index: 1006;">
+    <div class="modal local-music-modal">
+        <div class="modal-header">
+            <div>
+                <h3>添加本地音乐</h3>
+                <p class="local-music-subtitle">自动读取本地下载目录，可直接上传音频文件。</p>
+            </div>
+            <div class="modal-close" onclick="closeLocalMusicModal()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div class="local-music-toolbar">
+                <div class="local-music-dir" id="localMusicDir">下载目录：-</div>
+                <div class="local-music-target" id="localMusicTargetWrap" style="display:none;">
+                    <label for="localMusicCollectionSelect">添加到</label>
+                    <select id="localMusicCollectionSelect" onchange="selectLocalMusicCollection(this.value)"></select>
+                </div>
+                <label class="btn-pill btn-pill-primary local-upload-btn" for="localMusicUploadInput">
+                    <i class="fa-solid fa-upload"></i> 上传音乐
+                </label>
+                <input id="localMusicUploadInput" type="file" accept=".mp3,.flac,.m4a,.ogg,.wav,.wma,.aac,audio/*" onchange="uploadLocalMusicFile(this)" hidden>
+            </div>
+            <div id="localMusicHint" class="local-music-hint">正在加载本地音乐...</div>
+            <div id="localMusicList" class="local-music-list"></div>
+        </div>
+    </div>
+</div>
+{{end}}

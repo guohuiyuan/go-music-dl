@@ -1,0 +1,13 @@
+services:
+  music-dl:
+    image: guohuiyuan/go-music-dl:latest
+    container_name: music-dl
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 🌟 核心修正：挂载到程序实际的运行目录 /home/appuser/data 下
+      - ./data:/home/appuser/data
+    environment:
+      - TZ=Asia/Shanghai
+    command: [ "./music-dl", "web", "--port", "8080", "--no-browser" ]

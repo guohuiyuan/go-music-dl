@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
+    <title>{{.Title}}</title>
+    <link rel="icon" href="{{.Root}}/icon.png" type="image/png">
+    <link rel="stylesheet" href="{{.Root}}/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6/css/all.min.css">
+</head>
+<body class="auth-page">
+<main class="auth-shell">
+    <section class="auth-card">
+        <a class="auth-brand" href="https://github.com/guohuiyuan/go-music-dl" target="_blank" rel="noopener">
+            <span class="auth-brand-icon">🎵</span>
+            <span>music-dl</span>
+        </a>
+        <h1>{{.Title}}</h1>
+        {{ if eq .Mode "setup" }}
+        <p class="auth-hint">首次打开系统配置需要创建本地管理员账号，用来保护 Cookie 和系统设置。</p>
+        {{ else }}
+        <p class="auth-hint">请输入本地管理员账号，继续管理 Cookie 和系统设置。</p>
+        {{ end }}
+
+        {{ if .Error }}
+        <div class="error-msg auth-error">
+            <i class="fa-solid fa-circle-exclamation"></i> {{ .Error }}
+        </div>
+        {{ end }}
+
+        <form class="auth-form" method="post" action="{{.Action}}">
+            <input type="hidden" name="next" value="{{.Next}}">
+            {{ if eq .Mode "setup" }}
+            <label class="auth-field">
+                <span>初始化令牌</span>
+                <input type="text" name="setup_token" autocomplete="off" required>
+            </label>
+            {{ end }}
+            <label class="auth-field">
+                <span>用户名</span>
+                <input type="text" name="username"{{ if eq .Mode "setup" }} value="{{.Username}}" autocomplete="username"{{ else }} autocomplete="off"{{ end }} required autofocus>
+            </label>
+            <label class="auth-field">
+                <span>密码</span>
+                <input type="password" name="password" autocomplete="{{ if eq .Mode "setup" }}new-password{{ else }}current-password{{ end }}" minlength="6" required>
+            </label>
+            {{ if eq .Mode "setup" }}
+            <label class="auth-field">
+                <span>确认密码</span>
+                <input type="password" name="password_confirm" autocomplete="new-password" minlength="6" required>
+            </label>
+            {{ end }}
+            <button type="submit" class="search-btn auth-submit">
+                <i class="fa-solid fa-right-to-bracket"></i>
+                <span>{{.Button}}</span>
+            </button>
+        </form>
+    </section>
+</main>
+</body>
+</html>
