@@ -297,7 +297,7 @@
         {{ end }}
     </ul>
 
-    {{ if gt .TotalPages 1 }}
+    {{ if and (gt .TotalPages 1) (ne .SearchType "local_music") }}
     <div class="pagination-bar"
          data-current-page="{{ .Page }}"
          data-total-pages="{{ .TotalPages }}"
