@@ -16,9 +16,9 @@ import (
 const (
 	ConfigDBFile                    = "data/settings.db"
 	DefaultWebDownloadDir           = "data/downloads"
-	DefaultDownloadFilenameTemplate = "{name} - {artist}"
+	DefaultDownloadFilenameTemplate = "{artist} - {name}"
 	DefaultWebAuthUsername          = "admin"
-	DefaultWebPageSize              = 30
+	DefaultWebPageSize              = 200
 	DefaultCLIPageSize              = 20
 	DefaultWebConcurrency           = 3
 	DefaultUpdateRepoURL            = "https://github.com/guohuiyuan/go-music-dl"
@@ -105,7 +105,7 @@ func ensureConfigDB() error {
 			return
 		}
 
-		if err := db.AutoMigrate(&configKV{}, &cookieEntry{}); err != nil {
+		if err := db.AutoMigrate(&configKV{}, &cookieEntry{}, &DownloadRecord{}); err != nil {
 			configInitErr = err
 			return
 		}

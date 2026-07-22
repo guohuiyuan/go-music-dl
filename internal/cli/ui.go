@@ -1,13 +1,10 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -35,7 +32,6 @@ import (
 	"github.com/guohuiyuan/music-lib/qianqian"
 	"github.com/guohuiyuan/music-lib/qq"
 	"github.com/guohuiyuan/music-lib/soda"
-	"github.com/guohuiyuan/music-lib/utils"
 )
 
 // --- 常量与样式 ---
@@ -546,6 +542,7 @@ const (
 	stateList                               // 歌曲结果列表 & 选择
 	statePlaylistResult                     // 歌单结果列表
 	stateDownloading                        // 下载中
+	stateConfirmDownload                    // 下载前确认
 	stateSwitching                          // 换源中
 )
 
@@ -571,7 +568,10 @@ type modelState struct {
 	// 下载队列管理
 	downloadQueue []model.Song // 待下载队列
 	totalToDl     int          // 总共需要下载的数量
-	downloaded    int          // 已完成数量
+	downloaded    int          // 成功完成数量
+	skipped       int          // 已存在跳过数量
+	failed        int          // 失败数量
+	allSongsSet   map[string]struct{} // 全部文件.txt 的去重集合，批量下载时复用
 
 	// 换源队列管理
 	switchQueue []int
@@ -680,6 +680,8 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateDownloading(msg)
 	case stateSwitching:
 		return m.updateSwitching(msg)
+	case stateConfirmDownload:
+		return m.updateConfirmDownload(msg)
 	}
 
 	return m, nil
@@ -906,13 +908,18 @@ func (m modelState) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			m.totalToDl = len(m.downloadQueue)
 			m.downloaded = 0
-			m.state = stateDownloading
-			m.statusMsg = "正在准备下载..."
+			m.skipped = 0
+			m.failed = 0
+			m.allSongsSet, _ = core.LoadDownloadDedupSet()
 
-			return m, tea.Batch(
-				m.spinner.Tick,
-				downloadNextCmd(m.downloadQueue, m.outDir, m.withCover, m.withLyrics),
-			)
+			skipCount := core.CountSkippable(m.downloadQueue, m.allSongsSet)
+			m.state = stateConfirmDownload
+			if skipCount > 0 {
+				m.statusMsg = fmt.Sprintf("共 %d 首，其中 %d 首已在本地曲库（将跳过），Enter 确认下载 / Esc 取消", m.totalToDl, skipCount)
+			} else {
+				m.statusMsg = fmt.Sprintf("共 %d 首，确认开始下载？Enter 确认 / Esc 取消", m.totalToDl)
+			}
+			return m, nil
 		case "r":
 			if len(m.songs) == 0 || m.cursor < 0 || m.cursor >= len(m.songs) {
 				return m, nil
@@ -950,8 +957,9 @@ func (m modelState) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // --- 4. 下载状态逻辑 ---
 type downloadOneFinishedMsg struct {
-	err  error
-	song model.Song
+	err     error
+	song    model.Song
+	skipped bool // 因已存在而跳过
 }
 
 type switchSourceResultMsg struct {
@@ -973,30 +981,54 @@ func (m modelState) updateDownloading(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case downloadOneFinishedMsg:
-		m.downloaded++
-
-		resultStr := fmt.Sprintf("已完成: %s - %s", msg.song.Name, msg.song.Artist)
-		if msg.err != nil {
-			resultStr = fmt.Sprintf("❌ 失败: %s - %s (%v)", msg.song.Name, msg.song.Artist, msg.err)
+		if msg.skipped {
+			m.skipped++
+			m.statusMsg = fmt.Sprintf("⏭ 已跳过: %s - %s (已存在)", msg.song.Name, msg.song.Artist)
+		} else if msg.err != nil {
+			m.failed++
+			m.statusMsg = fmt.Sprintf("❌ 失败: %s - %s (%v)", msg.song.Name, msg.song.Artist, msg.err)
+		} else {
+			m.downloaded++
+			m.statusMsg = fmt.Sprintf("✅ 完成: %s - %s", msg.song.Name, msg.song.Artist)
 		}
-		m.statusMsg = resultStr
 
-		pct := float64(m.downloaded) / float64(m.totalToDl)
+		pct := float64(m.downloaded+m.skipped+m.failed) / float64(m.totalToDl)
 		if len(m.downloadQueue) > 0 {
 			m.downloadQueue = m.downloadQueue[1:]
 		}
 
 		cmds := []tea.Cmd{m.progress.SetPercent(pct)}
 
-		if m.downloaded >= m.totalToDl {
+		if m.downloaded+m.skipped+m.failed >= m.totalToDl {
 			m.state = stateList
 			m.selected = make(map[int]struct{})
-			m.statusMsg = fmt.Sprintf("✅ 任务结束，共下载 %d 首歌曲", m.downloaded)
+			m.statusMsg = fmt.Sprintf("✅ 任务结束  成功: %d | 跳过: %d | 失败: %d", m.downloaded, m.skipped, m.failed)
 			return m, nil
 		}
 
-		cmds = append(cmds, downloadNextCmd(m.downloadQueue, m.outDir, m.withCover, m.withLyrics))
+		cmds = append(cmds, downloadNextCmd(m.downloadQueue, m.outDir, m.withCover, m.withLyrics, m.allSongsSet))
 		return m, tea.Batch(cmds...)
+	}
+	return m, nil
+}
+
+// --- 4.3 下载前确认状态逻辑 ---
+func (m modelState) updateConfirmDownload(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			m.state = stateDownloading
+			m.statusMsg = "正在准备下载..."
+			return m, tea.Batch(
+				m.spinner.Tick,
+				downloadNextCmd(m.downloadQueue, m.outDir, m.withCover, m.withLyrics, m.allSongsSet),
+			)
+		case "esc":
+			m.state = stateList
+			m.statusMsg = "已取消下载"
+			return m, nil
+		}
 	}
 	return m, nil
 }
@@ -1332,14 +1364,18 @@ func fetchPlaylistSongsCmd(id, source string) tea.Cmd {
 	return fetchCollectionSongsCmd(id, source, searchTypePlaylist)
 }
 
-func downloadNextCmd(queue []model.Song, outDir string, withCover bool, withLyrics bool) tea.Cmd {
+func downloadNextCmd(queue []model.Song, outDir string, withCover bool, withLyrics bool, allSongsSet map[string]struct{}) tea.Cmd {
 	return func() tea.Msg {
 		if len(queue) == 0 {
 			return nil
 		}
 		target := queue[0]
-		err := downloadSongWithCookie(&target, outDir, withCover, withLyrics)
-		return downloadOneFinishedMsg{err: err, song: target}
+		result, err := core.DownloadWithDedupCheck(&target, outDir, withCover, withLyrics, allSongsSet)
+		return downloadOneFinishedMsg{
+			err:     err,
+			song:    target,
+			skipped: err == nil && result != nil && result.Skipped,
+		}
 	}
 }
 
@@ -1391,131 +1427,10 @@ func (m *modelState) startPlayback(song model.Song) error {
 	return nil
 }
 
-// 内部下载实现（支持 ID3 元数据内嵌）
-func downloadSongWithCookie(song *model.Song, outDir string, withCover bool, withLyrics bool) error {
-	result, err := core.SaveSongToFile(song, outDir, withCover, withLyrics)
-	if err != nil {
-		return err
-	}
-	if result.Warning != "" {
-		fmt.Printf("Warning: %s\n", result.Warning)
-	}
-	return nil
-
-	// 1. 准备目录
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		return err
-	}
-
-	fileName := fmt.Sprintf("%s - %s", utils.SanitizeFilename(song.Name), utils.SanitizeFilename(song.Artist))
-
-	// 2. 获取下载数据
-	var finalData []byte
-
-	// Soda 特殊处理 (加密)
-	if song.Source == "soda" {
-		cookie := cm.Get("soda")
-		sodaInst := soda.New(cookie)
-		info, err := sodaInst.GetDownloadInfo(song)
-		if err != nil {
-			return err
-		}
-
-		req, _ := http.NewRequest("GET", info.URL, nil)
-		req.Header.Set("User-Agent", UA_Common)
-		resp, err := (&http.Client{}).Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-
-		encryptedData, _ := io.ReadAll(resp.Body)
-		finalData, err = soda.DecryptAudio(encryptedData, info.PlayAuth)
-		if err != nil {
-			return err
-		}
-	} else {
-		// 常规源处理
-		dlFunc := getDownloadFunc(song.Source)
-		if dlFunc == nil {
-			return fmt.Errorf("不支持的源: %s", song.Source)
-		}
-
-		urlStr, err := dlFunc(song)
-		if err != nil {
-			return err
-		}
-		if urlStr == "" {
-			return fmt.Errorf("下载链接为空")
-		}
-
-		req, _ := http.NewRequest("GET", urlStr, nil)
-		req.Header.Set("User-Agent", UA_Common)
-		if song.Source == "bilibili" {
-			req.Header.Set("Referer", "https://www.bilibili.com/")
-		}
-		if song.Source == "qq" {
-			req.Header.Set("Referer", "http://y.qq.com")
-		}
-		if song.Source == "migu" {
-			req.Header.Set("Referer", "http://music.migu.cn/")
-		}
-
-		resp, err := (&http.Client{}).Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-
-		finalData, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-	}
-
-	// 3. 获取歌词并内嵌到 ID3（如启用）
-	var lyricStr string
-	if withLyrics {
-		if lrcFunc := getLyricFunc(song.Source); lrcFunc != nil {
-			if lrc, err := lrcFunc(song); err == nil && lrc != "" {
-				lyricStr = lrc
-			}
-		}
-	}
-
-	// 4. 获取封面并内嵌到 ID3（如启用）
-	var coverData []byte
-	var coverMime string
-	if withCover && song.Cover != "" {
-		if data, err := utils.Get(song.Cover); err == nil && len(data) > 0 {
-			coverData = data
-			coverMime = http.DetectContentType(data)
-			if idx := strings.Index(coverMime, ";"); idx >= 0 {
-				coverMime = strings.TrimSpace(coverMime[:idx])
-			}
-		}
-	}
-
-	// 5. 内嵌元数据到 ID3（如有数据）
-	ext := core.DetectAudioExt(finalData)
-
-	if (ext == "mp3" || ext == "flac" || ext == "m4a" || ext == "wma") && (lyricStr != "" || len(coverData) > 0) {
-		if embeddedData, err := core.EmbedSongMetadata(finalData, song, lyricStr, coverData, coverMime); err == nil {
-			finalData = embeddedData
-		} else if errors.Is(err, core.ErrFFmpegNotFound) {
-			fmt.Printf("⚠ 未检测到 ffmpeg，已跳过歌词/封面嵌入，仍会正常下载音频\n")
-		} else {
-			fmt.Printf("⚠ 音频元数据嵌入失败，已使用原始音频继续保存: %v\n", err)
-		}
-	}
-
-	// 6. 写入文件
-	filePath := filepath.Join(outDir, fileName+"."+ext)
-	if err := os.WriteFile(filePath, finalData, 0644); err != nil {
-		return err
-	}
-
-	return nil
+// 内部下载实现（支持去重检查和记录）
+func downloadSongWithCookie(song *model.Song, outDir string, withCover bool, withLyrics bool, allSongsSet map[string]struct{}) error {
+	_, err := core.DownloadWithDedupCheck(song, outDir, withCover, withLyrics, allSongsSet)
+	return err
 }
 
 // --- 换源逻辑（与 Web 相同约束） ---
@@ -1841,12 +1756,17 @@ func (m modelState) View() string {
 	case stateDownloading:
 		s.WriteString("\n")
 		s.WriteString(m.progress.View() + "\n\n")
-		s.WriteString(fmt.Sprintf("%s 正在处理: %d/%d\n", m.spinner.View(), m.downloaded, m.totalToDl))
+		s.WriteString(fmt.Sprintf("%s 成功: %d | 跳过: %d | 失败: %d  (共 %d)\n", m.spinner.View(), m.downloaded, m.skipped, m.failed, m.totalToDl))
 		if len(m.downloadQueue) > 0 {
 			current := m.downloadQueue[0]
 			s.WriteString(lipgloss.NewStyle().Foreground(yellowColor).Render(fmt.Sprintf("-> %s - %s", current.Name, current.Artist)))
 		}
 		s.WriteString("\n\n" + lipgloss.NewStyle().Foreground(subtleColor).Render(m.statusMsg))
+	case stateConfirmDownload:
+		s.WriteString("\n")
+		s.WriteString(lipgloss.NewStyle().Foreground(yellowColor).Render("⚠ 下载确认\n\n"))
+		s.WriteString(lipgloss.NewStyle().Foreground(subtleColor).Render(m.statusMsg + "\n\n"))
+		s.WriteString(lipgloss.NewStyle().Foreground(subtleColor).Render("Enter: 确认下载  •  Esc: 取消"))
 	case stateSwitching:
 		s.WriteString("\n")
 		s.WriteString(m.progress.View() + "\n\n")

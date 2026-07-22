@@ -165,6 +165,8 @@ body.batch-mode .song-card { padding-left: 10px; }
 .btn-pill-switch:hover:not(:disabled) { border-color: #f97316; background: #fffaf0; }
 .btn-pill-dl { background: var(--btn-dl-bg); color: var(--btn-dl-text); border-color: var(--btn-dl-border); }
 .btn-pill-dl:hover:not(:disabled) { border-color: #3182ce; background: #ebf8ff; }
+.btn-pill-danger { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+.btn-pill-danger:hover { background: #fecaca; }
 .btn-pill-warn { background: var(--btn-warn-bg); color: var(--btn-warn-text); border-color: var(--btn-warn-border); padding: 4px 12px; font-size: 13px; }
 
 .pagination-bar {
@@ -461,6 +463,57 @@ body.batch-mode .song-card { padding-left: 10px; }
 
 .settings-float { position: absolute; top: 30px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; }
 .settings-float:hover { color: #10b981; transform: rotate(90deg); }
+.import-float { position: absolute; top: 134px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; }
+.import-float:hover { color: #6366f1; transform: scale(1.1); }
+.reset-logs-float { position: absolute; top: 186px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; font-size: 16px; }
+.reset-logs-float:hover { color: #f59e0b; transform: scale(1.1); }
+.clear-records-float { position: absolute; top: 238px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; font-size: 16px; }
+.clear-records-float:hover { color: #ef4444; transform: scale(1.1); }
+.records-float { position: absolute; top: 290px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; font-size: 16px; }
+.records-float:hover { color: #10b981; transform: scale(1.1); }
+
+/* 浮动翻页键 - 右侧居中 */
+.float-page-nav {
+    position: fixed;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 10001;
+    user-select: none;
+}
+.float-page-btn {
+    width: 36px;
+    height: 36px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    color: var(--text-sub);
+    font-size: 14px;
+    transition: 0.2s;
+}
+.float-page-btn:hover { background: #10b981; color: white; }
+.float-page-btn:active { transform: scale(0.92); }
+.float-page-num {
+    width: 36px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #10b981;
+    background: rgba(255,255,255,0.9);
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
 .auth-float { position: absolute; top: 82px; right: 30px; z-index: 20; margin: 0; }
 .auth-float button { border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.2s; }
 .auth-float.auth-login button { background: #ecfdf5; color: #059669; border: 1px solid rgba(5, 150, 105, 0.18); }
@@ -782,6 +835,10 @@ body.batch-mode .song-card { padding-left: 10px; }
     flex-wrap: wrap;
     margin-top: 0;
 }
+/* 下载记录表格 */
+.download-records-table { border-radius: 8px; overflow: hidden; }
+.download-records-table th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.download-records-table tr:hover { background: var(--bg-hover); }
 .app-toast-container {
     position: fixed;
     right: 18px;
@@ -985,7 +1042,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 /* 返回顶部按钮 */
 .back-to-top { 
     position: fixed; 
-    bottom: 90px;  /* 避开底部播放器 */
+    bottom: 140px;  /* 上移，给回到底部让位 */
     right: 20px; 
     width: 45px; 
     height: 45px; 
@@ -993,11 +1050,27 @@ body.batch-mode .song-card { padding-left: 10px; }
     border-radius: 50%; 
     box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
     display: flex; align-items: center; justify-content: center; 
-    cursor: pointer; z-index: 1000; opacity: 0; visibility: hidden; 
+    cursor: pointer; z-index: 10001; opacity: 0; visibility: hidden; 
     transition: all 0.3s ease; color: #10b981; font-size: 20px; 
 }
 .back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
 .back-to-top:hover { background: #10b981; color: white; transform: translateY(-5px); }
+
+.back-to-bottom {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 45px;
+    height: 45px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10001; opacity: 0; visibility: hidden;
+    transition: all 0.3s ease; color: #6366f1; font-size: 20px;
+}
+.back-to-bottom.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.back-to-bottom:hover { background: #6366f1; color: white; transform: translateY(5px); }
 
 /* 🌟 Sakana 蒜苗看板娘容器控制 - 移到右侧 */
 .sakana-container {
@@ -1374,6 +1447,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     
     .btn-circle { width: 34px; height: 34px; font-size: 13px; }
     .settings-float { top: 15px; right: 15px; width: 36px; height: 36px; }
+    .import-float { top: 110px; right: 15px; width: 36px; height: 36px; }
     .auth-float { top: 60px; right: 15px; }
     .auth-float button { width: 36px; height: 36px; }
     .auth-page { padding: 24px 14px; }
@@ -1486,6 +1560,11 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     .back-to-top {
         bottom: 160px !important;
         bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important;
+        right: 15px;
+    }
+    .back-to-bottom {
+        bottom: 105px !important;
+        bottom: calc(105px + env(safe-area-inset-bottom, 0px)) !important;
         right: 15px;
     }
 

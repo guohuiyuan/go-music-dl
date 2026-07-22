@@ -246,8 +246,8 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 			pageSize = n
 		}
 	}
-	if pageSize > 200 {
-		pageSize = 200
+	if pageSize > 500 {
+		pageSize = 500
 	}
 
 	page := 1

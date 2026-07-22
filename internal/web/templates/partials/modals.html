@@ -48,13 +48,18 @@
                         <option value="/sdcard/Download">Android 下载：/sdcard/Download</option>
                         <option value="__custom__">自定义目录...</option>
                     </select>
-                    <input type="text" id="setting-download-dir" aria-describedby="setting-download-dir-hint" placeholder="例如: data/downloads、D:/Music/Downloads 或 /sdcard/Music">
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input type="text" id="setting-download-dir" aria-describedby="setting-download-dir-hint" placeholder="例如: data/downloads、D:/Music/Downloads 或 /sdcard/Music" style="flex:1;">
+                        <button type="button" class="btn-pill" onclick="pickDownloadFolder()" title="选择文件夹" style="white-space:nowrap;font-size:12px;padding:4px 10px;">
+                            <i class="fa-solid fa-folder-open"></i>
+                        </button>
+                    </div>
                 </div>
                 <p id="setting-download-dir-hint" class="setting-hint" style="margin-left: 0;">选择预设会自动填入路径，也可以手填相对目录或绝对目录。Android 建议使用 <code>/sdcard/Music</code>，便于系统音乐应用识别。</p>
             </div>
             <div class="cookie-item">
                 <label for="setting-download-filename-template">音乐文件名模板</label>
-                <input type="text" id="setting-download-filename-template" placeholder="{name} - {artist}">
+                <input type="text" id="setting-download-filename-template" placeholder="{artist} - {name}">
                 <p class="setting-hint" style="margin-left: 0;">支持 <code>{name}</code>、<code>{artist}</code>、<code>{album}</code>、<code>{source}</code>、<code>{id}</code>、<code>{ext}</code>。未写 <code>{ext}</code> 时会自动追加扩展名；可用 <code>/</code> 或 <code>\</code> 创建相对子目录，例如 <code>{artist}/{album}/{name} - {artist}.{ext}</code>。</p>
             </div>
             <div class="cookie-item setting-item">
@@ -75,8 +80,15 @@
             </div>
             <div class="cookie-item">
                 <label for="setting-web-page-size">Web 每页条数</label>
-                <input type="number" id="setting-web-page-size" min="1" max="200" step="1" placeholder="默认 30">
-                <p class="setting-hint" style="margin-left: 0;">用于网页分页显示，默认 30。</p>
+                <select id="setting-web-page-size" aria-label="Web 每页条数">
+                    <option value="30">30 条/页</option>
+                    <option value="100">100 条/页</option>
+                    <option value="200" selected>200 条/页（默认）</option>
+                    <option value="300">300 条/页</option>
+                    <option value="400">400 条/页</option>
+                    <option value="500">500 条/页</option>
+                </select>
+                <p class="setting-hint" style="margin-left: 0;">搜索结果列表每页显示的歌曲数量，默认 200。</p>
             </div>
             <div class="cookie-item">
                 <label for="setting-cli-page-size">CLI 每页条数</label>
@@ -96,6 +108,14 @@
                 <span class="setting-link-body">
                     <span class="setting-link-title">关于 go-music-dl</span>
                     <span class="setting-link-desc">查看当前版本并检查 GitHub 是否有新版</span>
+                </span>
+                <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="cookie-item setting-item setting-link-row" onclick="openDownloadRecordsModal()">
+                <span class="setting-link-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                <span class="setting-link-body">
+                    <span class="setting-link-title">下载记录</span>
+                    <span class="setting-link-desc">查看下载任务历史（成功 / 跳过 / 失败）</span>
                 </span>
                 <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
             </button>
@@ -250,6 +270,70 @@
             </div>
             <div id="localMusicHint" class="local-music-hint">正在加载本地音乐...</div>
             <div id="localMusicList" class="local-music-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 下载记录弹窗 -->
+<div id="downloadRecordsModal" class="modal-overlay" style="z-index: 1009;">
+    <div class="modal" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载记录</h3>
+            <div class="modal-close" onclick="closeDownloadRecordsModal()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span id="download-records-count" style="font-size: 13px; color: var(--text-sub);">加载中...</span>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-pill" onclick="openImportSongsModal()" style="font-size: 12px; padding: 4px 10px;">
+                        <i class="fa-solid fa-file-import"></i> 导入已有曲库
+                    </button>
+                    <button class="btn-pill btn-pill-danger" onclick="clearDownloadRecords()" style="font-size: 12px; padding: 4px 10px;">
+                        <i class="fa-solid fa-trash-can"></i> 清空记录
+                    </button>
+                </div>
+            </div>
+            <div id="download-records-list" style="max-height: 400px; overflow-y: auto;"></div>
+            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <button class="btn-pill btn-pill-danger" onclick="resetDownloadLogs()" style="font-size: 12px; padding: 4px 10px;">
+                    <i class="fa-solid fa-rotate"></i> 重置下载日志
+                </button>
+                <button type="button" class="btn-pill" onclick="closeDownloadRecordsModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 导入已有曲库弹窗 -->
+<div id="importSongsModal" class="modal-overlay" style="z-index: 1010;">
+    <div class="modal" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-file-import"></i> 导入已有曲库</h3>
+            <div class="modal-close" onclick="document.getElementById('importSongsModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 12px;">
+                导入本地已有的音乐目录列表文件，将歌曲信息写入 <code>全部文件.txt</code>，
+                之后下载时遇到已存在的歌曲会自动跳过。
+            </p>
+            <div class="cookie-item">
+                <label for="import-file-path">目录列表文件路径</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" id="import-file-path" placeholder="例如: D:/音乐/01-music/全部文件.txt" style="flex:1;">
+                    <button type="button" class="btn-pill" onclick="pickImportFile()" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+                        <i class="fa-solid fa-folder-open"></i> 选择文件
+                    </button>
+                </div>
+                <input type="file" id="import-file-picker" accept=".txt,.csv,.m3u,.m3u8" style="display:none;" onchange="onImportFilePicked(event)">
+                <p class="setting-hint">每行一个文件路径，支持 <code>D:/音乐/01-music/artist - name.mp3</code> 格式。点击「选择文件」从对话框选取。</p>
+            </div>
+            <div id="import-result" style="display: none; margin-bottom: 12px; padding: 12px; border-radius: 8px; background: var(--bg-sub);"></div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn-pill" onclick="document.getElementById('importSongsModal').style.display='none'">取消</button>
+                <button type="button" id="import-btn" class="btn-pill btn-pill-primary" onclick="startImportSongs()">
+                    <i class="fa-solid fa-play"></i> 开始解析
+                </button>
+            </div>
         </div>
     </div>
 </div>

@@ -209,6 +209,13 @@ fn start_backend(
         .arg(server_config::PORT)
         .current_dir(app_data_dir);
 
+    // 传递 Rust exe 所在目录给 Go 后端，用于确定数据文件写入位置
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            cmd.env("MUSIC_DL_DATA_DIR", exe_dir);
+        }
+    }
+
     if let Some(file) = log_file {
         if let Ok(stdout) = file.try_clone() {
             cmd.stdout(Stdio::from(stdout));
@@ -462,6 +469,16 @@ fn html_escape(value: &str) -> String {
 }
 
 fn resolve_app_data_dir() -> PathBuf {
+    // 优先：exe 所在目录（便携式，所有数据与 exe 同目录）
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let candidate = dir.to_path_buf();
+            if candidate.is_dir() {
+                return candidate;
+            }
+        }
+    }
+
     #[cfg(target_os = "windows")]
     {
         if let Some(base) = env::var_os("LOCALAPPDATA") {

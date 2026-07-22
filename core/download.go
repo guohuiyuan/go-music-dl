@@ -19,6 +19,7 @@ type DownloadedSong struct {
 	Filename    string
 	SavedPath   string
 	Warning     string
+	Skipped     bool // 因已存在而跳过下载
 }
 
 func DownloadSongData(song *model.Song, withCover bool, withLyrics bool) (*DownloadedSong, error) {

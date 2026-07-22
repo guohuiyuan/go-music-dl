@@ -19,9 +19,35 @@
 <div id="back-to-top" class="back-to-top" onclick="scrollToTop()">
     <i class="fa-solid fa-arrow-up"></i>
 </div>
+<div id="back-to-bottom" class="back-to-bottom" onclick="scrollToBottom()">
+    <i class="fa-solid fa-arrow-down"></i>
+</div>
+
+<!-- 浮动翻页键 -->
+<div id="float-page-nav" class="float-page-nav" style="display:none;">
+    <div class="float-page-btn float-page-up" onclick="floatPageUp()" title="上一页">
+        <i class="fa-solid fa-chevron-up"></i>
+    </div>
+    <div class="float-page-num" id="float-page-num" onclick="floatPageNumClick()">1</div>
+    <div class="float-page-btn float-page-down" onclick="floatPageDown()" title="下一页">
+        <i class="fa-solid fa-chevron-down"></i>
+    </div>
+</div>
 
 <div class="settings-float" onclick="openSystemConfig()" title="系统配置">
     <i class="fa-solid fa-gear"></i>
+</div>
+<div class="import-float" onclick="openImportSongsModal()" title="导入已有曲库">
+    <i class="fa-solid fa-file-import"></i>
+</div>
+<div class="reset-logs-float" onclick="resetDownloadLogs()" title="重置下载日志">
+    <i class="fa-solid fa-rotate"></i>
+</div>
+<div class="clear-records-float" onclick="clearDownloadRecords()" title="清空下载记录">
+    <i class="fa-solid fa-trash-can"></i>
+</div>
+<div class="records-float" onclick="openDownloadRecordsModal()" title="下载记录">
+    <i class="fa-solid fa-clock-rotate-left"></i>
 </div>
 <form id="auth-float-form" class="auth-float auth-login" action="{{.Root}}/logout" method="post" title="登录">
     <button id="auth-float-button" type="submit">
