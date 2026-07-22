@@ -461,31 +461,19 @@ body.batch-mode .song-card { padding-left: 10px; }
 
 .no-results { text-align: center; padding: 60px; color: var(--text-sub); }
 
-.settings-float { position: absolute; top: 30px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; }
-.settings-float:hover { color: #10b981; transform: rotate(90deg); }
-.import-float { position: absolute; top: 134px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; }
-.import-float:hover { color: #6366f1; transform: scale(1.1); }
-.reset-logs-float { position: absolute; top: 186px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; font-size: 16px; }
-.reset-logs-float:hover { color: #f59e0b; transform: scale(1.1); }
-.clear-records-float { position: absolute; top: 238px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; font-size: 16px; }
-.clear-records-float:hover { color: #ef4444; transform: scale(1.1); }
-.records-float { position: absolute; top: 290px; right: 30px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); color: var(--text-sub); transition: 0.2s; z-index: 20; font-size: 16px; }
-.records-float:hover { color: #10b981; transform: scale(1.1); }
-
-/* 浮动翻页键 - 右侧居中 */
-.float-page-nav {
+/* 右侧统一工具栏 */
+.right-toolbar {
     position: fixed;
-    right: 18px;
+    right: 14px;
     top: 50%;
     transform: translateY(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     z-index: 10001;
-    user-select: none;
 }
-.float-page-btn {
+.rt-btn {
     width: 36px;
     height: 36px;
     background: white;
@@ -496,30 +484,113 @@ body.batch-mode .song-card { padding-left: 10px; }
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     color: var(--text-sub);
-    font-size: 14px;
+    font-size: 15px;
     transition: 0.2s;
+    border: none;
+    padding: 0;
 }
-.float-page-btn:hover { background: #10b981; color: white; }
-.float-page-btn:active { transform: scale(0.92); }
-.float-page-num {
+.rt-btn:hover { color: #10b981; transform: scale(1.1); }
+.rt-btn:active { transform: scale(0.92); }
+.rt-separator {
+    width: 20px;
+    height: 1px;
+    background: #d1d5db;
+    margin: 2px 0;
+}
+.rt-page-num {
     width: 36px;
-    height: 28px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: #10b981;
     background: rgba(255,255,255,0.9);
-    border-radius: 6px;
+    border-radius: 4px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    cursor: pointer;
+    user-select: none;
 }
-.auth-float { position: absolute; top: 82px; right: 30px; z-index: 20; margin: 0; }
-.auth-float button { border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.2s; }
-.auth-float.auth-login button { background: #ecfdf5; color: #059669; border: 1px solid rgba(5, 150, 105, 0.18); }
-.auth-float.auth-logout button { background: #fff1f2; color: #e11d48; border: 1px solid rgba(225, 29, 72, 0.18); }
-.auth-float.auth-login button:hover { background: #10b981; color: white; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(16, 185, 129, 0.28); }
-.auth-float.auth-logout button:hover { background: #e11d48; color: white; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(225, 29, 72, 0.26); }
+.rt-page-num:hover { background: #ecfdf5; }
+
+.auth-float { margin: 0; display: flex; align-items: center; justify-content: center; }
+.rt-form { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.auth-float button { border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; font-size: 15px; }
+.auth-float.auth-login button { background: #ecfdf5; color: #059669; border: 1px solid rgba(5, 150, 105, 0.3); }
+.auth-float.auth-logout button { background: #fff1f2; color: #e11d48; border: 1px solid rgba(225, 29, 72, 0.3); }
+.auth-float.auth-login button:hover { background: #10b981; color: white; transform: scale(1.1); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
+.auth-float.auth-logout button:hover { background: #e11d48; color: white; transform: scale(1.1); }
+
+/* 下载中面板 - 左侧浮动 */
+.download-panel {
+    position: fixed;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 320px;
+    max-height: 60vh;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    z-index: 10002;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.download-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #10b981;
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.download-panel-close {
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    opacity: 0.8;
+    background: none;
+    border: none;
+    color: white;
+}
+.download-panel-close:hover { opacity: 1; }
+.switch-panel-header { background: #6366f1; }
+.switch-panel .dp-icon.dp-loading { color: #6366f1; }
+.download-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+    max-height: calc(60vh - 80px);
+}
+.download-panel-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    font-size: 13px;
+    color: var(--text-main);
+    line-height: 1.4;
+}
+.download-panel-item .dp-icon { width: 20px; text-align: center; flex-shrink: 0; }
+.dp-icon.dp-wait { color: #94a3b8; }
+.dp-icon.dp-loading { color: #3b82f6; }
+.dp-icon.dp-success { color: #10b981; }
+.dp-icon.dp-skipped { color: #f59e0b; }
+.dp-icon.dp-failed { color: #ef4444; }
+.download-panel-footer {
+    padding: 8px 16px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 12px;
+    color: var(--text-sub);
+    text-align: center;
+    flex-shrink: 0;
+}
+}
 
 .auth-page {
     justify-content: center;
@@ -1040,69 +1111,10 @@ body.batch-mode .song-card { padding-left: 10px; }
 .collection-item:hover { border-color: #10b981; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15); }
 
 /* 返回顶部按钮 */
-.back-to-top { 
-    position: fixed; 
-    bottom: 140px;  /* 上移，给回到底部让位 */
-    right: 20px; 
-    width: 45px; 
-    height: 45px; 
-    background: white; 
-    border-radius: 50%; 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
-    display: flex; align-items: center; justify-content: center; 
-    cursor: pointer; z-index: 10001; opacity: 0; visibility: hidden; 
-    transition: all 0.3s ease; color: #10b981; font-size: 20px; 
-}
-.back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
-.back-to-top:hover { background: #10b981; color: white; transform: translateY(-5px); }
 
-.back-to-bottom {
-    position: fixed;
-    bottom: 90px;
-    right: 20px;
-    width: 45px;
-    height: 45px;
-    background: white;
-    border-radius: 50%;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 10001; opacity: 0; visibility: hidden;
-    transition: all 0.3s ease; color: #6366f1; font-size: 20px;
-}
-.back-to-bottom.show { opacity: 1; visibility: visible; transform: translateY(0); }
-.back-to-bottom:hover { background: #6366f1; color: white; transform: translateY(5px); }
 
 /* 🌟 Sakana 蒜苗看板娘容器控制 - 移到右侧 */
-.sakana-container {
-    position: fixed;
-    bottom: 150px; /* 在返回顶部按钮上方 */
-    right: 10px;   /* 移到右边 */
-    z-index: 998;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    transform-origin: right bottom;
-    transform: scale(0.85); /* 稍微缩小一点，更精致 */
-}
 
-/* 换肤按钮样式 */
-.sakana-btn {
-    margin-top: 10px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #10b981;
-    color: #10b981;
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.sakana-btn:hover {
     background: #10b981;
     color: white;
     transform: translateY(-2px);
@@ -1128,6 +1140,24 @@ body.batch-mode .song-card { padding-left: 10px; }
     z-index: 2;
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
     transition: background 0.2s, transform 0.15s;
+}
+
+/* 🌟 Sakana 蒜苗看板娘 - 左下角 */
+.sakana-container {
+    position: fixed;
+    bottom: 90px;
+    right: 14px;
+    z-index: 998;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform-origin: left bottom;
+    transform: scale(0.85);
+}
+
+/* 手机端隐藏 */
+@media (max-width: 768px) {
+    .sakana-container { display: none !important; }
 }
 
 .aplayer.aplayer-fixed .playmode-toggle-btn:hover,
@@ -1446,10 +1476,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     }
     
     .btn-circle { width: 34px; height: 34px; font-size: 13px; }
-    .settings-float { top: 15px; right: 15px; width: 36px; height: 36px; }
-    .import-float { top: 110px; right: 15px; width: 36px; height: 36px; }
-    .auth-float { top: 60px; right: 15px; }
-    .auth-float button { width: 36px; height: 36px; }
+    
     .auth-page { padding: 24px 14px; }
     .auth-card { padding: 26px 20px; border-radius: 16px; }
     .modal { width: 92%; max-height: 85vh; padding: 20px; }
@@ -1557,17 +1584,6 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
         font-size: 12px;
     }
 
-    .back-to-top {
-        bottom: 160px !important;
-        bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important;
-        right: 15px;
-    }
-    .back-to-bottom {
-        bottom: 105px !important;
-        bottom: calc(105px + env(safe-area-inset-bottom, 0px)) !important;
-        right: 15px;
-    }
+    
 
-    /* 手机端为防止组件遮挡 UI，强制隐藏看板娘 */
-    .sakana-container { display: none !important; }
-}
+

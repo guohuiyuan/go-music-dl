@@ -3624,22 +3624,15 @@ function scrollToBottom() {
 // ==========================================
 
 function updateFloatPageNav() {
-  const nav = document.getElementById("float-page-nav");
   const numEl = document.getElementById("float-page-num");
-  if (!nav || !numEl) return;
+  if (!numEl) return;
 
   // 本地音乐页
   if (isLocalMusicPageActive()) {
     const bar = document.getElementById("local-music-pagination");
-    if (!bar) { nav.style.display = "none"; return; }
+    if (!bar) { numEl.textContent = "1"; return; }
     const cur = parseInt(bar.dataset.currentPage, 10);
-    const total = parseInt(bar.dataset.totalPages, 10);
-    if (total > 1) {
-      nav.style.display = "flex";
-      numEl.textContent = String(cur);
-    } else {
-      nav.style.display = "none";
-    }
+    if (Number.isFinite(cur)) numEl.textContent = String(cur);
     return;
   }
 
@@ -3648,16 +3641,10 @@ function updateFloatPageNav() {
   const page = parseInt(urlParams.get("page"), 10) || 1;
   // 总页数从页面 DOM 获取
   const pageSummary = document.querySelector(".page-summary");
-  if (!pageSummary) { nav.style.display = "none"; return; }
+  if (!pageSummary) { numEl.textContent = String(page); return; }
   const match = pageSummary.textContent.match(/第\s*\d+\s*\/\s*(\d+)\s*页/);
-  if (!match) { nav.style.display = "none"; return; }
-  const total = parseInt(match[1], 10);
-  if (total > 1) {
-    nav.style.display = "flex";
-    numEl.textContent = String(page);
-  } else {
-    nav.style.display = "none";
-  }
+  if (!match) { numEl.textContent = String(page); return; }
+  numEl.textContent = String(page);
 }
 
 function floatPageUp() {
@@ -5630,7 +5617,174 @@ function getSelectedSongs() {
   return songs;
 }
 
+// ==========================================
+// 下载中面板
+// ==========================================
+
+let downloadPanelItems = [];
+
+function showDownloadPanel(songs) {
+  closeSwitchPanel();
+  const panel = document.getElementById("download-panel");
+  const body = document.getElementById("download-panel-body");
+  const footer = document.getElementById("download-panel-footer");
+  if (!panel || !body || !footer) return;
+
+  downloadPanelItems = songs.map((s, i) => ({
+    index: i,
+    name: s.name || "",
+    artist: s.artist || "",
+    status: "wait", // wait / loading / success / skipped / failed
+    msg: "",
+  }));
+
+  body.innerHTML = downloadPanelItems
+    .map(
+      (item) => `
+    <div class="download-panel-item" id="dp-item-${item.index}">
+      <span class="dp-icon dp-wait"><i class="fa-regular fa-circle"></i></span>
+      <span>${escapeHtml(item.artist)} - ${escapeHtml(item.name)}</span>
+    </div>`,
+    )
+    .join("");
+
+  footer.textContent = `共 ${songs.length} 首 · 完成 0/${songs.length}`;
+  panel.style.display = "flex";
+}
+
+function updateDownloadPanelItem(index, status, msg) {
+  const item = downloadPanelItems[index];
+  if (!item) return;
+  item.status = status;
+  item.msg = msg || "";
+
+  const el = document.getElementById(`dp-item-${index}`);
+  if (!el) return;
+
+  const iconMap = {
+    wait: '<i class="fa-regular fa-circle"></i>',
+    loading: '<i class="fa-solid fa-spinner fa-spin"></i>',
+    success: '<i class="fa-solid fa-check-circle"></i>',
+    skipped: '<i class="fa-solid fa-forward-step"></i>',
+    failed: '<i class="fa-solid fa-circle-exclamation"></i>',
+  };
+  const clsMap = {
+    wait: "dp-wait",
+    loading: "dp-loading",
+    success: "dp-success",
+    skipped: "dp-skipped",
+    failed: "dp-failed",
+  };
+
+  const icon = el.querySelector(".dp-icon");
+  if (icon) {
+    icon.className = `dp-icon ${clsMap[status] || "dp-wait"}`;
+    icon.innerHTML = iconMap[status] || iconMap.wait;
+  }
+
+  // 正在下载的项滚动到面板中间
+  if (status === "loading") {
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  // 更新底部统计
+  const done = downloadPanelItems.filter(
+    (x) => x.status === "success" || x.status === "skipped" || x.status === "failed",
+  ).length;
+  const footer = document.getElementById("download-panel-footer");
+  if (footer) {
+    footer.textContent = `共 ${downloadPanelItems.length} 首 · 完成 ${done}/${downloadPanelItems.length}`;
+  }
+}
+
+function closeDownloadPanel() {
+  const panel = document.getElementById("download-panel");
+  if (panel) panel.style.display = "none";
+}
+
+// ==========================================
+// 换源中面板
+// ==========================================
+
+let switchPanelItems = [];
+
+function showSwitchPanel(cards) {
+  closeDownloadPanel();
+  const panel = document.getElementById("switch-panel");
+  const body = document.getElementById("switch-panel-body");
+  const footer = document.getElementById("switch-panel-footer");
+  if (!panel || !body || !footer) return;
+
+  switchPanelItems = cards.map((card, i) => ({
+    index: i,
+    name: card.dataset.name || "",
+    artist: card.dataset.artist || "",
+    status: "wait",
+  }));
+
+  body.innerHTML = switchPanelItems
+    .map(
+      (item) => `
+    <div class="download-panel-item" id="sp-item-${item.index}">
+      <span class="dp-icon dp-wait"><i class="fa-regular fa-circle"></i></span>
+      <span>${escapeHtml(item.artist)} - ${escapeHtml(item.name)}</span>
+    </div>`,
+    )
+    .join("");
+
+  footer.textContent = `共 ${cards.length} 首 · 完成 0/${cards.length}`;
+  panel.style.display = "flex";
+}
+
+function updateSwitchPanelItem(index, status) {
+  const item = switchPanelItems[index];
+  if (!item) return;
+  item.status = status;
+
+  const el = document.getElementById(`sp-item-${index}`);
+  if (!el) return;
+
+  const iconMap = {
+    wait: '<i class="fa-regular fa-circle"></i>',
+    loading: '<i class="fa-solid fa-spinner fa-spin"></i>',
+    success: '<i class="fa-solid fa-check-circle"></i>',
+    failed: '<i class="fa-solid fa-circle-exclamation"></i>',
+  };
+  const clsMap = {
+    wait: "dp-wait",
+    loading: "dp-loading",
+    success: "dp-success",
+    failed: "dp-failed",
+  };
+
+  const icon = el.querySelector(".dp-icon");
+  if (icon) {
+    icon.className = `dp-icon ${clsMap[status] || "dp-wait"}`;
+    icon.innerHTML = iconMap[status] || iconMap.wait;
+  }
+
+  if (status === "loading") {
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  const done = switchPanelItems.filter(
+    (x) => x.status === "success" || x.status === "failed",
+  ).length;
+  const footer = document.getElementById("switch-panel-footer");
+  if (footer) {
+    footer.textContent = `共 ${switchPanelItems.length} 首 · 完成 ${done}/${switchPanelItems.length}`;
+  }
+}
+
+function closeSwitchPanel() {
+  const panel = document.getElementById("switch-panel");
+  if (panel) panel.style.display = "none";
+}
+
 async function batchDownload() {
+  // 关闭旧面板，准备新任务
+  closeDownloadPanel();
+
   const selectedSongs = getSelectedSongs();
   const songs = selectedSongs.filter(
     (song) => !isLocalMusicSourceValue(song.source),
@@ -5682,25 +5836,39 @@ async function batchDownload() {
     batchSwitch.disabled = true;
   }
 
+  // 显示下载中面板
+  showDownloadPanel(songs);
+
   let success = 0;
   let warningCount = 0;
   const failures = [];
 
   try {
-    for (const song of songs) {
+    for (let i = 0; i < songs.length; i++) {
+      const song = songs[i];
+      updateDownloadPanelItem(i, "loading");
       try {
         const result = await requestLocalDownload(song.url);
-        success++;
-        if (result && result.warning) {
-          warningCount++;
+        // 判断是否跳过
+        if (result && result.skipped) {
+          updateDownloadPanelItem(i, "skipped");
+        } else {
+          updateDownloadPanelItem(i, "success");
+          success++;
+          if (result && result.warning) {
+            warningCount++;
+          }
         }
       } catch (error) {
+        updateDownloadPanelItem(i, "failed", error && error.message ? error.message : "下载失败");
         failures.push({
           song,
           reason: error && error.message ? error.message : "下载失败",
         });
       }
     }
+
+    // 不再弹出 toast，面板常驻由用户手动关闭
 
     let message = `本地保存完成，成功 ${success}/${songs.length}`;
 
@@ -5902,17 +6070,25 @@ async function batchSwitchSource(options = {}) {
       '<i class="fa-solid fa-spinner fa-spin"></i> 换源中';
   }
 
+  // 显示换源中面板
+  showSwitchPanel(cards);
+
   const concurrency = Math.min(3, cards.length);
   let nextIndex = 0;
   const runWorker = async () => {
     while (nextIndex < cards.length) {
-      const card = cards[nextIndex++];
+      const idx = nextIndex++;
+      const card = cards[idx];
+      updateSwitchPanelItem(idx, "loading");
       const switchBtn = card.querySelector(".btn-switch");
       if (switchBtn) {
-        await switchSource(switchBtn, {
+        const ok = await switchSource(switchBtn, {
           silent: !!options.silent,
           deferToolbar: true,
         });
+        updateSwitchPanelItem(idx, ok ? "success" : "failed");
+      } else {
+        updateSwitchPanelItem(idx, "failed");
       }
     }
   };

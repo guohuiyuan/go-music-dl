@@ -16,44 +16,51 @@
 </head>
 <body>
 
-<div id="back-to-top" class="back-to-top" onclick="scrollToTop()">
-    <i class="fa-solid fa-arrow-up"></i>
-</div>
-<div id="back-to-bottom" class="back-to-bottom" onclick="scrollToBottom()">
-    <i class="fa-solid fa-arrow-down"></i>
+<!-- 下载中面板 -->
+<div id="download-panel" class="download-panel" style="display:none;">
+    <div class="download-panel-header">
+        <span><i class="fa-solid fa-download"></i> 下载中</span>
+        <span class="download-panel-close" onclick="closeDownloadPanel()">&times;</span>
+    </div>
+    <div class="download-panel-body" id="download-panel-body"></div>
+    <div class="download-panel-footer" id="download-panel-footer"></div>
 </div>
 
-<!-- 浮动翻页键 -->
-<div id="float-page-nav" class="float-page-nav" style="display:none;">
-    <div class="float-page-btn float-page-up" onclick="floatPageUp()" title="上一页">
-        <i class="fa-solid fa-chevron-up"></i>
+<!-- 换源中面板 -->
+<div id="switch-panel" class="download-panel switch-panel" style="display:none;">
+    <div class="download-panel-header switch-panel-header">
+        <span><i class="fa-solid fa-arrows-rotate"></i> 换源中</span>
+        <span class="download-panel-close" onclick="closeSwitchPanel()">&times;</span>
     </div>
-    <div class="float-page-num" id="float-page-num" onclick="floatPageNumClick()">1</div>
-    <div class="float-page-btn float-page-down" onclick="floatPageDown()" title="下一页">
-        <i class="fa-solid fa-chevron-down"></i>
-    </div>
+    <div class="download-panel-body" id="switch-panel-body"></div>
+    <div class="download-panel-footer" id="switch-panel-footer"></div>
 </div>
 
-<div class="settings-float" onclick="openSystemConfig()" title="系统配置">
-    <i class="fa-solid fa-gear"></i>
+<!-- 右侧工具栏 -->
+<div class="right-toolbar">
+    <!-- 功能按钮组 -->
+    <div class="rt-btn" onclick="openSystemConfig()" title="系统配置"><i class="fa-solid fa-gear"></i></div>
+    <form id="auth-float-form" class="rt-btn rt-form" action="{{.Root}}/logout" method="post" title="登录">
+        <button id="auth-float-button" type="submit"><i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i></button>
+    </form>
+    <div class="rt-btn" onclick="openImportSongsModal()" title="导入已有曲库"><i class="fa-solid fa-file-import"></i></div>
+    <div class="rt-btn" onclick="resetDownloadLogs()" title="重置下载日志"><i class="fa-solid fa-rotate"></i></div>
+    <div class="rt-btn" onclick="clearDownloadRecords()" title="清空下载记录"><i class="fa-solid fa-trash-can"></i></div>
+    <div class="rt-btn" onclick="openDownloadRecordsModal()" title="下载记录"><i class="fa-solid fa-clock-rotate-left"></i></div>
+
+    <div class="rt-separator"></div>
+
+    <!-- 翻页按钮组 -->
+    <div class="rt-btn" onclick="floatPageUp()" title="上一页"><i class="fa-solid fa-chevron-up"></i></div>
+    <div class="rt-page-num" id="float-page-num" onclick="floatPageNumClick()">1</div>
+    <div class="rt-btn" onclick="floatPageDown()" title="下一页"><i class="fa-solid fa-chevron-down"></i></div>
+
+    <div class="rt-separator"></div>
+
+    <!-- 滚动按钮组 -->
+    <div class="rt-btn" onclick="scrollToTop()" title="回到顶部"><i class="fa-solid fa-arrow-up"></i></div>
+    <div class="rt-btn" onclick="scrollToBottom()" title="回到底部"><i class="fa-solid fa-arrow-down"></i></div>
 </div>
-<div class="import-float" onclick="openImportSongsModal()" title="导入已有曲库">
-    <i class="fa-solid fa-file-import"></i>
-</div>
-<div class="reset-logs-float" onclick="resetDownloadLogs()" title="重置下载日志">
-    <i class="fa-solid fa-rotate"></i>
-</div>
-<div class="clear-records-float" onclick="clearDownloadRecords()" title="清空下载记录">
-    <i class="fa-solid fa-trash-can"></i>
-</div>
-<div class="records-float" onclick="openDownloadRecordsModal()" title="下载记录">
-    <i class="fa-solid fa-clock-rotate-left"></i>
-</div>
-<form id="auth-float-form" class="auth-float auth-login" action="{{.Root}}/logout" method="post" title="登录">
-    <button id="auth-float-button" type="submit">
-        <i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i>
-    </button>
-</form>
 
 <div class="container">
     {{template "search_box" .}}
@@ -70,29 +77,26 @@
 {{template "modals" .}}
 
 <div id="aplayer"></div>
-
-<div id="sakana-container" class="sakana-container">
-    <div id="sakana-widget"></div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
 
 <script>
     window.API_ROOT = "{{.Root}}";
     window.sakanaInstance = null;
-    
 
     function initSakanaWidget() {
         if (window.innerWidth > 768) {
             window.sakanaInstance = new SakanaWidget().mount('#sakana-widget');
         }
     }
-
 </script>
 
 <script src="{{.Root}}/app.js"></script>
 {{template "videogen_modal" .}}
 <script src="{{.Root}}/videogen.js"></script>
+
+<div id="sakana-container" class="sakana-container">
+    <div id="sakana-widget"></div>
+</div>
 
 <script async onload="initSakanaWidget()" src="https://cdn.jsdelivr.net/npm/sakana-widget@2.7.1/lib/sakana.min.js"></script>
 
