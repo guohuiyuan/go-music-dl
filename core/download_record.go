@@ -171,10 +171,10 @@ func AppendToAllSongs(artist, name string) error {
 	return nil
 }
 
-// SongKey 生成用于查重的 key："artist - name"。
+// SongKey 生成用于查重的 key："artist - name"，并剔除控制字符防止污染行式记录。
 func SongKey(song *model.Song) string {
-	artist := strings.TrimSpace(song.Artist)
-	name := strings.TrimSpace(song.Name)
+	artist := stripControl(strings.TrimSpace(song.Artist))
+	name := stripControl(strings.TrimSpace(song.Name))
 	if artist == "" {
 		artist = "Unknown"
 	}
@@ -182,6 +182,17 @@ func SongKey(song *model.Song) string {
 		name = "Unknown"
 	}
 	return artist + " - " + name
+}
+
+// stripControl 剔除字符串中的控制字符（\n \r \t \0 等），保留空格和可见字符。
+func stripControl(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= 0x20 && r != 0x7f {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // IsSongDownloaded 检查歌曲是否已存在于 "全部文件.txt" 中。
@@ -219,22 +230,27 @@ func readLinesSet(filePath string) (map[string]struct{}, error) {
 }
 
 // LoadDownloadDedupSet 加载下载去重集合：合并 成功解析.txt + 下载记录.txt。
+// 文件不存在时返回空集合（不报错），其他读取错误会返回。
 func LoadDownloadDedupSet() (map[string]struct{}, error) {
 	dataDir := filepath.Dir(resolveAllSongsFilePath())
 	set := make(map[string]struct{})
 
 	// 加载 成功解析.txt（导入的本地曲库）
-	if s, err := readLinesSet(filepath.Join(dataDir, "成功解析.txt")); err == nil {
-		for k := range s {
-			set[k] = struct{}{}
-		}
+	s, err := readLinesSet(filepath.Join(dataDir, "成功解析.txt"))
+	if err != nil {
+		return set, fmt.Errorf("读取成功解析.txt 失败: %w", err)
+	}
+	for k := range s {
+		set[k] = struct{}{}
 	}
 
 	// 加载 下载记录.txt（通过本工具成功下载的记录）
-	if s, err := readLinesSet(filepath.Join(dataDir, "下载记录.txt")); err == nil {
-		for k := range s {
-			set[k] = struct{}{}
-		}
+	s, err = readLinesSet(filepath.Join(dataDir, "下载记录.txt"))
+	if err != nil {
+		return set, fmt.Errorf("读取下载记录.txt 失败: %w", err)
+	}
+	for k := range s {
+		set[k] = struct{}{}
 	}
 
 	return set, nil

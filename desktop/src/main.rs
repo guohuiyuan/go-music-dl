@@ -473,7 +473,8 @@ fn resolve_app_data_dir() -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             let candidate = dir.to_path_buf();
-            if candidate.is_dir() {
+            // 验证目录可写（尝试创建临时文件）
+            if candidate.is_dir() && is_dir_writable(&candidate) {
                 return candidate;
             }
         }
@@ -507,6 +508,19 @@ fn resolve_app_data_dir() -> PathBuf {
     }
 
     env::temp_dir().join("go-music-dl")
+}
+
+/// 验证目录可写：尝试创建并删除一个临时文件。
+fn is_dir_writable(dir: &Path) -> bool {
+    let test_path = dir.join(".writable_test");
+    match std::fs::File::create(&test_path) {
+        Ok(f) => {
+            drop(f);
+            let _ = std::fs::remove_file(&test_path);
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 fn prepare_app_data_dir() -> io::Result<PathBuf> {

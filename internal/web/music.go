@@ -1135,6 +1135,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 	// 下载预检：统计待下载队列中有多少首将跳过
 	api.POST("/api/downloads/precheck", func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 20<<20) // 20MB
 		var req struct {
 			Songs []struct {
 				Name   string `json:"name"`
@@ -1144,6 +1145,16 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
 			return
+		}
+		if len(req.Songs) > 20000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "歌曲数量不能超过 20000"})
+			return
+		}
+		for _, s := range req.Songs {
+			if len(s.Name) > 500 || len(s.Artist) > 500 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "歌曲名或歌手名长度不能超过 500 字符"})
+				return
+			}
 		}
 
 		dedupSet, err := core.LoadDownloadDedupSet()
