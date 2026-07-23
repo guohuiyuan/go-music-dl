@@ -349,6 +349,20 @@ func playlistCategoryPlaylistsURL(source string, category model.PlaylistCategory
 	return RoutePrefix + "/category_playlists?" + values.Encode()
 }
 
+// writeClipResultsFile 将导入歌曲片段的结果写入 片断解析.txt
+func writeClipResultsFile(result *core.ClipImportResult) {
+	if result == nil {
+		return
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("总行数: %d  已匹配: %d\n\n", result.Total, result.Matched))
+	for _, song := range result.Songs {
+		sb.WriteString(fmt.Sprintf("✅ %s - %s  (%s)\n", song.Artist, song.Name, song.Source))
+	}
+	path := filepath.Join(core.DataDir(), "片断解析.txt")
+	_ = os.WriteFile(path, []byte(sb.String()), 0644)
+}
+
 func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 	api.GET("/", func(c *gin.Context) {
@@ -1199,11 +1213,15 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			return
 		}
 
-		result, err := core.ImportSongClips(req.FileContent, req.Sources, req.Threshold)
+		result, err := core.ImportSongClips(req.FileContent, req.Sources, req.Threshold, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		// 后台写入 片断解析.txt
+		go writeClipResultsFile(result)
+
 		c.JSON(200, result)
 	})
 }

@@ -559,8 +559,9 @@ body.batch-mode .song-card { padding-left: 10px; }
     color: white;
 }
 .download-panel-close:hover { opacity: 1; }
-.switch-panel-header { background: #6366f1; }
-.switch-panel .dp-icon.dp-loading { color: #6366f1; }
+.switch-panel-header { background: #10b981; }
+.switch-panel .dp-icon.dp-loading { color: #10b981; }
+.clip-panel .dp-icon.dp-loading { color: #10b981; }
 .download-panel-body {
     flex: 1;
     overflow-y: auto;
@@ -1415,6 +1416,8 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     /* 大幅增加底部内边距，确保列表最底部的歌曲能滚出来不被播放器挡住 */
     body { padding: 0 0 280px 0; background-size: 100% 400px; }
     .container { padding: 0; width: 100%; }
+    /* 手机端隐藏左侧浮动面板 */
+    #download-panel, #switch-panel, #clip-panel { display: none !important; }
     .search-box { padding: 20px 15px; border-radius: 0 0 20px 20px; margin-bottom: 20px; border-left: none; border-right: none; border-top: none; }
     h1 { font-size: 1.8rem; margin-bottom: 20px; }
     .input-group { margin-bottom: 15px; flex-direction: column; }

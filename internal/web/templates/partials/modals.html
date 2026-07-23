@@ -324,8 +324,8 @@
                         <i class="fa-solid fa-folder-open"></i> 选择文件
                     </button>
                 </div>
-                <input type="file" id="import-file-picker" accept=".txt,.csv,.m3u,.m3u8" style="display:none;" onchange="onImportFilePicked(event)">
-                <p class="setting-hint">点击「选择文件」从对话框中选取目录列表文件。每行一个文件路径，支持 <code>D:/音乐/01-music/artist - name.mp3</code> 格式。</p>
+                <input type="file" id="import-file-picker" webkitdirectory style="display:none;" onchange="onImportFilePicked(event)">
+                <p class="setting-hint">点击「选择文件夹」从对话框中选取音乐目录。程序将遍历所有音乐文件并解析。</p>
             </div>
             <div id="import-result" style="display: none; margin-bottom: 12px; padding: 12px; border-radius: 8px; background: var(--bg-sub);"></div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
@@ -347,7 +347,7 @@
         </div>
         <div class="modal-body">
             <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 12px;">
-                选择包含歌曲片段的目录列表文件，系统将搜索各音乐源中匹配度 &gt; 60% 的完整版歌曲。
+                选择包含歌曲片段的目录列表文件，系统将搜索各音乐源中匹配度 &gt;= 75% 的完整版歌曲。
             </p>
             <div class="cookie-item">
                 <label>目录列表文件</label>
@@ -357,14 +357,21 @@
                         <i class="fa-solid fa-folder-open"></i> 选择文件
                     </button>
                 </div>
-                <input type="file" id="clip-file-picker" accept=".txt,.csv,.m3u,.m3u8" style="display:none;" onchange="onClipFilePicked(event)">
+                <input type="file" id="clip-file-picker" webkitdirectory style="display:none;" onchange="onClipFilePicked(event)">
             </div>
             <div class="cookie-item">
-                <label>搜索源</label>
+                <label>搜索源
+                    <span style="font-weight:400;font-size:12px;margin-left:8px;">
+                        <a href="#" onclick="event.preventDefault();document.querySelectorAll('.clip-source-cb').forEach(c=>c.checked=true)">全选</a>
+                        ·
+                        <a href="#" onclick="event.preventDefault();document.querySelectorAll('.clip-source-cb').forEach(c=>c.checked=false)">清空</a>
+                    </span>
+                </label>
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;" id="clip-source-grid">
                     {{ range $source := .AllSources }}
                     <label class="source-checkbox-label" style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:4px 8px;background:var(--bg-sub);border-radius:6px;">
-                        <input type="checkbox" class="clip-source-cb" value="{{ $source }}" checked>
+                        <input type="checkbox" class="clip-source-cb" value="{{ $source }}"
+                            {{ if or (eq $source "netease") (eq $source "qq") (eq $source "kugou") (eq $source "kuwo") (eq $source "migu") (eq $source "soda") }}checked{{ end }}>
                         <span>{{ $source }}</span>
                     </label>
                     {{ end }}
@@ -374,10 +381,10 @@
             <div class="cookie-item">
                 <label for="clip-threshold">匹配度阈值</label>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <input type="range" id="clip-threshold" min="1" max="100" value="60" style="flex:1;" oninput="document.getElementById('clip-threshold-val').textContent=this.value+'%'">
-                    <span id="clip-threshold-val" style="font-weight:700;color:#10b981;min-width:40px;text-align:center;">60%</span>
+                    <input type="range" id="clip-threshold" min="1" max="100" value="75" style="flex:1;" oninput="document.getElementById('clip-threshold-val').textContent=this.value+'%'">
+                    <span id="clip-threshold-val" style="font-weight:700;color:#10b981;min-width:40px;text-align:center;">75%</span>
                 </div>
-                <p class="setting-hint" style="margin-left:0;">相似度达到此值的歌曲才会被加入结果列表，默认为 60%。</p>
+                <p class="setting-hint" style="margin-left:0;">相似度达到此值的歌曲才会被加入结果列表，默认为 75%。</p>
             </div>
             <div id="clip-result" style="display:none;margin-bottom:12px;padding:12px;border-radius:8px;background:var(--bg-sub);font-size:13px;"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;">

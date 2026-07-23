@@ -338,7 +338,6 @@ func importDirectoryListingFromLines(lines []string) *ImportDirectoryListingResu
 		if originalLine == "" {
 			continue
 		}
-		result.Total++
 
 		base := filepath.Base(originalLine)
 		ext := filepath.Ext(base)
@@ -448,26 +447,31 @@ type ClipImportResult struct {
 	Songs   []model.Song `json:"songs"`   // 匹配到的歌曲列表
 }
 
+// ClipProgress 进度回调，current 为已处理的歌曲数，total 为总解析数，
+// song 为当前正在搜索的歌曲名，matched 为已匹配数，noMatch 为未匹配数。
+type ClipProgress func(current, total, matched, noMatch int, song string, itemMatched bool)
+
 // ImportSongClips 解析目录列表文件，对每首可解析的歌曲搜索指定的音乐源，
 // 返回相似度 >= threshold 的匹配结果。sources 为空时搜索全部源。
-func ImportSongClips(content string, sources []string, threshold float64) (*ClipImportResult, error) {
+// onProgress 可选，每次搜索完一首歌后回调。
+func ImportSongClips(content string, sources []string, threshold float64, onProgress ClipProgress) (*ClipImportResult, error) {
 	lines := strings.Split(content, "\n")
 	if len(sources) == 0 {
 		sources = GetAllSourceNames()
 	}
 	if threshold <= 0 || threshold > 1 {
-		threshold = 0.6
+		threshold = 0.75
 	}
 
 	result := &ClipImportResult{}
 	seen := make(map[string]bool) // 按 "source:id" 去重
+	processed := 0
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		result.Total++
 
 		base := filepath.Base(line)
 		ext := filepath.Ext(base)
@@ -477,8 +481,14 @@ func ImportSongClips(content string, sources []string, threshold float64) (*Clip
 		if !ok {
 			continue
 		}
+		result.Total++
+		processed++
 
-		// 搜索各音乐源
+		// 搜索各音乐源，取最佳匹配
+		songMatched := false
+		var bestScore float64 = -1
+		var bestSong *model.Song
+
 		for _, src := range sources {
 			if src == "" {
 				continue
@@ -499,22 +509,27 @@ func ImportSongClips(content string, sources []string, threshold float64) (*Clip
 			}
 
 			for _, song := range results {
-				// 相似度 > 60%
 				score := CalcSongSimilarity(parsedName, parsedArtist, song.Name, song.Artist)
-				if score < threshold {
-					continue
+				if score >= threshold && score > bestScore {
+					bestScore = score
+					bestSong = &song
 				}
+			}
+		}
 
-				// 去重
-				key := song.Source + ":" + song.ID
-				if seen[key] {
-					continue
-				}
-				seen[key] = true
-
-				result.Songs = append(result.Songs, song)
+		if bestSong != nil {
+			// 按 song ID 去重（跨源），避免同一首歌曲被重复添加
+			if !seen[bestSong.ID] {
+				seen[bestSong.ID] = true
+				songMatched = true
+				result.Songs = append(result.Songs, *bestSong)
 				result.Matched++
 			}
+		}
+
+		// 进度回调（在搜索之后，携带当前歌曲的匹配结果）
+		if onProgress != nil {
+			onProgress(processed, result.Total, result.Matched, processed-result.Matched, parsedArtist+" - "+parsedName, songMatched)
 		}
 	}
 
