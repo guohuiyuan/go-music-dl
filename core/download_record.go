@@ -472,7 +472,6 @@ func DownloadWithDedupCheckWithTemplate(song *model.Song, outDir string, withCov
 	}
 
 	_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusSuccess, "")
-	_ = AppendToAllSongs(song.Artist, song.Name)
 	_ = AppendLogLine("下载记录.txt", key)
 	// 更新内存集合，确保同一批次内的后续下载能正确去重
 	if allSongsSet != nil {
