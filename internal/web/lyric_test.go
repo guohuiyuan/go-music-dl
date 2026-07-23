@@ -12,7 +12,7 @@ func TestLyricEndpointReturnsReadableFallbackWhenLyricMissing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	router := gin.New()
-	RegisterMusicRoutes(router.Group(RoutePrefix))
+	RegisterMusicRoutes(router.Group(RoutePrefix), router.Group(RoutePrefix))
 
 	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/lyric?id=test-id&source=missing", nil)
 	rec := httptest.NewRecorder()

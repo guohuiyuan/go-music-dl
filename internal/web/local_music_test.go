@@ -35,7 +35,7 @@ func newLocalMusicTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	group := r.Group(RoutePrefix)
-	RegisterMusicRoutes(group)
+	RegisterMusicRoutes(group, group)
 	RegisterCollectionRoutes(group)
 	RegisterLocalMusicRoutes(group)
 	return r
