@@ -317,15 +317,15 @@
                 之后下载时遇到已存在的歌曲会自动跳过。
             </p>
             <div class="cookie-item">
-                <label for="import-file-path">目录列表文件路径</label>
+                <label>目录列表文件</label>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" id="import-file-path" placeholder="例如: D:/音乐/01-music/全部文件.txt" style="flex:1;">
+                    <span id="import-file-name" style="flex:1;font-size:13px;color:var(--text-sub);padding:6px 0;">未选择文件</span>
                     <button type="button" class="btn-pill" onclick="pickImportFile()" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
                         <i class="fa-solid fa-folder-open"></i> 选择文件
                     </button>
                 </div>
                 <input type="file" id="import-file-picker" accept=".txt,.csv,.m3u,.m3u8" style="display:none;" onchange="onImportFilePicked(event)">
-                <p class="setting-hint">每行一个文件路径，支持 <code>D:/音乐/01-music/artist - name.mp3</code> 格式。点击「选择文件」从对话框选取。</p>
+                <p class="setting-hint">点击「选择文件」从对话框中选取目录列表文件。每行一个文件路径，支持 <code>D:/音乐/01-music/artist - name.mp3</code> 格式。</p>
             </div>
             <div id="import-result" style="display: none; margin-bottom: 12px; padding: 12px; border-radius: 8px; background: var(--bg-sub);"></div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">

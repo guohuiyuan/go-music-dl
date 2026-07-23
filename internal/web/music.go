@@ -1099,7 +1099,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 	})
 
 	// 下载记录 API
-	api.GET("/downloads/records", func(c *gin.Context) {
+	api.GET("/api/downloads/records", func(c *gin.Context) {
 		records, err := core.GetDownloadRecords()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1111,7 +1111,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		c.JSON(200, gin.H{"records": records})
 	})
 
-	api.DELETE("/downloads/records", func(c *gin.Context) {
+	api.DELETE("/api/downloads/records", func(c *gin.Context) {
 		if err := core.ClearDownloadRecords(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1120,7 +1120,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 	})
 
 	// 下载预检：统计待下载队列中有多少首将跳过
-	api.POST("/downloads/precheck", func(c *gin.Context) {
+	api.POST("/api/downloads/precheck", func(c *gin.Context) {
 		var req struct {
 			Songs []struct {
 				Name   string `json:"name"`
@@ -1148,10 +1148,9 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		c.JSON(200, gin.H{"total": len(req.Songs), "skipped": skipCount})
 	})
 
-	// 导入已有曲库
-	api.POST("/downloads/import", func(c *gin.Context) {
+	// 导入已有曲库（仅接受 fileContent 上传，不接受 filePath 以防路径遍历）
+	api.POST("/api/downloads/import", func(c *gin.Context) {
 		var req struct {
-			FilePath    string `json:"filePath"`
 			FileContent string `json:"fileContent"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -1159,18 +1158,12 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 			return
 		}
 
-		var result *core.ImportDirectoryListingResult
-		var err error
-
-		if req.FileContent != "" {
-			result, err = core.ImportDirectoryListingFromContent(req.FileContent)
-		} else if req.FilePath != "" {
-			result, err = core.ImportDirectoryListing(req.FilePath)
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 filePath 或选择文件上传"})
+		if req.FileContent == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请选择文件上传"})
 			return
 		}
 
+		result, err := core.ImportDirectoryListingFromContent(req.FileContent)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1179,7 +1172,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 	})
 
 	// 重置下载日志文件
-	api.DELETE("/downloads/logs", func(c *gin.Context) {
+	api.DELETE("/api/downloads/logs", func(c *gin.Context) {
 		var files = []string{"下载记录.txt", "跳过下载.txt", "下载失败.txt"}
 		var errs []string
 		for _, f := range files {

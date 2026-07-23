@@ -3180,7 +3180,7 @@ async function openDownloadRecordsModal() {
   if (listEl) listEl.innerHTML = "";
 
   try {
-    const resp = await fetch(`${API_ROOT}/downloads/records`);
+    const resp = await fetch(`${API_ROOT}/api/downloads/records`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     const records = data.records || [];
@@ -3237,7 +3237,7 @@ async function clearDownloadRecords() {
   if (!confirm("确定清空所有下载记录？此操作不可撤销。")) return;
 
   try {
-    const resp = await fetch(`${API_ROOT}/downloads/records`, { method: "DELETE" });
+    const resp = await fetch(`${API_ROOT}/api/downloads/records`, { method: "DELETE" });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const countEl = document.getElementById("download-records-count");
     const listEl = document.getElementById("download-records-list");
@@ -3251,7 +3251,7 @@ async function clearDownloadRecords() {
 async function resetDownloadLogs() {
   if (!confirm("确定重置下载日志文件（下载记录.txt/跳过下载.txt/下载失败.txt）？")) return;
   try {
-    const resp = await fetch(`${API_ROOT}/downloads/logs`, { method: "DELETE" });
+    const resp = await fetch(`${API_ROOT}/api/downloads/logs`, { method: "DELETE" });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     alert("✅ 下载日志已重置");
   } catch (err) {
@@ -3308,7 +3308,8 @@ function onImportFilePicked(event) {
   const reader = new FileReader();
   reader.onload = function(e) {
     importFileContent = e.target.result;
-    document.getElementById("import-file-path").value = "📄 " + file.name + " (已选择)";
+    const nameEl = document.getElementById("import-file-name");
+    if (nameEl) nameEl.textContent = "📄 " + file.name + " (已选择)";
     document.getElementById("import-result").style.display = "none";
   };
   reader.readAsText(file, "UTF-8");
@@ -3316,7 +3317,8 @@ function onImportFilePicked(event) {
 
 function openImportSongsModal() {
   document.getElementById("downloadRecordsModal").style.display = "none";
-  document.getElementById("import-file-path").value = "";
+  const nameEl = document.getElementById("import-file-name");
+  if (nameEl) nameEl.textContent = "未选择文件";
   importFileContent = null;
   document.getElementById("import-file-picker").value = "";
   document.getElementById("import-result").style.display = "none";
@@ -3327,9 +3329,8 @@ function openImportSongsModal() {
 }
 
 async function startImportSongs() {
-  const filePath = document.getElementById("import-file-path").value.trim();
-  if (!filePath && !importFileContent) {
-    alert("请选择文件或输入文件路径");
+  if (!importFileContent) {
+    alert("请先选择要导入的文件");
     return;
   }
 
@@ -3338,8 +3339,8 @@ async function startImportSongs() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 导入中...';
 
   try {
-    const body = importFileContent ? { fileContent: importFileContent } : { filePath };
-    const resp = await fetch(`${API_ROOT}/downloads/import`, {
+    const body = { fileContent: importFileContent };
+    const resp = await fetch(`${API_ROOT}/api/downloads/import`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -5805,7 +5806,7 @@ async function batchDownload() {
   // 预检：统计会跳过的数量
   let precheckSkipText = "";
   try {
-    const preResp = await fetch(`${API_ROOT}/downloads/precheck`, {
+    const preResp = await fetch(`${API_ROOT}/api/downloads/precheck`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

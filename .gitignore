@@ -28,3 +28,6 @@ __debug_bin*
 .env
 .tmp-gogio-internal/
 build_log.txt
+.reasonix/
+test_import.txt
+sync_and_pr.bat
