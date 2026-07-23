@@ -448,7 +448,7 @@ func StartWithOptions(port string, opts StartOptions) {
 		c.JSON(200, core.GetWebSettings())
 	})
 
-	RegisterMusicRoutes(api)
+	RegisterMusicRoutes(api, configAPI)
 	RegisterQRLoginRoutes(configAPI)
 	RegisterCollectionRoutes(api)
 	RegisterLocalMusicRoutes(api)

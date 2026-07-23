@@ -349,7 +349,7 @@ func playlistCategoryPlaylistsURL(source string, category model.PlaylistCategory
 	return RoutePrefix + "/category_playlists?" + values.Encode()
 }
 
-func RegisterMusicRoutes(api *gin.RouterGroup) {
+func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 	api.GET("/", func(c *gin.Context) {
 		renderIndex(c, nil, nil, "", nil, "", "song", "", "", "", false, "", nil)
@@ -1111,7 +1111,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 		c.JSON(200, gin.H{"records": records})
 	})
 
-	api.DELETE("/api/downloads/records", func(c *gin.Context) {
+	configAPI.DELETE("/api/downloads/records", func(c *gin.Context) {
 		if err := core.ClearDownloadRecords(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1149,7 +1149,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 	})
 
 	// 导入已有曲库（仅接受 fileContent 上传，不接受 filePath 以防路径遍历）
-	api.POST("/api/downloads/import", func(c *gin.Context) {
+	configAPI.POST("/api/downloads/import", func(c *gin.Context) {
 		var req struct {
 			FileContent string `json:"fileContent"`
 		}
@@ -1172,7 +1172,7 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 	})
 
 	// 重置下载日志文件
-	api.DELETE("/api/downloads/logs", func(c *gin.Context) {
+	configAPI.DELETE("/api/downloads/logs", func(c *gin.Context) {
 		var files = []string{"下载记录.txt", "跳过下载.txt", "下载失败.txt"}
 		var errs []string
 		for _, f := range files {

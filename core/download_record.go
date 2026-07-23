@@ -361,8 +361,13 @@ func importDirectoryListingFromLines(lines []string) *ImportDirectoryListingResu
 	}
 
 	dataDir := filepath.Dir(resolveAllSongsFilePath())
-	writeLinesFile(filepath.Join(dataDir, "成功解析.txt"), successLines)
-	writeLinesFile(filepath.Join(dataDir, "不能匹配.txt"), failLines)
+	if err := writeLinesFile(filepath.Join(dataDir, "成功解析.txt"), successLines); err != nil {
+		result.Skipped += result.Imported
+		result.Imported = 0
+	}
+	if err := writeLinesFile(filepath.Join(dataDir, "不能匹配.txt"), failLines); err != nil {
+		// 不影响已解析数据，只记录跳过
+	}
 
 	result.DataDir = dataDir
 
@@ -370,17 +375,16 @@ func importDirectoryListingFromLines(lines []string) *ImportDirectoryListingResu
 }
 
 // writeLinesFile 将行列表写入指定文件（覆盖模式），空列表写 "(无)"。
-func writeLinesFile(path string, lines []string) {
+func writeLinesFile(path string, lines []string) error {
 	if len(lines) == 0 {
-		_ = os.WriteFile(path, []byte("(无)\n"), 0644)
-		return
+		return os.WriteFile(path, []byte("(无)\n"), 0644)
 	}
 	var sb strings.Builder
 	for _, line := range lines {
 		sb.WriteString(line)
 		sb.WriteString("\n")
 	}
-	_ = os.WriteFile(path, []byte(sb.String()), 0644)
+	return os.WriteFile(path, []byte(sb.String()), 0644)
 }
 
 // AppendLogLine 追加一行到指定日志文件（在 DataDir 下），用于累计记录。
@@ -470,6 +474,10 @@ func DownloadWithDedupCheckWithTemplate(song *model.Song, outDir string, withCov
 	_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusSuccess, "")
 	_ = AppendToAllSongs(song.Artist, song.Name)
 	_ = AppendLogLine("下载记录.txt", key)
+	// 更新内存集合，确保同一批次内的后续下载能正确去重
+	if allSongsSet != nil {
+		allSongsSet[key] = struct{}{}
+	}
 
 	return result, nil
 }
