@@ -516,11 +516,11 @@ body.batch-mode .song-card { padding-left: 10px; }
 
 .auth-float { margin: 0; display: flex; align-items: center; justify-content: center; }
 .rt-form { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
-.auth-float button { border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; font-size: 15px; }
-.auth-float.auth-login button { background: #ecfdf5; color: #059669; border: 1px solid rgba(5, 150, 105, 0.3); }
-.auth-float.auth-logout button { background: #fff1f2; color: #e11d48; border: 1px solid rgba(225, 29, 72, 0.3); }
-.auth-float.auth-login button:hover { background: #10b981; color: white; transform: scale(1.1); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
-.auth-float.auth-logout button:hover { background: #e11d48; color: white; transform: scale(1.1); }
+#auth-float-form button { border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; font-size: 15px; }
+#auth-float-form.auth-login button { background: #ecfdf5; color: #059669; border: 1px solid rgba(5, 150, 105, 0.3); }
+#auth-float-form.auth-logout button { background: #fff1f2; color: #e11d48; border: 1px solid rgba(225, 29, 72, 0.3); }
+#auth-float-form.auth-login button:hover { background: #10b981; color: white; transform: scale(1.1); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
+#auth-float-form.auth-logout button:hover { background: #e11d48; color: white; transform: scale(1.1); }
 
 /* 下载中面板 - 左侧浮动 */
 .download-panel {
@@ -561,7 +561,6 @@ body.batch-mode .song-card { padding-left: 10px; }
 .download-panel-close:hover { opacity: 1; }
 .switch-panel-header { background: #10b981; }
 .switch-panel .dp-icon.dp-loading { color: #10b981; }
-.clip-panel .dp-icon.dp-loading { color: #10b981; }
 .download-panel-body {
     flex: 1;
     overflow-y: auto;
@@ -1417,7 +1416,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     body { padding: 0 0 280px 0; background-size: 100% 400px; }
     .container { padding: 0; width: 100%; }
     /* 手机端隐藏左侧浮动面板 */
-    #download-panel, #switch-panel, #clip-panel { display: none !important; }
+    #download-panel, #switch-panel { display: none !important; }
     .search-box { padding: 20px 15px; border-radius: 0 0 20px 20px; margin-bottom: 20px; border-left: none; border-right: none; border-top: none; }
     h1 { font-size: 1.8rem; margin-bottom: 20px; }
     .input-group { margin-bottom: 15px; flex-direction: column; }

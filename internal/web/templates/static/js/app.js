@@ -1,4 +1,4 @@
-﻿// templates/app.js
+// templates/app.js
 
 const API_ROOT = window.API_ROOT;
 const WEB_SETTINGS_KEY = "musicdl:web_settings";
@@ -381,6 +381,11 @@ function setAuthFloatLoggedIn(loggedIn) {
 
 async function refreshAuthFloat() {
   try {
+    // 桌面模式（127.0.0.1:37777）无认证概念，直接显示未登录
+    if (window.location.port === "37777" && window.location.hostname === "127.0.0.1") {
+      setAuthFloatLoggedIn(false);
+      return;
+    }
     const response = await fetch(API_ROOT + "/cookies", {
       method: "HEAD",
       headers: { Accept: "application/json" },
@@ -3330,7 +3335,7 @@ function openImportSongsModal() {
   document.getElementById("import-result").style.display = "none";
   document.getElementById("import-result").innerHTML = "";
   document.getElementById("import-btn").disabled = false;
-  document.getElementById("import-btn").innerHTML = '<i class="fa-solid fa-play"></i> 开始解析';
+  document.getElementById("import-btn").innerHTML = '<i class="fa-solid fa-rotate"></i> 解析';
   document.getElementById("importSongsModal").style.display = "flex";
 }
 
@@ -3393,161 +3398,10 @@ async function startImportSongs() {
     resultDiv.innerHTML = `<div style="color:#e53e3e;"><strong>请求失败:</strong> ${escapeHtml(err.message)}</div>`;
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-play"></i> 开始解析';
+    btn.innerHTML = '<i class="fa-solid fa-rotate"></i> 解析';
   }
 }
 
-// ==========================================
-// 导入歌曲片段
-// ==========================================
-
-let clipFileContent = null;
-
-function pickClipFile() {
-  document.getElementById("clip-file-picker").click();
-}
-
-function onClipFilePicked(event) {
-  const files = event.target.files;
-  if (!files || files.length === 0) return;
-
-  // 遍历文件夹，提取音乐文件路径
-  const musicExts = [".mp3", ".m4a", ".flac", ".wav", ".ogg", ".wma", ".aac", ".ape", ".dsf"];
-  const lines = [];
-  for (const file of files) {
-    const ext = file.name.includes(".") ? "." + file.name.split(".").pop().toLowerCase() : "";
-    if (musicExts.includes(ext)) {
-      lines.push(file.webkitRelativePath || file.name);
-    }
-  }
-  clipFileContent = lines.join("\n");
-  const nameEl = document.getElementById("clip-file-name");
-  if (nameEl) nameEl.textContent = "📁 " + (files[0].webkitRelativePath?.split("/")[0] || "已选择") + " (" + lines.length + " 个文件)";
-  document.getElementById("clip-result").style.display = "none";
-}
-
-function openClipImportModal() {
-  closeDownloadPanel();
-  const nameEl = document.getElementById("clip-file-name");
-  if (nameEl) nameEl.textContent = "未选择文件";
-  clipFileContent = null;
-  document.getElementById("clip-file-picker").value = "";
-  document.getElementById("clip-result").style.display = "none";
-  document.getElementById("clip-result").innerHTML = "";
-  document.getElementById("clip-btn").disabled = false;
-  document.getElementById("clip-btn").innerHTML = '<i class="fa-solid fa-search"></i> 开始搜索';
-  document.getElementById("clipImportModal").style.display = "flex";
-}
-
-function closeClipImportModal() {
-  document.getElementById("clipImportModal").style.display = "none";
-}
-
-async function startClipImport() {
-  if (!clipFileContent) {
-    alert("请先选择要导入的文件");
-    return;
-  }
-
-  const btn = document.getElementById("clip-btn");
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 搜索中...';
-
-  // 显示进度区
-  const clipResult = document.getElementById("clip-result");
-  clipResult.style.display = "none";
-
-  // 显示左侧面板
-  showClipPanel();
-  try {
-    const sourceCbs = document.querySelectorAll(".clip-source-cb:checked");
-    const sources = Array.from(sourceCbs).map(cb => cb.value);
-    const threshold = parseInt(document.getElementById("clip-threshold")?.value, 10) || 75;
-
-    const response = await fetch(`${API_ROOT}/api/songs/import-clips`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileContent: clipFileContent, sources, threshold: threshold / 100 })
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let result = null;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        let data;
-        try {
-          data = JSON.parse(line.slice(6));
-        } catch (_) { continue; }
-
-        if (data.type === "progress") {
-          if (data.song && data.itemMatched !== undefined) {
-            addClipPanelItem(data.song, data.itemMatched);
-          }
-        } else if (data.type === "result") {
-          result = data;
-        } else if (data.type === "error") {
-          throw new Error(data.error || "搜索失败");
-        }
-      }
-    }
-
-    // 处理 buffer 剩余内容
-    if (buffer.startsWith("data: ")) {
-      try {
-        const data = JSON.parse(buffer.slice(6));
-        if (data.type === "result") result = data;
-        else if (data.type === "error") throw new Error(data.error || "搜索失败");
-      } catch (_) {}
-    }
-
-    // 显示结果
-    if (!result) throw new Error("未收到搜索结果");
-
-    let html = `<div style="color:#10b981;"><strong>搜索完成!</strong></div>`;
-    html += `<div style="margin-top:8px;font-size:13px;">`;
-    html += `总行数: <strong>${result.total}</strong> | `;
-    html += `已匹配: <strong style="color:#10b981;">${result.matched}</strong> 首`;
-    html += `</div>`;
-
-    if (result.matched > 0) {
-      html += `<div style="margin-top:10px;">`;
-      html += `<button class="btn-pill btn-pill-primary" onclick="showClipResults()" style="font-size:13px;">`;
-      html += `<i class="fa-solid fa-list"></i> 在搜索结果中查看</button>`;
-      html += `</div>`;
-    }
-
-    clipResult.innerHTML = html;
-    clipResult.style.display = "block";
-
-    window._clipMatchedSongs = result.songs || [];
-    window._clipResultKey = result.key || "";
-  } catch (err) {
-    clipResult.style.display = "block";
-    clipResult.innerHTML = `<div style="color:#e53e3e;"><strong>请求失败:</strong> ${escapeHtml(err.message)}</div>`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-search"></i> 开始搜索';
-  }
-}
-
-function showClipResults() {
-  closeClipImportModal();
-  const key = window._clipResultKey;
-  if (key) {
-    navigateTo(`${API_ROOT}/clip-results?key=${encodeURIComponent(key)}`);
-  }
-}
 
 function proxiedGithubURL(rawURL, proxyURL, enabled) {
   if (!enabled || !rawURL || !rawURL.startsWith("https://github.com/")) {
@@ -5940,57 +5794,6 @@ function closeSwitchPanel() {
   if (panel) panel.style.display = "none";
 }
 
-// ==========================================
-// 导入歌曲片段面板
-// ==========================================
-
-let clipPanelItems = [];
-
-function showClipPanel() {
-  closeDownloadPanel();
-  closeSwitchPanel();
-  const panel = document.getElementById("clip-panel");
-  const body = document.getElementById("clip-panel-body");
-  const footer = document.getElementById("clip-panel-footer");
-  if (!panel || !body || !footer) return;
-  clipPanelItems = [];
-  body.innerHTML = "";
-  footer.textContent = "正在搜索...";
-  panel.style.display = "flex";
-}
-
-function updateClipPanelFooter() {
-  const footer = document.getElementById("clip-panel-footer");
-  if (!footer) return;
-  const matchedCount = clipPanelItems.filter(i => i.matched).length;
-  const noMatchCount = clipPanelItems.filter(i => !i.matched).length;
-  const total = clipPanelItems.length;
-  footer.textContent = `已处理: ${total}  匹配: ${matchedCount}  未匹配: ${noMatchCount}`;
-}
-
-function addClipPanelItem(song, matched) {
-  const body = document.getElementById("clip-panel-body");
-  if (!body) return;
-
-  clipPanelItems.push({ song, matched });
-
-  const div = document.createElement("div");
-  div.className = "download-panel-item";
-  div.innerHTML = `<span class="dp-icon ${matched ? 'dp-success' : 'dp-failed'}"><i class="fa-solid ${matched ? 'fa-check-circle' : 'fa-circle-xmark'}"></i></span><span>${escapeHtml(song)}</span>`;
-  body.appendChild(div);
-  div.scrollIntoView({ block: "center", behavior: "smooth" });
-
-  if (body.scrollHeight > body.clientHeight) {
-    body.scrollTop = body.scrollHeight;
-  }
-
-  updateClipPanelFooter();
-}
-
-function closeClipPanel() {
-  const panel = document.getElementById("clip-panel");
-  if (panel) panel.style.display = "none";
-}
 
 async function batchDownload() {
   // 关闭旧面板，准备新任务
