@@ -1186,6 +1186,26 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		}
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+
+	// 导入歌曲片段 — 搜索完整版
+	api.POST("/api/songs/import-clips", func(c *gin.Context) {
+		var req struct {
+			FileContent string   `json:"fileContent"`
+			Sources     []string `json:"sources"`
+			Threshold   float64  `json:"threshold"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil || req.FileContent == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请选择文件"})
+			return
+		}
+
+		result, err := core.ImportSongClips(req.FileContent, req.Sources, req.Threshold)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, result)
+	})
 }
 
 func saveWebAssetResponse(c *gin.Context, filename string, data []byte) {

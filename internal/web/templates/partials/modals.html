@@ -337,4 +337,56 @@
         </div>
     </div>
 </div>
+
+<!-- 导入歌曲片段弹窗 -->
+<div id="clipImportModal" class="modal-overlay" style="z-index: 1010;">
+    <div class="modal" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-scissors"></i> 导入歌曲片段</h3>
+            <div class="modal-close" onclick="closeClipImportModal()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 12px;">
+                选择包含歌曲片段的目录列表文件，系统将搜索各音乐源中匹配度 &gt; 60% 的完整版歌曲。
+            </p>
+            <div class="cookie-item">
+                <label>目录列表文件</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span id="clip-file-name" style="flex:1;font-size:13px;color:var(--text-sub);padding:6px 0;">未选择文件</span>
+                    <button type="button" class="btn-pill" onclick="pickClipFile()" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+                        <i class="fa-solid fa-folder-open"></i> 选择文件
+                    </button>
+                </div>
+                <input type="file" id="clip-file-picker" accept=".txt,.csv,.m3u,.m3u8" style="display:none;" onchange="onClipFilePicked(event)">
+            </div>
+            <div class="cookie-item">
+                <label>搜索源</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;" id="clip-source-grid">
+                    {{ range $source := .AllSources }}
+                    <label class="source-checkbox-label" style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:4px 8px;background:var(--bg-sub);border-radius:6px;">
+                        <input type="checkbox" class="clip-source-cb" value="{{ $source }}" checked>
+                        <span>{{ $source }}</span>
+                    </label>
+                    {{ end }}
+                </div>
+                <p class="setting-hint" style="margin-left:0;">勾选的源将被搜索，取消勾选可加快速度。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="clip-threshold">匹配度阈值</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="range" id="clip-threshold" min="1" max="100" value="60" style="flex:1;" oninput="document.getElementById('clip-threshold-val').textContent=this.value+'%'">
+                    <span id="clip-threshold-val" style="font-weight:700;color:#10b981;min-width:40px;text-align:center;">60%</span>
+                </div>
+                <p class="setting-hint" style="margin-left:0;">相似度达到此值的歌曲才会被加入结果列表，默认为 60%。</p>
+            </div>
+            <div id="clip-result" style="display:none;margin-bottom:12px;padding:12px;border-radius:8px;background:var(--bg-sub);font-size:13px;"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" class="btn-pill" onclick="closeClipImportModal()">取消</button>
+                <button type="button" id="clip-btn" class="btn-pill btn-pill-primary" onclick="startClipImport()">
+                    <i class="fa-solid fa-search"></i> 开始搜索
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {{end}}

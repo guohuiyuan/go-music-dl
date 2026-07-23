@@ -437,6 +437,90 @@ const (
 	DownloadStatusFailed  = "failed"
 )
 
+// ==========================================
+// 导入歌曲片段 — 搜索完整版
+// ==========================================
+
+// ClipImportResult 歌曲片段导入结果
+type ClipImportResult struct {
+	Total   int          `json:"total"`   // 文件总行数
+	Matched int          `json:"matched"` // 成功匹配数
+	Songs   []model.Song `json:"songs"`   // 匹配到的歌曲列表
+}
+
+// ImportSongClips 解析目录列表文件，对每首可解析的歌曲搜索指定的音乐源，
+// 返回相似度 >= threshold 的匹配结果。sources 为空时搜索全部源。
+func ImportSongClips(content string, sources []string, threshold float64) (*ClipImportResult, error) {
+	lines := strings.Split(content, "\n")
+	if len(sources) == 0 {
+		sources = GetAllSourceNames()
+	}
+	if threshold <= 0 || threshold > 1 {
+		threshold = 0.6
+	}
+
+	result := &ClipImportResult{}
+	seen := make(map[string]bool) // 按 "source:id" 去重
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		result.Total++
+
+		base := filepath.Base(line)
+		ext := filepath.Ext(base)
+		nameOnly := strings.TrimSuffix(base, ext)
+
+		parsedName, parsedArtist, ok := parseFileNameToArtistName(nameOnly)
+		if !ok {
+			continue
+		}
+
+		// 搜索各音乐源
+		for _, src := range sources {
+			if src == "" {
+				continue
+			}
+			searchFn := GetSearchFunc(src)
+			if searchFn == nil {
+				continue
+			}
+
+			keyword := parsedName
+			if parsedArtist != "" {
+				keyword = parsedName + " " + parsedArtist
+			}
+
+			results, err := searchFn(keyword)
+			if err != nil || len(results) == 0 {
+				continue
+			}
+
+			for _, song := range results {
+				// 相似度 > 60%
+				score := CalcSongSimilarity(parsedName, parsedArtist, song.Name, song.Artist)
+				if score < threshold {
+					continue
+				}
+
+				// 去重
+				key := song.Source + ":" + song.ID
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+
+				result.Songs = append(result.Songs, song)
+				result.Matched++
+			}
+		}
+	}
+
+	return result, nil
+}
+
 // DownloadWithDedupCheck 带去重检查的下载函数：先查 "全部文件.txt"，
 // 已存在则跳过并记录 "skipped"；否则下载、记录 "success"/"failed"。
 // allSongsSet 从 LoadAllSongsSet() 获取，批量下载时复用可避免重复读文件。

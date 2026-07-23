@@ -3391,6 +3391,159 @@ async function startImportSongs() {
   }
 }
 
+// ==========================================
+// 导入歌曲片段
+// ==========================================
+
+let clipFileContent = null;
+
+function pickClipFile() {
+  document.getElementById("clip-file-picker").click();
+}
+
+function onClipFilePicked(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    clipFileContent = e.target.result;
+    const nameEl = document.getElementById("clip-file-name");
+    if (nameEl) nameEl.textContent = "📄 " + file.name + " (已选择)";
+    document.getElementById("clip-result").style.display = "none";
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+function openClipImportModal() {
+  closeDownloadPanel();
+  const nameEl = document.getElementById("clip-file-name");
+  if (nameEl) nameEl.textContent = "未选择文件";
+  clipFileContent = null;
+  document.getElementById("clip-file-picker").value = "";
+  document.getElementById("clip-result").style.display = "none";
+  document.getElementById("clip-result").innerHTML = "";
+  document.getElementById("clip-btn").disabled = false;
+  document.getElementById("clip-btn").innerHTML = '<i class="fa-solid fa-search"></i> 开始搜索';
+  document.getElementById("clipImportModal").style.display = "flex";
+}
+
+function closeClipImportModal() {
+  document.getElementById("clipImportModal").style.display = "none";
+}
+
+async function startClipImport() {
+  if (!clipFileContent) {
+    alert("请先选择要导入的文件");
+    return;
+  }
+
+  const btn = document.getElementById("clip-btn");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 搜索中...';
+
+  try {
+    // 收集选中的搜索源
+    const sourceCbs = document.querySelectorAll(".clip-source-cb:checked");
+    const sources = Array.from(sourceCbs).map(cb => cb.value);
+    const threshold = parseInt(document.getElementById("clip-threshold")?.value, 10) || 60;
+
+    const resp = await fetch(`${API_ROOT}/api/songs/import-clips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileContent: clipFileContent, sources, threshold: threshold / 100 })
+    });
+    const data = await resp.json();
+
+    const resultDiv = document.getElementById("clip-result");
+    resultDiv.style.display = "block";
+
+    if (!resp.ok) {
+      resultDiv.innerHTML = `<div style="color:#e53e3e;"><strong>搜索失败:</strong> ${escapeHtml(data.error || "未知错误")}</div>`;
+      return;
+    }
+
+    let html = `<div style="color:#10b981;"><strong>搜索完成!</strong></div>`;
+    html += `<div style="margin-top:8px;font-size:13px;">`;
+    html += `总行数: <strong>${data.total}</strong> | `;
+    html += `已匹配: <strong style="color:#10b981;">${data.matched}</strong> 首`;
+    html += `</div>`;
+
+    if (data.matched > 0) {
+      html += `<div style="margin-top:10px;">`;
+      html += `<button class="btn-pill btn-pill-primary" onclick="showClipResults()" style="font-size:13px;">`;
+      html += `<i class="fa-solid fa-list"></i> 显示搜索结果</button>`;
+      html += `</div>`;
+    }
+
+    resultDiv.innerHTML = html;
+
+    // 保存匹配结果供显示用
+    window._clipMatchedSongs = data.songs || [];
+  } catch (err) {
+    const resultDiv = document.getElementById("clip-result");
+    resultDiv.style.display = "block";
+    resultDiv.innerHTML = `<div style="color:#e53e3e;"><strong>请求失败:</strong> ${escapeHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-search"></i> 开始搜索';
+  }
+}
+
+function showClipResults() {
+  closeClipImportModal();
+  const songs = window._clipMatchedSongs || [];
+  if (songs.length === 0) return;
+
+  // 更新页面显示：清空现有结果，显示匹配的歌曲
+  const list = document.querySelector(".result-list");
+  const countEl = document.querySelector(".result-count .count");
+  const header = document.querySelector(".list-header");
+
+  // 隐藏歌单/专辑相关的头部内容
+  const sourceLink = header?.querySelector(".playlist-source-link");
+  if (sourceLink) sourceLink.style.display = "none";
+
+  // 更新计数
+  if (countEl) countEl.textContent = String(songs.length);
+
+  // 更新页摘要
+  const summary = document.querySelector(".page-summary");
+  if (summary) summary.textContent = `当前第 1 / 1 页，显示 1 - ${songs.length} / ${songs.length}`;
+
+  // 生成歌曲卡片
+  if (list) {
+    list.innerHTML = songs.map((song, i) => {
+      const cover = song.cover || "";
+      const coverHTML = cover
+        ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(song.name)}" loading="lazy" onerror="this.style.display='none'">`
+        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc;">♪</div>`;
+      const duration = song.duration ? formatDuration(parseInt(song.duration, 10)) : "";
+      const downloadURL = `${API_ROOT}/download?id=${encodeURIComponent(song.id)}&source=${encodeURIComponent(song.source)}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}&cover=${encodeURIComponent(cover)}&embed=1&save=1`;
+      return `<li class="song-card" data-id="${escapeHtml(song.id)}" data-source="${escapeHtml(song.source)}" data-name="${escapeHtml(song.name)}" data-artist="${escapeHtml(song.artist)}" data-cover="${escapeHtml(cover)}" data-duration="${song.duration || 0}">
+        <div class="checkbox-wrapper"><input type="checkbox" class="song-checkbox" onclick="event.stopPropagation();updateBatchToolbar();"></div>
+        <div class="cover-wrapper">${coverHTML}</div>
+        <div class="song-info">
+          <h3>${escapeHtml(song.name)}</h3>
+          <div class="artist-line"><span>${escapeHtml(song.artist)}</span></div>
+          <div class="tags">
+            <span class="tag tag-source">${escapeHtml(song.source)}</span>
+            ${duration ? `<span class="tag tag-duration">${duration}</span>` : ""}
+            <span class="tag tag-loading" id="size-${escapeHtml(song.id)}">探测中...</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-circle btn-play" title="播放" onclick="playAllAndJumpTo(this)"><i class="fa-solid fa-play"></i></button>
+          <button type="button" class="btn-circle btn-fav" title="收藏" onclick="openAddToCollectionModal(this)"><i class="fa-regular fa-heart"></i></button>
+          <a href="${escapeHtml(downloadURL)}" class="btn-circle btn-dl" title="保存到本地目录" target="_blank"><i class="fa-solid fa-download"></i></a>
+        </div>
+      </li>`;
+    }).join("");
+  }
+
+  // 滚动到顶部
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function proxiedGithubURL(rawURL, proxyURL, enabled) {
   if (!enabled || !rawURL || !rawURL.startsWith("https://github.com/")) {
     return rawURL;
