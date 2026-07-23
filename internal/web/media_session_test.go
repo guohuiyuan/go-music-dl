@@ -86,7 +86,7 @@ func TestCoverProxyReturnsInlineImage(t *testing.T) {
 	defer upstream.Close()
 
 	router := gin.New()
-	RegisterMusicRoutes(router.Group(RoutePrefix))
+	RegisterMusicRoutes(router.Group(RoutePrefix), router.Group(RoutePrefix))
 
 	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/cover_proxy?url="+url.QueryEscape(upstream.URL), nil)
 	rec := httptest.NewRecorder()
