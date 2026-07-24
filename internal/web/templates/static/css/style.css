@@ -526,8 +526,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 .download-panel {
     position: fixed;
     left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 80px;
     width: 320px;
     max-height: 60vh;
     background: white;

@@ -3280,6 +3280,15 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+function toggleCookieSection() {
+  const body = document.getElementById("cookie-section-body");
+  const icon = document.getElementById("cookie-toggle-icon");
+  if (!body || !icon) return;
+  const isHidden = body.style.display === "none";
+  body.style.display = isHidden ? "block" : "none";
+  icon.textContent = isHidden ? "▼" : "▶";
+}
+
 // 选择下载目录文件夹
 async function pickDownloadFolder() {
   try {

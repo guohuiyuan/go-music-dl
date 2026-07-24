@@ -2,10 +2,10 @@
 <div id="cookieModal" class="modal-overlay" style="z-index: 1001;">
     <div class="modal">
         <div class="modal-header">
-            <h3>设置 Cookies</h3>
+            <h3 style="cursor:pointer;" onclick="toggleCookieSection()">设置 Cookies <span id="cookie-toggle-icon" style="font-size:12px;margin-left:6px;">▶</span></h3>
             <div class="modal-close" onclick="document.getElementById('cookieModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
         </div>
-        <div class="modal-body">
+        <div id="cookie-section-body" style="display:none;">
             <div class="cookie-list">
                 {{ range $source := .AllSources }}
                 <div class="cookie-item">
