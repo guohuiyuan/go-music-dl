@@ -109,7 +109,8 @@ func ensureConfigDB() error {
 			configInitErr = err
 			return
 		}
-		migrateFromTxt()
+		// 异步迁移已有 txt 文件，不阻塞服务启动
+		go migrateFromTxt()
 
 		configDB = db
 		configInitErr = migrateLegacyCookies()
