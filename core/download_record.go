@@ -11,11 +11,101 @@ import (
 	"unicode"
 
 	"github.com/guohuiyuan/music-lib/model"
+	"gorm.io/gorm/clause"
 )
 
 // ==========================================
 // 下载记录（持久化到 SQLite）
 // ==========================================
+
+// ImportedSong 导入成功解析的歌曲（替代 成功解析.txt）
+type ImportedSong struct {
+	ID        uint      `gorm:"primaryKey"`
+	Key       string    `gorm:"size:1024;not null;uniqueIndex"`
+	CreatedAt time.Time `gorm:"autoCreateTime;index"`
+}
+
+// DownloadLog 下载记录（替代 下载记录.txt/跳过下载.txt/下载失败.txt）
+type DownloadLog struct {
+	ID        uint      `gorm:"primaryKey"`
+	Key       string    `gorm:"size:1024;not null;index"`
+	Status    string    `gorm:"size:32;not null;index"` // success / skipped / failed
+	Error     string    `gorm:"size:1024"`
+	CreatedAt time.Time `gorm:"autoCreateTime;index"`
+}
+
+func initImportTables() error {
+	if err := ensureConfigDB(); err != nil {
+		return err
+	}
+	return configDB.AutoMigrate(&ImportedSong{}, &DownloadLog{})
+}
+
+// migrateFromTxt 将现有 txt 文件导入 SQLite（仅首次运行）
+func migrateFromTxt() error {
+	if err := initImportTables(); err != nil {
+		return err
+	}
+	dataDir := filepath.Dir(resolveAllSongsFilePath())
+
+	if count, _ := countTable(&ImportedSong{}); count == 0 {
+		if lines, err := readLines(filepath.Join(dataDir, "成功解析.txt")); err == nil && len(lines) > 0 {
+			var batch []ImportedSong
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || line == "(无)" {
+					continue
+				}
+				batch = append(batch, ImportedSong{Key: line})
+			}
+			if len(batch) > 0 {
+				configDB.CreateInBatches(batch, 500)
+			}
+		}
+	}
+
+	if count, _ := countTable(&DownloadLog{}); count == 0 {
+		for _, pair := range [][2]string{{"下载记录.txt", "success"}, {"跳过下载.txt", "skipped"}, {"下载失败.txt", "failed"}} {
+			if lines, err := readLines(filepath.Join(dataDir, pair[0])); err == nil && len(lines) > 0 {
+				var batch []DownloadLog
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if line == "" || line == "(无)" {
+						continue
+					}
+					batch = append(batch, DownloadLog{Key: line, Status: pair[1]})
+				}
+				if len(batch) > 0 {
+					configDB.CreateInBatches(batch, 500)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func countTable(model interface{}) (int64, error) {
+	var count int64
+	err := configDB.Model(model).Count(&count).Error
+	return count, err
+}
+
+func readLines(filePath string) ([]string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
 
 type DownloadRecord struct {
 	ID        uint      `gorm:"primaryKey"`
@@ -229,27 +319,21 @@ func readLinesSet(filePath string) (map[string]struct{}, error) {
 	return set, scanner.Err()
 }
 
-// LoadDownloadDedupSet 加载下载去重集合：合并 成功解析.txt + 下载记录.txt。
-// 文件不存在时返回空集合（不报错），其他读取错误会返回。
+// LoadDownloadDedupSet 加载下载去重集合：从 SQLite 查询，不再读取 txt 文件。
 func LoadDownloadDedupSet() (map[string]struct{}, error) {
-	dataDir := filepath.Dir(resolveAllSongsFilePath())
+	if err := initImportTables(); err != nil {
+		return make(map[string]struct{}), err
+	}
 	set := make(map[string]struct{})
 
-	// 加载 成功解析.txt（导入的本地曲库）
-	s, err := readLinesSet(filepath.Join(dataDir, "成功解析.txt"))
-	if err != nil {
-		return set, fmt.Errorf("读取成功解析.txt 失败: %w", err)
-	}
-	for k := range s {
+	var keys []string
+	configDB.Model(&ImportedSong{}).Pluck("key", &keys)
+	for _, k := range keys {
 		set[k] = struct{}{}
 	}
-
-	// 加载 下载记录.txt（通过本工具成功下载的记录）
-	s, err = readLinesSet(filepath.Join(dataDir, "下载记录.txt"))
-	if err != nil {
-		return set, fmt.Errorf("读取下载记录.txt 失败: %w", err)
-	}
-	for k := range s {
+	keys = nil
+	configDB.Model(&DownloadLog{}).Where("status = ?", "success").Pluck("key", &keys)
+	for _, k := range keys {
 		set[k] = struct{}{}
 	}
 
@@ -376,15 +460,25 @@ func importDirectoryListingFromLines(lines []string) *ImportDirectoryListingResu
 	}
 
 	dataDir := filepath.Dir(resolveAllSongsFilePath())
-	if err := writeLinesFile(filepath.Join(dataDir, "成功解析.txt"), successLines); err != nil {
-		result.Skipped += result.Imported
-		result.Imported = 0
-	}
-	if err := writeLinesFile(filepath.Join(dataDir, "不能匹配.txt"), failLines); err != nil {
-		// 不影响已解析数据，只记录跳过
-	}
-
 	result.DataDir = dataDir
+
+	// 写入 SQLite
+	if len(successLines) > 0 {
+		if err := initImportTables(); err != nil {
+			return result
+		}
+		var batch []ImportedSong
+		for _, k := range successLines {
+			batch = append(batch, ImportedSong{Key: k})
+		}
+		for i := 0; i < len(batch); i += 500 {
+			end := i + 500
+			if end > len(batch) {
+				end = len(batch)
+			}
+			configDB.Clauses(clause.OnConflict{DoNothing: true}).Create(batch[i:end])
+		}
+	}
 
 	return result
 }
@@ -402,22 +496,26 @@ func writeLinesFile(path string, lines []string) error {
 	return os.WriteFile(path, []byte(sb.String()), 0644)
 }
 
-// AppendLogLine 追加一行到指定日志文件（在 DataDir 下），用于累计记录。
+// AppendLogLine 记录一条下载日志到 SQLite。
 func AppendLogLine(filename, line string) error {
-	path := filepath.Join(DataDir(), filename)
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
+	if err := initImportTables(); err != nil {
 		return err
 	}
-	defer f.Close()
-	_, err = f.WriteString(line + "\n")
-	return err
+	status := "success"
+	if strings.Contains(filename, "跳过") {
+		status = "skipped"
+	} else if strings.Contains(filename, "失败") || strings.Contains(filename, "fail") {
+		status = "failed"
+	}
+	return configDB.Create(&DownloadLog{Key: stripControl(line), Status: status}).Error
 }
 
-// ClearLogFile 清空指定日志文件（在 DataDir 下）。
-func ClearLogFile(filename string) error {
-	path := filepath.Join(DataDir(), filename)
-	return os.WriteFile(path, []byte{}, 0644)
+// ClearAllDownloadLogs 清空所有下载日志记录。
+func ClearAllDownloadLogs() error {
+	if err := initImportTables(); err != nil {
+		return err
+	}
+	return configDB.Where("1 = 1").Delete(&DownloadLog{}).Error
 }
 
 // ImportDirectoryListing 读取目录列表文件，解析生成 "成功解析.txt" 和 "不能匹配.txt"。

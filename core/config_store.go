@@ -105,10 +105,11 @@ func ensureConfigDB() error {
 			return
 		}
 
-		if err := db.AutoMigrate(&configKV{}, &cookieEntry{}, &DownloadRecord{}); err != nil {
+		if err := db.AutoMigrate(&configKV{}, &cookieEntry{}, &DownloadRecord{}, &ImportedSong{}, &DownloadLog{}); err != nil {
 			configInitErr = err
 			return
 		}
+		migrateFromTxt()
 
 		configDB = db
 		configInitErr = migrateLegacyCookies()

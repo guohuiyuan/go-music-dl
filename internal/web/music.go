@@ -1198,15 +1198,8 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 	// 重置下载日志文件
 	configAPI.DELETE("/api/downloads/logs", func(c *gin.Context) {
-		var files = []string{"下载记录.txt", "跳过下载.txt", "下载失败.txt"}
-		var errs []string
-		for _, f := range files {
-			if err := core.ClearLogFile(f); err != nil {
-				errs = append(errs, f+": "+err.Error())
-			}
-		}
-		if len(errs) > 0 {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": strings.Join(errs, "; ")})
+		if err := core.ClearAllDownloadLogs(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(200, gin.H{"status": "ok"})
