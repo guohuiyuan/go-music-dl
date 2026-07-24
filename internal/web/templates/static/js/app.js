@@ -292,6 +292,11 @@ function applyWebSettings(settings) {
       webSettings.autoSwitchInvalidSources;
   }
 
+  const autoCheckUpdateToggle = document.getElementById("setting-auto-check-update");
+  if (autoCheckUpdateToggle) {
+    autoCheckUpdateToggle.checked = webSettings.autoCheckUpdate;
+  }
+
   const autoCacheOnPlayToggle = document.getElementById(
     "setting-auto-cache-on-play",
   );
@@ -3242,6 +3247,8 @@ async function clearDownloadRecords() {
   if (!confirm("确定清空所有下载记录？此操作不可撤销。")) return;
 
   try {
+    // 同时清空下载日志（merged with reset logs）
+    await fetch(`${API_ROOT}/api/downloads/logs`, { method: "DELETE" });
     const resp = await fetch(`${API_ROOT}/api/downloads/records`, { method: "DELETE" });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const countEl = document.getElementById("download-records-count");
@@ -3543,7 +3550,7 @@ async function saveCookies() {
       cliPageSizeInput?.value,
       DEFAULT_CLI_PAGE_SIZE,
     ),
-    autoCheckUpdate: webSettings.autoCheckUpdate,
+    autoCheckUpdate: !!document.getElementById("setting-auto-check-update")?.checked,
     autoSwitchInvalidSources: !!document.getElementById(
       "setting-auto-switch-invalid-sources",
     )?.checked,
