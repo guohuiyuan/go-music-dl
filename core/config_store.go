@@ -172,7 +172,7 @@ func defaultWebSettings() WebSettings {
 		WebPageSize:              DefaultWebPageSize,
 		CliPageSize:              DefaultCLIPageSize,
 		DownloadConcurrency:      DefaultWebConcurrency,
-		AutoCheckUpdate:          true,
+		AutoCheckUpdate:          false,
 		AutoSwitchInvalidSources: true,
 		AutoCacheOnPlay:          true,
 		UpdateRepoURL:            DefaultUpdateRepoURL,

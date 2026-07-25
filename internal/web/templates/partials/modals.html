@@ -30,7 +30,25 @@
             </div>
         </div>
         <div class="modal-body">
-            <div class="cookie-item setting-item">
+<div class="cookie-item" style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:8px;">
+            <h4 style="cursor:pointer;margin:0;font-size:14px;" onclick="toggleCustomToolbar()">自定义工具栏 <span id="toolbar-toggle-icon" style="font-size:12px;">&#9654;</span><span style="font-weight:400;font-size:12px;color:var(--text-sub);margin-left:4px;">（点击右侧箭头展开）</span></h4>
+            </div>
+            <div id="custom-toolbar-body" style="display:none;padding:8px 12px;">
+            <p class="setting-hint" style="margin-left:0;">选择主页右侧工具栏显示哪些按钮。「设置」按钮始终显示。</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="settings" disabled checked style="opacity:0.5;"> 设置（始终显示）</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="auth" checked> 登录/退出</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="import" checked> 导入已有曲库</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="clear" checked> 清空下载记录</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="back" checked> 返回</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="forward" checked> 向前</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="pageUp" checked> 上一页</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="pageNum" checked> 页码</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="pageDown" checked> 下一页</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="scrollTop" checked> 回到顶部</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="scrollBottom" checked> 回到底部</label>
+            </div>
+            </div><div class="cookie-item setting-item">
                 <label class="setting-toggle" for="setting-embed-download">
                     <input type="checkbox" id="setting-embed-download">
                     <span class="setting-switch" aria-hidden="true"></span>
@@ -38,31 +56,13 @@
                 </label>
                 <p class="setting-hint">影响"保存到本地目录"和"浏览器下载"两种方式；播放始终使用流式下载，不内嵌元数据。</p>
             </div>
-            <div class="cookie-item">
-                <label for="setting-download-dir">本地下载目录</label>
-                <div class="download-dir-control">
-                    <select id="setting-download-dir-preset" aria-label="本地下载目录预设" aria-describedby="setting-download-dir-hint">
-                        <option value="data/downloads">PC 默认：data/downloads</option>
-                        <option value="downloads">PC 简洁：downloads</option>
-                        <option value="D:/Music/Downloads">PC 示例：D:/Music/Downloads</option>
-                        <option value="/sdcard/Music">Android 默认：/sdcard/Music</option>
-                        <option value="/storage/emulated/0/Music">Android 兼容：/storage/emulated/0/Music</option>
-                        <option value="/sdcard/Download">Android 下载：/sdcard/Download</option>
-                        <option value="__custom__">自定义目录...</option>
-                    </select>
-                    <div style="display:flex;gap:6px;align-items:center;">
-                        <input type="text" id="setting-download-dir" aria-describedby="setting-download-dir-hint" placeholder="例如: data/downloads、D:/Music/Downloads 或 /sdcard/Music" style="flex:1;">
-                        <button type="button" class="btn-pill" onclick="pickDownloadFolder()" title="选择文件夹" style="white-space:nowrap;font-size:12px;padding:4px 10px;">
-                            <i class="fa-solid fa-folder-open"></i>
-                        </button>
-                    </div>
-                </div>
-                <p id="setting-download-dir-hint" class="setting-hint" style="margin-left: 0;">选择预设会自动填入路径，也可以手填相对目录或绝对目录。Android 建议使用 <code>/sdcard/Music</code>，便于系统音乐应用识别。</p>
-            </div>
-            <div class="cookie-item">
-                <label for="setting-download-filename-template">音乐文件名模板</label>
-                <input type="text" id="setting-download-filename-template" placeholder="{artist} - {name}">
-                <p class="setting-hint" style="margin-left: 0;">支持 <code>{name}</code>、<code>{artist}</code>、<code>{album}</code>、<code>{source}</code>、<code>{id}</code>、<code>{ext}</code>。未写 <code>{ext}</code> 时会自动追加扩展名；可用 <code>/</code> 或 <code>\</code> 创建相对子目录，例如 <code>{artist}/{album}/{name} - {artist}.{ext}</code>。</p>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-auto-switch-invalid-sources">
+                    <input type="checkbox" id="setting-auto-switch-invalid-sources">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">自动选择无效音源并批量换源</span>
+                </label>
+                <p class="setting-hint">音乐列表检测完成后，会自动选中当前列表全部无效歌曲并执行批量换源，默认开启。</p>
             </div>
             <div class="cookie-item setting-item">
                 <label class="setting-toggle" for="setting-auto-cache-on-play">
@@ -80,54 +80,6 @@
                 </label>
                 <p class="setting-hint">关闭后，播放音乐时不显示底部悬浮歌词。</p>
             </div>
-            <div class="cookie-item">
-                <label for="setting-web-page-size">Web 每页条数</label>
-                <select id="setting-web-page-size" aria-label="Web 每页条数">
-                    <option value="30">30 条/页</option>
-                    <option value="100">100 条/页</option>
-                    <option value="200" selected>200 条/页（默认）</option>
-                    <option value="300">300 条/页</option>
-                    <option value="400">400 条/页</option>
-                    <option value="500">500 条/页</option>
-                </select>
-                <p class="setting-hint" style="margin-left: 0;">搜索结果列表每页显示的歌曲数量，默认 200。</p>
-            </div>
-            <div class="cookie-item">
-                <label for="setting-cli-page-size">CLI 每页条数</label>
-                <input type="number" id="setting-cli-page-size" min="1" max="200" step="1" placeholder="默认 20">
-                <p class="setting-hint" style="margin-left: 0;">用于 TUI 分页显示，默认 20。</p>
-            </div>
-            <div class="cookie-item">
-                <label class="switch-label">
-                    <input type="checkbox" id="setting-auto-check-update" checked>
-                    <span>启动时检查更新</span>
-                </label>
-                <p class="setting-hint" style="margin-left: 0;">每次启动软件时自动检查 GitHub 是否有新版本。</p>
-            </div>
-            <div class="cookie-item setting-item">
-                <label class="setting-toggle" for="setting-auto-switch-invalid-sources">
-                    <input type="checkbox" id="setting-auto-switch-invalid-sources">
-                    <span class="setting-switch" aria-hidden="true"></span>
-                    <span class="setting-toggle-text">自动选择无效音源并批量换源</span>
-                </label>
-                <p class="setting-hint">音乐列表检测完成后，会自动选中当前列表全部无效歌曲并执行批量换源，默认开启。</p>
-            </div>
-            <button type="button" class="cookie-item setting-item setting-link-row" onclick="openAboutAppModal()">
-                <span class="setting-link-icon"><i class="fa-solid fa-circle-info"></i></span>
-                <span class="setting-link-body">
-                    <span class="setting-link-title">关于 go-music-dl</span>
-                    <span class="setting-link-desc">查看当前版本并检查 GitHub 是否有新版</span>
-                </span>
-                <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="cookie-item setting-item setting-link-row" onclick="openDownloadRecordsModal()">
-                <span class="setting-link-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                <span class="setting-link-body">
-                    <span class="setting-link-title">下载记录</span>
-                    <span class="setting-link-desc">查看下载任务历史（成功 / 跳过 / 失败）</span>
-                </span>
-                <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
-            </button>
             <div class="cookie-item setting-item">
                 <label class="setting-toggle" for="setting-vg-change-cover">
                     <input type="checkbox" id="setting-vg-change-cover">
@@ -160,6 +112,71 @@
                 </label>
                 <p class="setting-hint">控制视频生成弹窗中的导出视频入口，默认隐藏。</p>
             </div>
+                        <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-auto-check-update">
+                    <input type="checkbox" id="setting-auto-check-update">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">启动时检查更新</span>
+                </label>
+                <p class="setting-hint">每次启动软件时自动检查 GitHub 是否有新版本。</p>
+            </div>
+<div class="cookie-item">
+            <div class="cookie-item setting-item">
+                <label for="setting-download-dir">本地下载目录</label>
+                <div class="download-dir-control">
+                    <select id="setting-download-dir-preset" aria-label="本地下载目录预设" aria-describedby="setting-download-dir-hint">
+                        <option value="data/downloads">PC 默认：data/downloads</option>
+                        <option value="downloads">PC 简洁：downloads</option>
+                        <option value="D:/Music/Downloads">PC 示例：D:/Music/Downloads</option>
+                        <option value="/sdcard/Music">Android 默认：/sdcard/Music</option>
+                        <option value="/storage/emulated/0/Music">Android 兼容：/storage/emulated/0/Music</option>
+                        <option value="/sdcard/Download">Android 下载：/sdcard/Download</option>
+                        <option value="__custom__">自定义目录...</option>
+                    </select>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input type="text" id="setting-download-dir" aria-describedby="setting-download-dir-hint" placeholder="例如: D:\Music\Downloads 或 data/downloads" style="flex:1;">
+                    </div>
+                </div>
+                <p id="setting-download-dir-hint" class="setting-hint" style="margin-left: 0;">选择预设会自动填入路径，也可以手填相对目录或绝对目录。Android 建议使用 <code>/sdcard/Music</code>，便于系统音乐应用识别。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-download-filename-template">音乐文件名模板</label>
+                <input type="text" id="setting-download-filename-template" placeholder="{artist} - {name}">
+                <p class="setting-hint" style="margin-left: 0;">支持 <code>{name}</code>、<code>{artist}</code>、<code>{album}</code>、<code>{source}</code>、<code>{id}</code>、<code>{ext}</code>。未写 <code>{ext}</code> 时会自动追加扩展名；可用 <code>/</code> 或 <code>\</code> 创建相对子目录，例如 <code>{artist}/{album}/{name} - {artist}.{ext}</code>。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-web-page-size">Web 每页条数</label>
+                <select id="setting-web-page-size" aria-label="Web 每页条数">
+                    <option value="30">30 条/页</option>
+                    <option value="100">100 条/页</option>
+                    <option value="200" selected>200 条/页（默认）</option>
+                    <option value="300">300 条/页</option>
+                    <option value="400">400 条/页</option>
+                    <option value="500">500 条/页</option>
+                </select>
+                <p class="setting-hint" style="margin-left: 0;">搜索结果列表每页显示的歌曲数量，默认 200。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-cli-page-size">CLI 每页条数</label>
+                <input type="number" id="setting-cli-page-size" min="1" max="200" step="1" placeholder="默认 20">
+                <p class="setting-hint" style="margin-left: 0;">用于 TUI 分页显示，默认 20。</p>
+            </div>
+            <button type="button" class="cookie-item setting-item setting-link-row" onclick="openDownloadRecordsModal()">
+                <span class="setting-link-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                <span class="setting-link-body">
+                    <span class="setting-link-title">下载记录</span>
+                    <span class="setting-link-desc">查看下载任务历史（成功 / 跳过 / 失败）</span>
+                </span>
+                <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="cookie-item setting-item setting-link-row" onclick="openAboutAppModal()">
+                <span class="setting-link-icon"><i class="fa-solid fa-circle-info"></i></span>
+                <span class="setting-link-body">
+                    <span class="setting-link-title">关于 go-music-dl</span>
+                    <span class="setting-link-desc">查看当前版本并检查 GitHub 是否有新版</span>
+                </span>
+                <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
+            </button>
             <button class="btn-save" onclick="saveCookies()">保存设置</button>
         </div>
     </div>
@@ -318,7 +335,7 @@
     <div class="modal" style="max-width: 500px;">
         <div class="modal-header">
             <h3><i class="fa-solid fa-file-import"></i> 导入已有曲库</h3>
-            <div class="modal-close" onclick="document.getElementById('importSongsModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+            <div class="modal-close" onclick="closeImportSongsModal()"><i class="fa-solid fa-xmark"></i></div>
         </div>
         <div class="modal-body">
             <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 12px;">
@@ -330,10 +347,10 @@
                 <div style="display:flex;gap:8px;align-items:center;">
                     <span id="import-file-name" style="flex:1;font-size:13px;color:var(--text-sub);padding:6px 0;">未选择文件</span>
                     <button type="button" class="btn-pill" onclick="pickImportFile()" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
-                        <i class="fa-solid fa-folder-open"></i> 选择文件夹
+                        <i class="fa-solid fa-folder-open"></i> 选择文件
                     </button>
                 </div>
-                <input type="file" id="import-file-picker" webkitdirectory style="display:none;" onchange="onImportFilePicked(event)">
+                <input type="file" id="import-file-picker" accept=".txt,.csv,.m3u,.m3u8" style="display:none;" onchange="onImportFilePicked(event)">
                 <p class="setting-hint">点击「选择文件夹」从对话框中选取音乐目录。程序将遍历所有音乐文件并解析。</p>
             </div>
             <div id="import-result" style="display: none; margin-bottom: 12px; padding: 12px; border-radius: 8px; background: var(--bg-sub);"></div>
@@ -341,7 +358,7 @@
                 <button type="button" id="import-btn" class="btn-pill btn-pill-primary" onclick="startImportSongs()">
                     <i class="fa-solid fa-rotate"></i> 解析
                 </button>
-                <button type="button" class="btn-pill" onclick="document.getElementById('importSongsModal').style.display='none'">退出</button>
+                <button type="button" class="btn-pill" onclick="closeImportSongsModal()">退出</button>
             </div>
         </div>
     </div>

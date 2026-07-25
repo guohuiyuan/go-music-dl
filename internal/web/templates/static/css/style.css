@@ -461,6 +461,8 @@ body.batch-mode .song-card { padding-left: 10px; }
 
 .no-results { text-align: center; padding: 60px; color: var(--text-sub); }
 
+.modal-show { display: flex !important; }
+
 /* 右侧统一工具栏 */
 .right-toolbar {
     position: fixed;

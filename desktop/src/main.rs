@@ -4,6 +4,8 @@ use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpStream};
+use std::sync::mpsc;
+use std::sync::mpsc::{Sender, Receiver};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::thread;
@@ -43,6 +45,7 @@ mod system_config {
 }
 
 #[cfg(target_os = "windows")]
+// FORCE-REBUILD: import-modal-fix-20260725
 static MUSIC_DL_BINARY: &[u8] = include_bytes!("../../music-dl.exe");
 #[cfg(not(target_os = "windows"))]
 static MUSIC_DL_BINARY: &[u8] = include_bytes!("../../music-dl");
@@ -113,8 +116,13 @@ fn main() -> wry::Result<()> {
         .unwrap();
 
     let mut web_context = WebContext::new(Some(webview_data_dir.clone()));
+    let (ipc_tx, ipc_rx): (Sender<String>, Receiver<String>) = mpsc::channel();
+
     let builder = WebViewBuilder::new(&window)
         .with_web_context(&mut web_context)
+        .with_ipc_handler(move |request: wry::http::Request<String>| {
+            ipc_tx.send(request.body().clone()).ok();
+        })
         .with_new_window_req_handler(move |url| {
             if let Err(err) = open::that(&url) {
                 eprintln!("Failed to open external link: {} ({})", url, err);
@@ -146,6 +154,17 @@ fn main() -> wry::Result<()> {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
+        // 处理来自 JS 的 IPC 消息（如 pick-folder）
+        if let Ok(msg) = ipc_rx.try_recv() {
+            if msg == "pick-folder" {
+                if let Some(path) = pick_folder_native() {
+                    let escaped = path.replace("\\", "\\\\").replace("'", "\\'");
+                    let js = format!("window.__folderPickerCallback && window.__folderPickerCallback('{}')", escaped);
+                    let _ = _webview.evaluate_script(&js);
+                }
+            }
+        }
+
         if let tao::event::Event::WindowEvent {
             event: tao::event::WindowEvent::CloseRequested,
             ..
@@ -168,6 +187,27 @@ fn main() -> wry::Result<()> {
             *control_flow = ControlFlow::Exit;
         }
     });
+}
+
+// 使用 Windows 原生 API 调用文件夹选择对话框
+fn pick_folder_native() -> Option<String> {
+    // 方式1: 通过 rundll32 调用 Windows 原生文件夹对话框
+    // 创建一个临时 VBS 脚本来实现（更可靠）
+    let script = format!(
+        r#"Set objFolder = CreateObject("Shell.Application").BrowseForFolder(0, "选择下载目录", 0, 17)
+If Not objFolder Is Nothing Then WScript.Echo objFolder.Self.Path"#
+    );
+    let temp_dir = env::temp_dir();
+    let vbs_path = temp_dir.join("pick_folder.vbs");
+    let _ = std::fs::write(&vbs_path, script);
+    let output = std::process::Command::new("cscript")
+        .args(&["//nologo", vbs_path.to_str().unwrap_or("")])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .output().ok()?;
+    let _ = std::fs::remove_file(&vbs_path);
+    let path = String::from_utf8(output.stdout).ok()?.trim().to_string();
+    if path.is_empty() { None } else { Some(path) }
 }
 
 fn extract_backend_binary() -> PathBuf {

@@ -36,12 +36,16 @@ function isLocalMusicSourceValue(source) {
 let webSettings = {
   embedDownload: true,
   downloadToLocal: true,
+  useNewDownloadDir: true,
+  commonDownloadDir: "data/downloads/common",
+  uncommonDownloadDir: "data/downloads/other",
+  commonExtensions: ".mp3,.m4a",
   downloadDir: "data/downloads",
   downloadFilenameTemplate: "{name} - {artist}",
-  disableFloatingLyrics: false,
+  disableFloatingLyrics: true,
   webPageSize: DEFAULT_WEB_PAGE_SIZE,
   cliPageSize: DEFAULT_CLI_PAGE_SIZE,
-  autoCheckUpdate: true,
+  autoCheckUpdate: false,
   autoSwitchInvalidSources: true,
   autoCacheOnPlay: true,
   updateRepoUrl: DEFAULT_UPDATE_REPO_URL,
@@ -58,12 +62,16 @@ function normalizeWebSettings(raw) {
   const next = {
     embedDownload: true,
     downloadToLocal: true,
-    downloadDir: "data/downloads",
+    useNewDownloadDir: true,
+  commonDownloadDir: "data/downloads/common",
+  uncommonDownloadDir: "data/downloads/other",
+  commonExtensions: ".mp3,.m4a",
+  downloadDir: "data/downloads",
     downloadFilenameTemplate: "{name} - {artist}",
-    disableFloatingLyrics: false,
+    disableFloatingLyrics: true,
     webPageSize: DEFAULT_WEB_PAGE_SIZE,
     cliPageSize: DEFAULT_CLI_PAGE_SIZE,
-    autoCheckUpdate: true,
+    autoCheckUpdate: false,
     autoSwitchInvalidSources: true,
     autoCacheOnPlay: true,
     updateRepoUrl: DEFAULT_UPDATE_REPO_URL,
@@ -81,6 +89,18 @@ function normalizeWebSettings(raw) {
 
   if (typeof raw.embedDownload === "boolean") {
     next.embedDownload = raw.embedDownload;
+  }
+  if (typeof raw.useNewDownloadDir === "boolean") {
+    next.useNewDownloadDir = raw.useNewDownloadDir;
+  }
+  if (typeof raw.commonDownloadDir === "string" && raw.commonDownloadDir.trim() !== "") {
+    next.commonDownloadDir = raw.commonDownloadDir.trim();
+  }
+  if (typeof raw.uncommonDownloadDir === "string" && raw.uncommonDownloadDir.trim() !== "") {
+    next.uncommonDownloadDir = raw.uncommonDownloadDir.trim();
+  }
+  if (typeof raw.commonExtensions === "string" && raw.commonExtensions.trim() !== "") {
+    next.commonExtensions = raw.commonExtensions.trim();
   }
   if (typeof raw.downloadDir === "string" && raw.downloadDir.trim() !== "") {
     next.downloadDir = raw.downloadDir.trim();
@@ -260,6 +280,31 @@ function applyWebSettings(settings) {
   bindDownloadDirPresetEvents();
   syncDownloadDirPresetFromInput();
 
+  const dirToggle = document.getElementById("setting-use-new-dir");
+  const newDirSection = document.getElementById("new-download-dir-section");
+  const oldDirSection = document.getElementById("old-download-dir-section");
+  if (dirToggle && newDirSection && oldDirSection) {
+    dirToggle.checked = webSettings.useNewDownloadDir;
+    newDirSection.style.display = webSettings.useNewDownloadDir ? "block" : "none";
+    oldDirSection.style.display = webSettings.useNewDownloadDir ? "none" : "block";
+    dirToggle.addEventListener("change", function() {
+      newDirSection.style.display = this.checked ? "block" : "none";
+      oldDirSection.style.display = this.checked ? "none" : "block";
+    });
+  }
+  const commonDirInput = document.getElementById("setting-common-dir");
+  if (commonDirInput) {
+    commonDirInput.value = webSettings.commonDownloadDir;
+  }
+  const commonExtInput = document.getElementById("setting-common-extensions");
+  if (commonExtInput) {
+    commonExtInput.value = webSettings.commonExtensions;
+  }
+  const uncommonDirInput = document.getElementById("setting-uncommon-dir");
+  if (uncommonDirInput) {
+    uncommonDirInput.value = webSettings.uncommonDownloadDir;
+  }
+
   const filenameTemplateInput = document.getElementById(
     "setting-download-filename-template",
   );
@@ -410,9 +455,9 @@ function setAuthFloatLoggedIn(loggedIn) {
 
 async function refreshAuthFloat() {
   try {
-    // 桌面模式（127.0.0.1:37777）无认证概念，直接显示未登录
+    // 桌面模式（127.0.0.1:37777）无认证概念，直接显示已登录状态（退出按钮可用）
     if (window.location.port === "37777" && window.location.hostname === "127.0.0.1") {
-      setAuthFloatLoggedIn(false);
+      setAuthFloatLoggedIn(true);
       return;
     }
     const response = await fetch(API_ROOT + "/cookies", {
@@ -430,8 +475,10 @@ function bindAuthFloat() {
   if (!form || form.dataset.bound === "1") return;
   form.dataset.bound = "1";
   form.addEventListener("submit", function (event) {
+    console.log("AUTH: form submit, loggedIn =", form.dataset.loggedIn);
     if (form.dataset.loggedIn === "1") return;
     event.preventDefault();
+    console.log("AUTH: preventing submit, opening config instead");
     openSystemConfig();
   });
 }
@@ -710,6 +757,7 @@ function showToast(title, message = "", type = "info", duration = 0) {
       ? `<div class="app-toast-message">${escapeHTML(message)}</div>`
       : "",
   ].join("");
+  container.innerHTML = "";
   container.appendChild(toast);
 
   const close = () => {
@@ -3323,27 +3371,10 @@ function toggleCustomToolbar() {
 }
 
 // 选择下载目录文件夹
-async function pickDownloadFolder() {
-  try {
-    if (!window.showDirectoryPicker) {
-      // 降级：让用户手动选择预设或输入路径
-      document.getElementById("setting-download-dir-preset").value = "__custom__";
-      document.getElementById("setting-download-dir").focus();
-      return;
-    }
-    const dirHandle = await window.showDirectoryPicker();
-    const path = dirHandle.name;
-    // showDirectoryPicker 不暴露完整路径，用名称回填让用户补全
-    // 但大多数情况下用户知道自己的目录结构
-    const input = document.getElementById("setting-download-dir");
-    input.value = input.value || path;
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-  } catch (err) {
-    if (err.name !== "AbortError") {
-      console.warn("文件夹选择器不可用:", err);
-    }
-  }
+function pickDownloadFolder() {
+  document.getElementById("setting-download-dir-preset").value = "__custom__";
+  document.getElementById("setting-download-dir").focus();
+  alert("请手动输入完整目录路径，例如：\nD:\\音乐\\02-下载-音乐");
 }
 
 // ==========================================
@@ -3360,7 +3391,7 @@ function onImportFilePicked(event) {
   const files = event.target.files;
   if (!files || files.length === 0) return;
 
-  // 遍历文件夹，提取音乐文件路径
+  // webkitdirectory: 遍历文件夹，提取音乐文件路径
   const musicExts = [".mp3", ".m4a", ".flac", ".wav", ".ogg", ".wma", ".aac", ".ape", ".dsf"];
   const lines = [];
   for (const file of files) {
@@ -3372,26 +3403,65 @@ function onImportFilePicked(event) {
   importFileContent = lines.join("\n");
   const nameEl = document.getElementById("import-file-name");
   if (nameEl) nameEl.textContent = "📁 " + (files[0].webkitRelativePath?.split("/")[0] || "已选择") + " (" + lines.length + " 个文件)";
-  document.getElementById("import-result").style.display = "none";
+  const resultDiv = document.getElementById("import-result");
+  if (resultDiv) resultDiv.style.display = "none";
+}
+
+function closeImportSongsModal() {
+  const modal = document.getElementById("importSongsModal");
+  if (modal) modal.style.display = "none";
 }
 
 function openImportSongsModal() {
-  document.getElementById("downloadRecordsModal").style.display = "none";
-  const nameEl = document.getElementById("import-file-name");
-  if (nameEl) nameEl.textContent = "未选择文件";
+  console.log("1: start");
+  const oldModal = document.getElementById("importSongsModal");
+  if (oldModal) oldModal.remove();
+  const html = `<div id="importSongsModal" class="modal-overlay" style="z-index:1010;display:flex;align-items:center;justify-content:center;">
+    <div class="modal" style="max-width:500px;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-import"></i> 导入已有曲库</h3>
+        <div class="modal-close" onclick="closeImportSongsModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:14px;color:var(--text-sub);margin-bottom:12px;">选择包含音乐文件的文件夹，程序将自动扫描并解析歌曲信息。</p>
+        <div class="cookie-item">
+          <label>音乐文件夹</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="import-file-name" style="flex:1;font-size:13px;color:var(--text-sub);padding:6px 0;">未选择文件夹</span>
+            <button type="button" class="btn-pill" onclick="pickImportFile()" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+              <i class="fa-solid fa-folder-open"></i> 选择文件夹
+            </button>
+          </div>
+          <input type="file" id="import-file-picker" webkitdirectory style="display:none;" onchange="onImportFilePicked(event)">
+          <p class="setting-hint">点击「选择文件夹」选取音乐目录。程序将自动解析所有音乐文件。</p>
+        </div>
+        <div class="cookie-item">
+          <label>或手动输入目录路径</label>
+          <input type="text" id="import-dir-path" placeholder="例如: D:\\音乐\\02-下载-音乐" style="width:100%;">
+        </div>
+        <div id="import-result" style="display:none;margin-bottom:12px;padding:12px;border-radius:8px;background:var(--bg-sub);"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" id="import-btn" class="btn-pill btn-pill-primary" onclick="startImportSongs()"><i class="fa-solid fa-rotate"></i> 解析</button>
+          <button type="button" class="btn-pill" onclick="closeImportSongsModal()">退出</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
   importFileContent = null;
-  document.getElementById("import-file-picker").value = "";
-  document.getElementById("import-result").style.display = "none";
-  document.getElementById("import-result").innerHTML = "";
-  document.getElementById("import-btn").disabled = false;
-  document.getElementById("import-btn").innerHTML = '<i class="fa-solid fa-rotate"></i> 解析';
-  document.getElementById("importSongsModal").style.display = "flex";
+  console.log("2: dynamic modal created and displayed");
 }
 
 async function startImportSongs() {
   if (!importFileContent) {
-    alert("请先选择要导入的文件");
-    return;
+    // 尝试从手动路径输入获取
+    const dirPath = document.getElementById("import-dir-path")?.value?.trim();
+    if (dirPath) {
+      importFileContent = dirPath;
+    } else {
+      alert("请先选择文件夹或输入目录路径");
+      return;
+    }
   }
 
   const btn = document.getElementById("import-btn");
@@ -3561,7 +3631,16 @@ async function openSystemConfig() {
       if (el) el.value = v;
     }
     setAuthFloatLoggedIn(true);
-    if (modal) modal.style.display = "flex";
+    if (modal) {
+      console.log("SYS: about to set cookieModal display=flex");
+      modal.style.display = "flex";
+      console.log("SYS: cookieModal display set");
+      // 检查 importSongsModal 的状态
+      const importModal = document.getElementById("importSongsModal");
+      if (importModal) {
+        console.log("SYS: importSongsModal display =", importModal.style.display);
+      }
+    }
   } catch (error) {
     applyWebSettings(webSettings);
     showToast("系统配置加载失败", error.message || "请稍后重试", "error");
@@ -3578,6 +3657,10 @@ async function saveCookies() {
 
   const nextSettings = normalizeWebSettings({
     embedDownload: !!document.getElementById("setting-embed-download")?.checked,
+    useNewDownloadDir: !!document.getElementById("setting-use-new-dir")?.checked,
+    commonDownloadDir: document.getElementById("setting-common-dir")?.value || "",
+    commonExtensions: document.getElementById("setting-common-extensions")?.value || "",
+    uncommonDownloadDir: document.getElementById("setting-uncommon-dir")?.value || "",
     downloadDir: document.getElementById("setting-download-dir")?.value || "",
     downloadFilenameTemplate:
       document.getElementById("setting-download-filename-template")?.value ||
@@ -5887,7 +5970,7 @@ async function batchDownload() {
 
   if (
     !confirm(
-      `准备将 ${songs.length} 首歌曲保存到本地目录:\n${webSettings.downloadDir}${skipText}${precheckSkipText}`,
+      `准备将 ${songs.length} 首歌曲保存到本地目录:\n${document.getElementById("setting-download-dir")?.value || webSettings.downloadDir}${skipText}${precheckSkipText}`,
     )
   ) {
     return;
@@ -5940,7 +6023,7 @@ async function batchDownload() {
     if (skippedLocalCount > 0) {
       message += `\n已跳过 ${skippedLocalCount} 首本地歌曲。`;
     }
-    message += `\n目录：${webSettings.downloadDir}`;
+    message += `\n目录：${document.getElementById("setting-download-dir")?.value || webSettings.downloadDir}`;
     if (warningCount > 0) {
       message += `\n\n共 ${warningCount} 首触发了降级提示，请查看终端日志`;
     }
