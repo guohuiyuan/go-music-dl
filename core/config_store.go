@@ -58,6 +58,7 @@ type WebSettings struct {
 	VgChangeAudio            bool   `json:"vgChangeAudio"`
 	VgChangeLyric            bool   `json:"vgChangeLyric"`
 	VgExportVideo            bool   `json:"vgExportVideo"`
+	ToolbarButtons           string `json:"toolbarButtons"`
 }
 
 type WebAuthSettings struct {
@@ -177,6 +178,7 @@ func defaultWebSettings() WebSettings {
 		UpdateRepoURL:            DefaultUpdateRepoURL,
 		GithubProxyEnabled:       false,
 		GithubProxyURL:           DefaultGithubProxyURL,
+		ToolbarButtons:           "",
 	})
 }
 

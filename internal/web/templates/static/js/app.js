@@ -51,6 +51,7 @@ let webSettings = {
   vgChangeAudio: false,
   vgChangeLyric: false,
   vgExportVideo: false,
+  toolbarButtons: "settings,auth,import,clear,back,forward,pageUp,pageNum,pageDown,scrollTop,scrollBottom",
 };
 
 function normalizeWebSettings(raw) {
@@ -134,6 +135,9 @@ function normalizeWebSettings(raw) {
   }
   if (typeof raw.vgExportVideo === "boolean") {
     next.vgExportVideo = raw.vgExportVideo;
+  }
+  if (typeof raw.toolbarButtons === "string") {
+    next.toolbarButtons = raw.toolbarButtons;
   }
   return next;
 }
@@ -343,6 +347,26 @@ function applyWebSettings(settings) {
   } else {
     clearAutoSwitchInvalidTimer();
   }
+
+  applyToolbarSettingsSafe();
+}
+
+// 应用自定义工具栏配置
+function applyToolbarSettingsSafe() {
+  try {
+    const raw = webSettings.toolbarButtons;
+    if (typeof raw !== "string" || raw === "") return;
+    const btns = raw.split(",").map(s => s.trim()).filter(Boolean);
+    document.querySelectorAll("[data-btn]").forEach(el => {
+      el.style.display = btns.includes(el.dataset.btn) ? "" : "none";
+    });
+    const sepNav = document.getElementById("sep-nav");
+    const sepScroll = document.getElementById("sep-scroll");
+    const navVisible = ["back","forward","pageUp","pageNum","pageDown"].some(b => btns.includes(b));
+    const scrollVisible = ["scrollTop","scrollBottom"].some(b => btns.includes(b));
+    if (sepNav) sepNav.style.display = navVisible ? "" : "none";
+    if (sepScroll) sepScroll.style.display = scrollVisible ? "" : "none";
+  } catch (_) {}
 }
 
 async function fetchWebSettings() {
@@ -3289,6 +3313,15 @@ function toggleCookieSection() {
   icon.textContent = isHidden ? "▼" : "▶";
 }
 
+function toggleCustomToolbar() {
+  const body = document.getElementById("custom-toolbar-body");
+  const icon = document.getElementById("toolbar-toggle-icon");
+  if (!body || !icon) return;
+  const isHidden = body.style.display === "none" || body.style.display === "";
+  body.style.display = isHidden ? "block" : "none";
+  icon.textContent = isHidden ? "▼" : "▶";
+}
+
 // 选择下载目录文件夹
 async function pickDownloadFolder() {
   try {
@@ -3576,6 +3609,8 @@ async function saveCookies() {
       ?.checked,
     vgExportVideo: !!document.getElementById("setting-vg-export-video")
       ?.checked,
+    toolbarButtons: Array.from(document.querySelectorAll(".toolbar-cb:checked"))
+      .map(cb => cb.value).join(",") || "",
   });
 
   const data = {};

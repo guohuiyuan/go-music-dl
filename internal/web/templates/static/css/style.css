@@ -526,7 +526,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 .download-panel {
     position: fixed;
     left: 16px;
-    top: 80px;
+    top: 20px;
     width: 320px;
     max-height: 60vh;
     background: white;
@@ -1144,7 +1144,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 /* 🌟 Sakana 蒜苗看板娘 - 左下角 */
 .sakana-container {
     position: fixed;
-    bottom: 90px;
+    top: 20px;
     right: 14px;
     z-index: 998;
     display: flex;

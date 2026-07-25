@@ -39,27 +39,27 @@
 <!-- 右侧工具栏 -->
 <div class="right-toolbar">
     <!-- 功能按钮组 -->
-    <div class="rt-btn" onclick="openSystemConfig()" title="系统配置"><i class="fa-solid fa-gear"></i></div>
-    <form id="auth-float-form" class="rt-form" action="{{.Root}}/logout" method="post" title="登录">
+    <div class="rt-btn" onclick="openSystemConfig()" title="系统配置" data-btn="settings"><i class="fa-solid fa-gear"></i></div>
+    <form id="auth-float-form" class="rt-form" action="{{.Root}}/logout" method="post" title="登录" data-btn="auth">
         <button id="auth-float-button" type="submit"><i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i></button>
     </form>
-    <div class="rt-btn" onclick="openImportSongsModal()" title="导入已有曲库"><i class="fa-solid fa-file-import"></i></div>
-    <div class="rt-btn" onclick="clearDownloadRecords()" title="清空下载记录"><i class="fa-solid fa-trash-can"></i></div>
+    <div class="rt-btn" onclick="openImportSongsModal()" title="导入已有曲库" data-btn="import"><i class="fa-solid fa-file-import"></i></div>
+    <div class="rt-btn" onclick="clearDownloadRecords()" title="清空下载记录" data-btn="clear"><i class="fa-solid fa-trash-can"></i></div>
 
-    <div class="rt-separator"></div>
+    <div class="rt-separator" id="sep-nav"></div>
 
     <!-- 浏览器导航 + 翻页按钮组 -->
-    <div class="rt-btn" onclick="window.history.back()" title="返回"><i class="fa-solid fa-chevron-left"></i></div>
-    <div class="rt-btn" onclick="window.history.forward()" title="向前"><i class="fa-solid fa-chevron-right"></i></div>
-    <div class="rt-btn" onclick="floatPageUp()" title="上一页"><i class="fa-solid fa-chevron-up"></i></div>
-    <div class="rt-page-num" id="float-page-num" onclick="floatPageNumClick()">1</div>
-    <div class="rt-btn" onclick="floatPageDown()" title="下一页"><i class="fa-solid fa-chevron-down"></i></div>
+    <div class="rt-btn" onclick="window.history.back()" title="返回" data-btn="back"><i class="fa-solid fa-chevron-left"></i></div>
+    <div class="rt-btn" onclick="window.history.forward()" title="向前" data-btn="forward"><i class="fa-solid fa-chevron-right"></i></div>
+    <div class="rt-btn" onclick="floatPageUp()" title="上一页" data-btn="pageUp"><i class="fa-solid fa-chevron-up"></i></div>
+    <div class="rt-page-num" id="float-page-num" onclick="floatPageNumClick()" data-btn="pageNum">1</div>
+    <div class="rt-btn" onclick="floatPageDown()" title="下一页" data-btn="pageDown"><i class="fa-solid fa-chevron-down"></i></div>
 
-    <div class="rt-separator"></div>
+    <div class="rt-separator" id="sep-scroll"></div>
 
     <!-- 滚动按钮组 -->
-    <div class="rt-btn" onclick="scrollToTop()" title="回到顶部"><i class="fa-solid fa-arrow-up"></i></div>
-    <div class="rt-btn" onclick="scrollToBottom()" title="回到底部"><i class="fa-solid fa-arrow-down"></i></div>
+    <div class="rt-btn" onclick="scrollToTop()" title="回到顶部" data-btn="scrollTop"><i class="fa-solid fa-arrow-up"></i></div>
+    <div class="rt-btn" onclick="scrollToBottom()" title="回到底部" data-btn="scrollBottom"><i class="fa-solid fa-arrow-down"></i></div>
 </div>
 
 <div class="container">
