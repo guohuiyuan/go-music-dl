@@ -4707,39 +4707,11 @@ const KaraokeLyrics = (() => {
 
 window.KaraokeLyrics = KaraokeLyrics;
 
-// APlayer Config
-const ap = new APlayer({
-  container: document.getElementById("aplayer"),
-  fixed: true,
-  autoplay: false,
-  theme: "#10b981",
-  loop: "all",
-  order: "list",
-  preload: "metadata",
-  volume: 0.7,
-  listFolded: false,
-  lrcType: 3,
-  audio: [],
-});
-
+// APlayer 已移除，保留空引用避免其他代码报错
+const ap = { list: { clear() {}, add() {}, switch() {} }, play() {}, pause() {}, destroy() {}, on() {} };
 window.ap = ap;
 
 setupMediaSession();
-ap.audio.addEventListener("timeupdate", () => KaraokeLyrics.update());
-ap.audio.addEventListener("seeked", () => KaraokeLyrics.update());
-ap.audio.addEventListener("loadedmetadata", () =>
-  KaraokeLyrics.load(getCurrentAPlayerAudio()),
-);
-ap.audio.addEventListener("play", () =>
-  KaraokeLyrics.handlePlayStateChange(true),
-);
-ap.audio.addEventListener("pause", () =>
-  KaraokeLyrics.handlePlayStateChange(false),
-);
-ap.audio.addEventListener("ended", () =>
-  KaraokeLyrics.handlePlayStateChange(false),
-);
-
 // === 播放模式切换按钮 ===
 (function initPlayModeToggle() {
   const MODES = [
@@ -5622,7 +5594,7 @@ async function autoSwitchInvalidSources() {
     "自动换源",
     `检测到 ${invalidCards.length} 首无效歌曲，正在批量换源`,
     "info",
-    3500,
+    0,
   );
   try {
     await batchSwitchSource({
@@ -5771,7 +5743,6 @@ function getSelectedSongs() {
 let downloadPanelItems = [];
 
 function showDownloadPanel(songs) {
-  closeSwitchPanel();
   const panel = document.getElementById("download-panel");
   const body = document.getElementById("download-panel-body");
   const footer = document.getElementById("download-panel-footer");
@@ -5856,7 +5827,6 @@ function closeDownloadPanel() {
 let switchPanelItems = [];
 
 function showSwitchPanel(cards) {
-  closeDownloadPanel();
   const panel = document.getElementById("switch-panel");
   const body = document.getElementById("switch-panel-body");
   const footer = document.getElementById("switch-panel-footer");

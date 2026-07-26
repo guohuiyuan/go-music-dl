@@ -525,10 +525,17 @@ body.batch-mode .song-card { padding-left: 10px; }
 #auth-float-form.auth-logout button:hover { background: #e11d48; color: white; transform: scale(1.1); }
 
 /* 下载中面板 - 左侧浮动 */
+#switch-panel {
+    left: 16px;
+}
+
+#download-panel {
+    right: 60px;
+}
+
 .download-panel {
     position: fixed;
-    left: 16px;
-    top: 20px;
+    top: 40px;
     width: 320px;
     max-height: 60vh;
     background: white;
@@ -913,8 +920,8 @@ body.batch-mode .song-card { padding-left: 10px; }
 .download-records-table tr:hover { background: var(--bg-hover); }
 .app-toast-container {
     position: fixed;
-    right: 18px;
-    bottom: 105px;
+    left: 16px;
+    bottom: 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
