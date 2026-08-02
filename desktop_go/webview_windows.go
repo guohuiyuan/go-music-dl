@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"log"
+	"os/exec"
 	"syscall"
 	"unsafe"
 
@@ -38,10 +39,14 @@ func main() {
 		user32 := syscall.NewLazyDLL("user32.dll")
 
 		title, _ := syscall.UTF16PtrFromString("Error!")
-		text, _ := syscall.UTF16PtrFromString("打开Webview2失败！请下载相关Window组件后再试。\n按下Ctrl+C即可复制本窗口的文本,下载地址:https://developer.microsoft.com/microsoft-edge/webview2/")
+		text, _ := syscall.UTF16PtrFromString("打开Webview2失败！请下载相关Window组件后再试。\n点击确认前往下载,下载地址:https://developer.microsoft.com/microsoft-edge/webview2/")
 
 		// 参数：父窗口句柄(0), 消息文本, 标题, 按钮类型(0=仅确定)
-		user32.NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(title)), 0)
+		ret, _, _ := user32.NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(title)), 0x00000001)
+		// 根据返回值执行操作IDOK = 1, IDCANCEL = 2
+		if int(ret) == 1 {
+			exec.Command("cmd", "/c", "start", "https://developer.microsoft.com/microsoft-edge/webview2/").Start()
+		}
 		log.Fatalln("Failed to load webview.")
 	}
 	defer w.Destroy()
