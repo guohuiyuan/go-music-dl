@@ -39,7 +39,7 @@ func main() {
 		user32 := syscall.NewLazyDLL("user32.dll")
 
 		title, _ := syscall.UTF16PtrFromString("Error!")
-		text, _ := syscall.UTF16PtrFromString("打开Webview2失败！请下载相关Window组件后再试。\n点击确认前往下载,下载地址:https://developer.microsoft.com/microsoft-edge/webview2/")
+		text, _ := syscall.UTF16PtrFromString("打开Webview2失败！请下载相关Window组件后再试。\n点击确定前往下载,下载地址:https://developer.microsoft.com/microsoft-edge/webview2/")
 
 		// 参数：父窗口句柄(0), 消息文本, 标题, 按钮类型(0=仅确定)
 		ret, _, _ := user32.NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(title)), 0x00000001)
