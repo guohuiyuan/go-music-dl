@@ -142,6 +142,14 @@
 
 .vg-controls { display: flex; gap: 15px; align-items: center; z-index: 2; justify-content: center; }
 
+.vg-speed-group { position: relative; margin-left: 6px; }
+.vg-speed-button { min-width: 32px; height: 30px; padding: 0 4px; border: 0; background: transparent; color: rgba(255,255,255,.85); cursor: pointer; font-size: 13px; font-weight: 600; transition: color .2s, transform .2s; }
+.vg-speed-button:hover { color: #fff; transform: scale(1.08); }
+.vg-speed-menu { position: absolute; right: 0; bottom: calc(100% + 8px); display: flex; flex-direction: column; min-width: 64px; padding: 4px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); z-index: 20; }
+.vg-speed-menu[hidden] { display: none; }
+.vg-speed-option { border: 0; padding: 6px 10px; background: transparent; color: #fff; cursor: pointer; border-radius: 5px; text-align: center; }
+.vg-speed-option:hover, .vg-speed-option.active { background: rgba(72,187,120,.75); }
+
 .vg-btn-icon {
     width: 50px; height: 50px; border-radius: 50%; 
     background: rgba(0,0,0,0.7); color: #fff; 

@@ -1064,6 +1064,40 @@
           }
       },
 
+      playbackRate: 1,
+      toggleSpeedMenu: function(event) {
+          if (event) event.stopPropagation();
+          const menu = document.getElementById('vg-speed-menu');
+          if (!menu) return;
+          menu.hidden = !menu.hidden;
+      },
+      setPlaybackRate: function(rate) {
+          this.playbackRate = Number(rate) || 1;
+          const audio = this.isLocalAudio ? this.localAudio : (window.ap && window.ap.audio);
+          if (audio) audio.playbackRate = this.playbackRate;
+          const button = document.getElementById('vg-speed-button');
+          if (button) button.textContent = `${this.playbackRate}x`;
+          document.querySelectorAll('#vg-speed-menu .vg-speed-option').forEach((option) => {
+              option.classList.toggle('active', Number(option.dataset.rate) === this.playbackRate);
+          });
+          const menu = document.getElementById('vg-speed-menu');
+          if (menu) menu.hidden = true;
+      },
+      initSpeedControl: function() {
+          const menu = document.getElementById('vg-speed-menu');
+          if (!menu || menu.dataset.initialized === '1') return;
+          menu.innerHTML = [0.5, 1, 1.25, 1.5, 2].map((rate) =>
+              `<button type="button" class="vg-speed-option" data-rate="${rate}">${rate}x</button>`
+          ).join('');
+          menu.addEventListener('click', (event) => {
+              const option = event.target.closest('.vg-speed-option');
+              if (option) this.setPlaybackRate(option.dataset.rate);
+          });
+          document.addEventListener('click', () => { menu.hidden = true; });
+          menu.dataset.initialized = '1';
+          this.setPlaybackRate(this.playbackRate);
+      },
+
       handleFileSelect: function (input) {
         if (input.files && input.files[0]) {
           const file = input.files[0], reader = new FileReader();
@@ -1162,6 +1196,7 @@
 
       open: async function (songData) {
         this.data = songData; this.customVisual = null;
+        this.initSpeedControl();
         this.isLocalAudio = false; this._currentLocalAudioFile = null;
         if(this.localAudio) { this.localAudio.pause(); this.localAudio.removeAttribute('src'); this.localAudio.load(); }
 
@@ -1175,6 +1210,7 @@
             this.updatePlayUI();
             this.attachEvents(window.ap.audio);
         }
+        this.setPlaybackRate(this.playbackRate);
         
         const sb = document.getElementById('vg-seek-bar');
         sb.oninput = (e) => {
