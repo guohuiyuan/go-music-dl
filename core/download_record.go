@@ -151,6 +151,16 @@ func GetDownloadRecords() ([]DownloadRecord, error) {
 	return records, err
 }
 
+// GetAllDownloadRecords 返回全部下载记录（无条数限制，用于导出 CSV）。
+func GetAllDownloadRecords() ([]DownloadRecord, error) {
+	if err := initDownloadRecordTable(); err != nil {
+		return nil, err
+	}
+	var records []DownloadRecord
+	err := configDB.Order("created_at DESC").Find(&records).Error
+	return records, err
+}
+
 // ClearDownloadRecords 清空所有下载记录。
 func ClearDownloadRecords() error {
 	if err := initDownloadRecordTable(); err != nil {

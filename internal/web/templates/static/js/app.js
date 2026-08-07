@@ -410,7 +410,17 @@ function applyToolbarSettingsSafe() {
   try {
     const raw = webSettings.toolbarButtons;
     if (typeof raw !== "string" || raw === "") return;
-    const btns = raw.split(",").map(s => s.trim()).filter(Boolean);
+    let btns = raw.split(",").map(s => s.trim()).filter(Boolean);
+    // 一次性迁移：旧设置无 records（下载记录）按钮时自动补入，仅一次；
+    // 之后用户在自定义工具栏取消 records 并保存，不会被再次补回。
+    const TB_VERSION = "v2_records";
+    if (localStorage.getItem("_tb_version") !== TB_VERSION) {
+      if (!btns.includes("records")) {
+        btns.push("records");
+      }
+      webSettings.toolbarButtons = btns.join(",");
+      localStorage.setItem("_tb_version", TB_VERSION);
+    }
     document.querySelectorAll("[data-btn]").forEach(el => {
       el.style.display = btns.includes(el.dataset.btn) ? "" : "none";
     });
@@ -2440,7 +2450,7 @@ const QR_LOGIN_COOKIE_SOURCES = {
   qq_wx: "qq",
 };
 const QR_LOGIN_POLL_INTERVAL_MS = {
-  soda: 2000,
+  soda: 6000,
 };
 
 let qrLoginState = {
@@ -2448,6 +2458,7 @@ let qrLoginState = {
   key: "",
   baseKey: "",
   pollTimer: 0,
+  pollInterval: 0,
   pollBusy: false,
   smsBusy: false,
   sms: {
@@ -2612,6 +2623,7 @@ function startQRLogin(source) {
           : "二维码已生成，请打开 App 扫码",
       );
       const pollInterval = QR_LOGIN_POLL_INTERVAL_MS[source] || 2200;
+      qrLoginState.pollInterval = pollInterval;
       pollQRLogin();
       qrLoginState.pollTimer = window.setInterval(pollQRLogin, pollInterval);
     })
@@ -2888,10 +2900,21 @@ function pollQRLogin() {
           showSodaSMSLogin(result);
           return;
         }
+        // soda 扫码确认后汽水需处理时间，把轮询降到 8 秒，避免触发风控
+        if (qrLoginState.source === "soda" && qrLoginState.pollInterval < 8000) {
+          clearInterval(qrLoginState.pollTimer);
+          qrLoginState.pollInterval = 8000;
+          qrLoginState.pollTimer = window.setInterval(pollQRLogin, 8000);
+        }
         setQRLoginStatus(message || "已扫码，请在手机上确认", "warning");
         return;
       }
       if (status === "waiting") {
+        const extra = qrLoginResultExtra(result);
+        if (qrLoginExtraFlag(extra, "rate_limited")) {
+          setQRLoginStatus(message || "已扫码，风控冷却中（约 60 秒），请稍候…", "warning");
+          return;
+        }
         setQRLoginStatus(message || "等待扫码中");
         return;
       }
@@ -3301,7 +3324,11 @@ async function openDownloadRecordsModal() {
     for (const r of records) {
       const statusIcon = r.Status === "success" ? "✅" : r.Status === "skipped" ? "⏭️" : "❌";
       const statusClass = r.Status === "failed" ? "color:#e53e3e;" : "";
-      const reason = r.Error ? escapeHtml(r.Error) : "";
+      let reason = r.Error ? r.Error : "";
+      if (!reason) {
+        reason = r.Status === "success" ? "成功" : r.Status === "skipped" ? "跳过" : "失败";
+      }
+      reason = escapeHtml(reason);
       const time = r.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "";
       html += `<tr style="border-bottom:1px solid var(--border-color);">
         <td style="padding:6px 10px;">${escapeHtml(r.Name || "")}</td>
@@ -3324,6 +3351,69 @@ async function openDownloadRecordsModal() {
 function closeDownloadRecordsModal() {
   const modal = document.getElementById("downloadRecordsModal");
   if (modal) modal.style.display = "none";
+}
+
+async function exportDownloadRecords() {
+  try {
+    const resp = await fetch(`${API_ROOT}/api/downloads/export`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const records = data.records || [];
+    if (records.length === 0) {
+      alert("暂无下载记录可导出");
+      return;
+    }
+
+    // 生成 CSV（UTF-8 BOM，Excel 兼容）
+    const esc = v => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["歌曲", "歌手", "来源", "状态", "原因", "时间"];
+    const statusText = s => s === "success" ? "成功" : s === "skipped" ? "跳过" : "失败";
+    const lines = [header.map(esc).join(",")];
+    for (const r of records) {
+      let reason = r.Error || (r.Status === "success" ? "成功" : r.Status === "skipped" ? "跳过" : "失败");
+      const time = r.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "";
+      lines.push([r.Name, r.Artist, r.Source, statusText(r.Status), reason, time].map(esc).join(","));
+    }
+    const csv = "\uFEFF" + lines.join("\r\n");
+
+    // 文件名：下载记录-MM-DD-aa.csv
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const rand = () => String.fromCharCode(97 + Math.floor(Math.random() * 26));
+    const filename = `下载记录-${mm}-${dd}-${rand()}${rand()}.csv`;
+
+    // 优先用 showSaveFilePicker 让用户选择保存位置
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "CSV 文件", accept: { "text/csv": [".csv"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+        await writable.close();
+        return;
+      } catch (err) {
+        if (err.name === "AbortError") return; // 用户取消
+        // 其它错误降级到默认下载
+      }
+    }
+    // 兜底：普通下载
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  } catch (err) {
+    alert("导出失败: " + err.message);
+  }
 }
 
 async function clearDownloadRecords() {

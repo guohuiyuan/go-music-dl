@@ -1,0 +1,6 @@
+.env
+*.json
+*.txt
+*.svg
+*.html
+*.exe

@@ -1125,6 +1125,19 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		c.JSON(200, gin.H{"records": records})
 	})
 
+	// 下载记录导出（全量，无 200 条限制）
+	api.GET("/api/downloads/export", func(c *gin.Context) {
+		records, err := core.GetAllDownloadRecords()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if records == nil {
+			records = []core.DownloadRecord{}
+		}
+		c.JSON(200, gin.H{"records": records})
+	})
+
 	configAPI.DELETE("/api/downloads/records", func(c *gin.Context) {
 		if err := core.ClearDownloadRecords(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

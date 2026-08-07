@@ -92,3 +92,5 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.46.1 // indirect
 )
+
+replace github.com/guohuiyuan/music-lib => ./third_party/music-lib
