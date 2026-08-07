@@ -224,6 +224,11 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	}
 	qrLoginSupported := make(map[string]bool)
 	for _, s := range core.GetQRLoginSourceNames() {
+		if s == "soda" {
+			// soda 扫码在汽水当前协议下确认后无法换取 cookie（返回加密 verify 信息），
+			// 隐藏扫码入口，避免用户白扫；仍可通过手动粘贴 Cookie 登录。
+			continue
+		}
 		qrLoginSupported[s] = true
 	}
 	userPlaylistSupported := make(map[string]bool)
