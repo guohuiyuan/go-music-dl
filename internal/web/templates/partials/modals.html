@@ -2,7 +2,7 @@
 <div id="cookieModal" class="modal-overlay" style="z-index: 1001;">
     <div class="modal">
         <div class="modal-header">
-            <h3 style="cursor:pointer;" onclick="toggleCookieSection()">设置 Cookies <span id="cookie-toggle-icon" style="font-size:12px;margin-left:6px;">▶</span></h3>
+            <h3 style="cursor:pointer;margin:0;font-size:14px;" onclick="toggleCookieSection()">设置 Cookies <span id="cookie-toggle-icon" style="font-size:12px;margin-left:6px;">▶</span></h3>
             <div class="modal-close" onclick="document.getElementById('cookieModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
         </div>
         <div id="cookie-section-body" style="display:none;">
@@ -39,6 +39,7 @@
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="settings" disabled checked style="opacity:0.5;"> 设置（始终显示）</label>
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="auth" checked> 登录/退出</label>
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="import" checked> 导入已有曲库</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="records" checked> 下载记录</label>
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="clear" checked> 清空下载记录</label>
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="back" checked> 返回</label>
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="forward" checked> 向前</label>
@@ -47,6 +48,38 @@
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="pageDown" checked> 下一页</label>
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="scrollTop" checked> 回到顶部</label>
             <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="toolbar-cb" value="scrollBottom" checked> 回到底部</label>
+            </div>
+            </div><div class="cookie-item" style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:8px;">
+            <h4 style="cursor:pointer;margin:0;font-size:14px;" onclick="toggleSkipRules()">跳过规则 <span id="skip-rules-toggle-icon" style="font-size:12px;">&#9654;</span><span style="font-weight:400;font-size:12px;color:var(--text-sub);margin-left:4px;">（点击右侧箭头展开）</span></h4>
+            </div>
+            <div id="skip-rules-body" style="display:none;padding:8px 12px;">
+            <p class="setting-hint" style="margin-left:0;">下载前判断歌曲是否已存在的匹配规则。前面为默认勾选的低风险规则，后面为默认不勾、可能误判的规则。</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="ws" checked> 压缩连续空白</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="sep" checked> 歌手分隔符统一为 &amp;</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="cjk" checked> 纯汉字空格视为多歌手</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="sort" checked> 多歌手排序</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="lower" checked> 英文大小写折叠</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="tc" checked> 繁简体转换</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="punct" checked> 歌名标点统一</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="nfkc" checked> Unicode 全半角归一</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="contain" checked> 歌手包含匹配</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="semi" checked> 分号归一分隔符</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="bang" checked> 感叹问号归一</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="cjkspace" checked> 全汉字歌名删空格</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="trailunder" checked> 歌名末尾下划线剥离</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="ndash" checked> 长横线归一</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="feat" checked> feat./ft. 归一</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="seq" checked> 歌名前序号剥离</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="underscore" checked> 汉字下划线分隔</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="boundary" checked> 字母-汉字边界拆分</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="paren" checked> 括号版本标记剥离</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="nolive" checked> 原版已有时不下 Live 版</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="longname" checked> 超长文件名跳过
+            <input type="number" id="setting-max-filename-len" min="1" max="2000" value="90" style="width:56px;font-size:12px;padding:1px 4px;"> 字节</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="homophone"> 同音字匹配（误判风险：中）</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="heyu"> 「和/与」→ &amp;（误判风险：中）</label>
+            <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="skip-rules-cb" value="band"> 乐团/乐队后缀剥离（误判风险：中）</label>
             </div>
             </div><div class="cookie-item setting-item">
                 <label class="setting-toggle" for="setting-embed-download">
@@ -320,10 +353,7 @@
                 </div>
             </div>
             <div id="download-records-list" style="max-height: 400px; overflow-y: auto;"></div>
-            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <button class="btn-pill btn-pill-danger" onclick="resetDownloadLogs()" style="font-size: 12px; padding: 4px 10px;">
-                    <i class="fa-solid fa-rotate"></i> 重置下载日志
-                </button>
+            <div style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
                 <button type="button" class="btn-pill" onclick="closeDownloadRecordsModal()">关闭</button>
             </div>
         </div>

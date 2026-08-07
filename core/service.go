@@ -400,7 +400,7 @@ func GetQRLoginCheckFunc(source string) QRLoginCheckFunc {
 }
 
 func GetQRLoginSourceNames() []string {
-	return []string{"netease", "qq", "qq_wx", "kugou", "bilibili"}
+	return []string{"netease", "qq", "qq_wx", "kugou", "bilibili", "soda"}
 }
 
 func GetUserPlaylistsFunc(source string) UserPlaylistsFunc {

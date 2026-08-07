@@ -21,6 +21,8 @@ const (
 	DefaultWebPageSize              = 200
 	DefaultCLIPageSize              = 20
 	DefaultWebConcurrency           = 3
+	DefaultSkipRules                = "ws,sep,cjk,sort,lower,tc,punct,nfkc,contain,semi,bang,cjkspace,trailunder,ndash,feat,seq,underscore,boundary,paren,nolive,longname"
+	DefaultMaxFilenameLen           = 90
 	DefaultUpdateRepoURL            = "https://github.com/guohuiyuan/go-music-dl"
 	DefaultGithubProxyURL           = "https://edgeone.gh-proxy.com"
 	webSettingsKey                  = "web_settings"
@@ -59,6 +61,8 @@ type WebSettings struct {
 	VgChangeLyric            bool   `json:"vgChangeLyric"`
 	VgExportVideo            bool   `json:"vgExportVideo"`
 	ToolbarButtons           string `json:"toolbarButtons"`
+	SkipRules                string `json:"skipRules"`
+	MaxFilenameLen           int    `json:"maxFilenameLen"`
 }
 
 type WebAuthSettings struct {
@@ -179,6 +183,8 @@ func defaultWebSettings() WebSettings {
 		GithubProxyEnabled:       false,
 		GithubProxyURL:           DefaultGithubProxyURL,
 		ToolbarButtons:           "",
+		SkipRules:                DefaultSkipRules,
+		MaxFilenameLen:           DefaultMaxFilenameLen,
 	})
 }
 
@@ -221,6 +227,12 @@ func normalizeWebSettings(settings WebSettings) WebSettings {
 		settings.GithubProxyURL = DefaultGithubProxyURL
 	}
 	settings.DownloadDir = normalizeWebDownloadDir(settings.DownloadDir)
+	if strings.TrimSpace(settings.SkipRules) == "" {
+		settings.SkipRules = DefaultSkipRules
+	}
+	if settings.MaxFilenameLen <= 0 {
+		settings.MaxFilenameLen = DefaultMaxFilenameLen
+	}
 	return settings
 }
 
@@ -272,6 +284,9 @@ func SaveWebSettings(settings WebSettings) error {
 	if err != nil {
 		return err
 	}
+
+	// 同步跳过规则缓存，使下一次下载立即生效
+	SetSkipRules(settings.SkipRules)
 
 	return configDB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "key"}},

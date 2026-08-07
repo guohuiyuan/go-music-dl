@@ -55,7 +55,9 @@ let webSettings = {
   vgChangeAudio: false,
   vgChangeLyric: false,
   vgExportVideo: false,
-  toolbarButtons: "settings,auth,import,clear,back,forward,pageUp,pageNum,pageDown,scrollTop,scrollBottom",
+  toolbarButtons: "settings,auth,import,records,clear,back,forward,pageUp,pageNum,pageDown,scrollTop,scrollBottom",
+  skipRules: "ws,sep,cjk,sort,lower,tc,punct,nfkc,contain,semi,bang,cjkspace,trailunder,ndash,feat,seq,underscore,boundary,paren,nolive",
+  maxFilenameLen: 90,
 };
 
 function normalizeWebSettings(raw) {
@@ -158,6 +160,12 @@ function normalizeWebSettings(raw) {
   }
   if (typeof raw.toolbarButtons === "string") {
     next.toolbarButtons = raw.toolbarButtons;
+  }
+  if (typeof raw.skipRules === "string") {
+    next.skipRules = raw.skipRules;
+  }
+  if (typeof raw.maxFilenameLen === "number" && raw.maxFilenameLen > 0) {
+    next.maxFilenameLen = raw.maxFilenameLen;
   }
   return next;
 }
@@ -394,6 +402,7 @@ function applyWebSettings(settings) {
   }
 
   applyToolbarSettingsSafe();
+  applySkipRulesFromSettings();
 }
 
 // 应用自定义工具栏配置
@@ -3285,19 +3294,21 @@ async function openDownloadRecordsModal() {
         <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">歌手</th>
         <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">来源</th>
         <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border-color);">状态</th>
+        <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">原因</th>
         <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border-color);">时间</th>
       </tr></thead><tbody>`;
 
     for (const r of records) {
       const statusIcon = r.Status === "success" ? "✅" : r.Status === "skipped" ? "⏭️" : "❌";
       const statusClass = r.Status === "failed" ? "color:#e53e3e;" : "";
-      const errHint = r.Error ? ` title="${escapeHtml(r.Error)}"` : "";
+      const reason = r.Error ? escapeHtml(r.Error) : "";
       const time = r.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "";
-      html += `<tr${errHint} style="border-bottom:1px solid var(--border-color);">
+      html += `<tr style="border-bottom:1px solid var(--border-color);">
         <td style="padding:6px 10px;">${escapeHtml(r.Name || "")}</td>
         <td style="padding:6px 10px;">${escapeHtml(r.Artist || "")}</td>
         <td style="padding:6px 10px;">${escapeHtml(r.Source || "")}</td>
         <td style="padding:6px 10px;text-align:center;${statusClass}">${statusIcon}</td>
+        <td style="padding:6px 10px;color:var(--text-sub);font-size:12px;${statusClass}">${reason}</td>
         <td style="padding:6px 10px;text-align:right;white-space:nowrap;color:var(--text-sub);font-size:12px;">${time}</td>
       </tr>`;
     }
@@ -3332,17 +3343,6 @@ async function clearDownloadRecords() {
   }
 }
 
-async function resetDownloadLogs() {
-  if (!confirm("确定重置下载日志文件（下载记录.txt/跳过下载.txt/下载失败.txt）？")) return;
-  try {
-    const resp = await fetch(`${API_ROOT}/api/downloads/logs`, { method: "DELETE" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    alert("✅ 下载日志已重置");
-  } catch (err) {
-    alert("重置失败: " + err.message);
-  }
-}
-
 function escapeHtml(str) {
   if (!str) return "";
   return String(str)
@@ -3368,6 +3368,31 @@ function toggleCustomToolbar() {
   const isHidden = body.style.display === "none" || body.style.display === "";
   body.style.display = isHidden ? "block" : "none";
   icon.textContent = isHidden ? "▼" : "▶";
+}
+
+function toggleSkipRules() {
+  const body = document.getElementById("skip-rules-body");
+  const icon = document.getElementById("skip-rules-toggle-icon");
+  if (!body || !icon) return;
+  const isHidden = body.style.display === "none" || body.style.display === "";
+  body.style.display = isHidden ? "block" : "none";
+  icon.textContent = isHidden ? "▼" : "▶";
+}
+
+// 根据已保存的跳过规则回显勾选状态
+function applySkipRulesFromSettings() {
+  try {
+    const raw = webSettings.skipRules;
+    if (typeof raw !== "string" || raw === "") return;
+    const rules = raw.split(",").map(s => s.trim()).filter(Boolean);
+    document.querySelectorAll(".skip-rules-cb").forEach(cb => {
+      cb.checked = rules.includes(cb.value);
+    });
+    const lenInput = document.getElementById("setting-max-filename-len");
+    if (lenInput && typeof webSettings.maxFilenameLen === "number" && webSettings.maxFilenameLen > 0) {
+      lenInput.value = webSettings.maxFilenameLen;
+    }
+  } catch (_) {}
 }
 
 // 选择下载目录文件夹
@@ -3694,6 +3719,12 @@ async function saveCookies() {
       ?.checked,
     toolbarButtons: Array.from(document.querySelectorAll(".toolbar-cb:checked"))
       .map(cb => cb.value).join(",") || "",
+    skipRules: Array.from(document.querySelectorAll(".skip-rules-cb:checked"))
+      .map(cb => cb.value).join(",") || "",
+    maxFilenameLen: parseInt(
+      document.getElementById("setting-max-filename-len")?.value,
+      10,
+    ) || 90,
   });
 
   const data = {};
