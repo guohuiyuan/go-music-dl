@@ -8,6 +8,7 @@
         <div id="cookie-section-body" style="display:none;">
             <div class="cookie-list">
                 {{ range $source := .AllSources }}
+                {{ if index $.QRLoginSupported $source }}
                 <div class="cookie-item">
                     <label>{{ $source }}</label>
                     <div class="cookie-input-row">
@@ -20,12 +21,21 @@
                         <button type="button" class="cookie-qr-btn cookie-qr-btn-wx" onclick="startQRLogin('qq_wx')"><i class="fa-brands fa-weixin"></i> 微信扫码</button>
                         {{ end }}
                         {{ else }}
-                        {{ if index $.QRLoginSupported $source }}
                         <button type="button" class="cookie-qr-btn" onclick="startQRLogin('{{$source}}')"><i class="fa-solid fa-qrcode"></i> 扫码</button>
-                        {{ end }}
                         {{ end }}
                     </div>
                 </div>
+                {{ end }}
+                {{ end }}
+                {{ range $source := .AllSources }}
+                {{ if not (index $.QRLoginSupported $source) }}
+                <div class="cookie-item">
+                    <label>{{ $source }}</label>
+                    <div class="cookie-input-row">
+                        <input type="text" id="cookie-{{$source}}" placeholder="在此粘贴 Cookie...">
+                    </div>
+                </div>
+                {{ end }}
                 {{ end }}
             </div>
         </div>
