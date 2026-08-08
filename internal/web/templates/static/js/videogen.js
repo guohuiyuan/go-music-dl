@@ -1270,6 +1270,7 @@
             .then(text => this.parseAndSetLyrics(text));
 
         modal.style.display = "flex";
+        document.body.classList.add("vg-open");
         requestAnimationFrame(() => { 
             modal.classList.add("active"); this.initRealtimeCanvas(); 
             if (this.isPlaying) this.apPlayHandler(); 
@@ -1283,6 +1284,7 @@
         if (this.isLocalAudio && this.localAudio) this.localAudio.pause();
         if (this.resizeObserver) { this.resizeObserver.disconnect(); this.resizeObserver = null; }
         const m = document.getElementById("vg-modal"); m.classList.remove("active");
+        document.body.classList.remove("vg-open");
         setTimeout(() => { m.style.display = "none"; this.reset(); }, 500);
       },
 
