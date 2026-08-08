@@ -1326,6 +1326,11 @@ body.karaoke-lyrics-active .aplayer.aplayer-fixed .aplayer-lrc {
     -webkit-mask-image: none !important;
 }
 
+/* Respect APlayer's built-in lyrics visibility toggle in karaoke mode. */
+body.karaoke-lyrics-active .aplayer.aplayer-fixed .aplayer-lrc.aplayer-lrc-hide {
+    display: none !important;
+}
+
 body.karaoke-lyrics-active .aplayer.aplayer-fixed .aplayer-lrc .aplayer-lrc-contents {
     position: relative !important;
 }

@@ -4740,6 +4740,11 @@ const KaraokeLyrics = (() => {
       if (!response.ok) return;
       const raw = await response.text();
       if (key !== currentKey) return;
+      if (!floatingLyricsEnabled()) {
+        currentKey = "";
+        hide();
+        return;
+      }
       const parsed = parse(raw);
       if (parsed.type !== "karaoke") {
         hide();
