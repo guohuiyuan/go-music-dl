@@ -562,6 +562,12 @@ body.batch-mode .song-card { padding-left: 10px; }
     gap: 6px;
     z-index: 10001;
 }
+
+/* 歌曲详情/生成视频全屏弹窗打开时，隐藏背后的右侧工具栏与底部播放条 */
+body.vg-open .right-toolbar,
+body.vg-open .aplayer.aplayer-fixed {
+    display: none !important;
+}
 .rt-btn {
     width: 36px;
     height: 36px;
