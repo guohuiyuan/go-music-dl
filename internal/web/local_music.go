@@ -14,12 +14,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/dhowden/tag"
@@ -1354,12 +1352,7 @@ func probeLocalMusicTrack(track *localMusicTrack) (*localProbeResult, error) {
 	}
 
 	cmd := exec.Command(ffprobePath, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", track.absPath)
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			HideWindow:    true,
-			CreationFlags: 0x08000000, // CREATE_NO_WINDOW
-		}
-	}
+	core.HideCommandWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
