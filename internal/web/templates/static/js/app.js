@@ -3284,14 +3284,41 @@ function closeUpdateModal() {
 // ==========================================
 
 async function openDownloadRecordsModal() {
-  const modal = document.getElementById("downloadRecordsModal");
-  if (!modal) return;
-  modal.style.display = "flex";
+  // 与导入弹窗一致：动态创建解决 WebView2 静态弹窗不渲染的问题
+  const oldModal = document.getElementById("downloadRecordsModal");
+  if (oldModal) oldModal.remove();
+  const html = `<div id="downloadRecordsModal" class="modal-overlay" style="z-index:1009;display:flex;align-items:center;justify-content:center;">
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载记录</h3>
+        <div class="modal-close" onclick="closeDownloadRecordsModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span id="download-records-count" style="font-size:13px;color:var(--text-sub);">加载中...</span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-pill" onclick="openImportSongsModal()" style="font-size:12px;padding:4px 10px;">
+              <i class="fa-solid fa-file-import"></i> 导入已有曲库
+            </button>
+            <button class="btn-pill" onclick="exportDownloadRecords()" style="font-size:12px;padding:4px 10px;">
+              <i class="fa-solid fa-file-csv"></i> 导出 CSV
+            </button>
+            <button class="btn-pill btn-pill-danger" onclick="clearDownloadRecords()" style="font-size:12px;padding:4px 10px;">
+              <i class="fa-solid fa-trash-can"></i> 清空记录
+            </button>
+          </div>
+        </div>
+        <div id="download-records-list" style="max-height:400px;overflow-y:auto;"></div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;">
+          <button type="button" class="btn-pill" onclick="closeDownloadRecordsModal()">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
 
   const countEl = document.getElementById("download-records-count");
   const listEl = document.getElementById("download-records-list");
-  if (countEl) countEl.textContent = "加载中...";
-  if (listEl) listEl.innerHTML = "";
 
   try {
     const resp = await fetch(`${API_ROOT}/api/downloads/records`);

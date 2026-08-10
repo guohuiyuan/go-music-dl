@@ -344,35 +344,6 @@
 </div>
 
 <!-- 下载记录弹窗 -->
-<div id="downloadRecordsModal" class="modal-overlay" style="z-index: 1009;">
-    <div class="modal" style="max-width: 700px;">
-        <div class="modal-header">
-            <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载记录</h3>
-            <div class="modal-close" onclick="closeDownloadRecordsModal()"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-        <div class="modal-body">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span id="download-records-count" style="font-size: 13px; color: var(--text-sub);">加载中...</span>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn-pill" onclick="openImportSongsModal()" style="font-size: 12px; padding: 4px 10px;">
-                        <i class="fa-solid fa-file-import"></i> 导入已有曲库
-                    </button>
-                    <button class="btn-pill" onclick="exportDownloadRecords()" style="font-size: 12px; padding: 4px 10px;">
-                        <i class="fa-solid fa-file-csv"></i> 导出 CSV
-                    </button>
-                    <button class="btn-pill btn-pill-danger" onclick="clearDownloadRecords()" style="font-size: 12px; padding: 4px 10px;">
-                        <i class="fa-solid fa-trash-can"></i> 清空记录
-                    </button>
-                </div>
-            </div>
-            <div id="download-records-list" style="max-height: 400px; overflow-y: auto;"></div>
-            <div style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
-                <button type="button" class="btn-pill" onclick="closeDownloadRecordsModal()">关闭</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- 导入已有曲库弹窗 -->
 <div id="importSongsModal" class="modal-overlay" style="z-index: 1010;">
     <div class="modal" style="max-width: 500px;">
