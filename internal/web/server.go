@@ -22,7 +22,7 @@ import (
 //go:embed templates/*
 var templateFS embed.FS
 
-const RoutePrefix = "/music"
+var RoutePrefix = "/music"
 
 type importCollectionMeta struct {
 	Enabled     bool
@@ -331,14 +331,27 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	})
 }
 
+func NormalizeBasePath(p string) string {
+	p = strings.TrimSpace(p)
+	p = strings.TrimRight(p, "/")
+	if p == "" {
+		return "/music"
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return p
+}
+
 type StartOptions struct {
 	ShouldOpenBrowser bool
 	DisableAuth       bool
 	ListenHost        string
+	BasePath          string
 }
 
-func Start(port string, shouldOpenBrowser bool) {
-	StartWithOptions(port, StartOptions{ShouldOpenBrowser: shouldOpenBrowser})
+func Start(port string, shouldOpenBrowser bool, basePath string) {
+	StartWithOptions(port, StartOptions{ShouldOpenBrowser: shouldOpenBrowser, BasePath: basePath})
 }
 
 func StartDesktop(port string) {
@@ -349,6 +362,9 @@ func StartDesktop(port string) {
 }
 
 func StartWithOptions(port string, opts StartOptions) {
+	if opts.BasePath != "" {
+		RoutePrefix = NormalizeBasePath(opts.BasePath)
+	}
 	core.CM.Load()
 	if !opts.DisableAuth {
 		settings, err := core.GetWebAuthSettings()

@@ -8,6 +8,7 @@ import (
 var port string
 var noBrowser bool
 var desktopMode bool
+var basePath string
 
 var webCmd = &cobra.Command{
 	Use:   "web",
@@ -17,12 +18,13 @@ var webCmd = &cobra.Command{
 			web.StartDesktop(port)
 			return
 		}
-		web.Start(port, !noBrowser)
+		web.Start(port, !noBrowser, basePath)
 	},
 }
 
 func init() {
 	webCmd.Flags().StringVarP(&port, "port", "p", "8080", "服务端口")
+	webCmd.Flags().StringVar(&basePath, "base-path", "/music", "Web 端基础路径")
 	webCmd.Flags().BoolVar(&noBrowser, "no-browser", false, "不自动打开浏览器")
 	webCmd.Flags().BoolVar(&desktopMode, "desktop", false, "桌面内嵌模式")
 	_ = webCmd.Flags().MarkHidden("desktop")

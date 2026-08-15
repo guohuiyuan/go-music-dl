@@ -27,6 +27,25 @@ Go Music DL 是一个音乐搜索与下载工具，支持 **Web 界面**、**TUI
 
 ```
 
+Web 服务默认挂载于 `/music` 路径下。如需通过反向代理挂载到二级目录，可使用 `--base-path` 参数：
+
+```bash
+./music-dl web --base-path /dl
+```
+
+对应的 Nginx 反向代理示例：
+
+```nginx
+location /dl/ {
+	proxy_pass http://127.0.0.1:8080/;
+
+	proxy_set_header Host $host;
+	proxy_set_header X-Real-IP $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
 Web 模式默认不要求登录即可搜索、播放、下载、浏览歌单 / 专辑和使用本地歌单等普通功能。只有进入右上角 **设置**、保存系统设置、管理平台 Cookie、通过扫码登录写入 Cookie 等系统配置操作需要管理员登录。
 
 首次触发系统配置登录时，如果还没有管理员账号，启动终端会打印一次性初始化令牌。打开初始化页后填入该令牌，并设置用户名和至少 6 位密码即可创建管理员账号；之后点击设置或右上角登录按钮会进入登录流程。会话 Cookie 默认保留 7 天，右上角按钮会根据状态切换为登录 / 退出登录；退出后会回到首页，普通功能仍可继续使用。
