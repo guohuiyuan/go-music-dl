@@ -675,4 +675,4 @@ go-music-dl/
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/image?repos=guohuiyuan/go-music-dl&type=date&legend=top-left)](https://www.star-history.com/?repos=guohuiyuan%2Fgo-music-dl&type=date&legend=top-left)
+[![Star History Chart](https://star-history.dera.page/svg?repos=guohuiyuan/go-music-dl&type=date&legend=top-left)](https://star-history.dera.page/#guohuiyuan/go-music-dl&type=date&legend=top-left)
