@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -760,9 +761,34 @@ func RegisterCollectionRoutes(api *gin.RouterGroup) {
 	})
 
 	colAPI.DELETE("/:id", func(c *gin.Context) {
-		id := c.Param("id")
-		if err := db.Delete(&Collection{}, id).Error; err != nil {
-			c.JSON(500, gin.H{"error": "删除失败"})
+		if !allowSameOriginWrite(c) {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil || id == 0 {
+			c.JSON(400, gin.H{"error": "无效的歌单 ID"})
+			return
+		}
+		err = db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Where("collection_id = ?", id).Delete(&SavedSong{}).Error; err != nil {
+				return err
+			}
+			result := tx.Delete(&Collection{}, uint(id))
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+			return nil
+		})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(404, gin.H{"error": "歌单不存在"})
+			return
+		}
+		if err != nil {
+			c.JSON(500, gin.H{"error": "删除失败，请稍后重试"})
 			return
 		}
 		c.JSON(200, gin.H{"status": "ok"})

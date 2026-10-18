@@ -8964,24 +8964,33 @@ function importCollectionFromButton(btn) {
     });
 }
 
-function deleteCollection(id) {
-  if (!confirm("确定删除此歌单吗？内部歌曲记录也将被清空。")) return;
-  fetch(`${API_ROOT}/collections/${id}`, { method: "DELETE" })
-    .then((r) => r.json())
-    .then((res) => {
-      if (res.error) return alert(res.error);
-      refreshCurrentPageContent();
-    });
+let collectionDeletePending = false;
+
+async function deleteCollection(id, fromModal = false) {
+  if (collectionDeletePending) return;
+  collectionDeletePending = true;
+  try {
+    if (!(await confirmAppAction({title:"删除本地歌单",message:"确定删除此歌单及其中的收藏记录？已下载的音频文件和已加入的下载队列会保留。",confirmLabel:"删除歌单"}))) return;
+    const response = await fetch(`${API_ROOT}/collections/${encodeURIComponent(id)}`, {method:"DELETE",headers:{"X-Requested-With":"XMLHttpRequest"}});
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "删除失败");
+    const current = new URL(window.location.href);
+    if (current.pathname.endsWith("/collection") && current.searchParams.get("id") === String(id)) {
+      await navigateTo(`${API_ROOT}/my_collections`, {scroll:false});
+    } else {
+      await refreshCurrentPageContent({scroll:false});
+    }
+    if (fromModal) refreshAddToCollectionList();
+    showToast("歌单已删除", "已更新本地歌单列表。", "success", downloadNoticeDuration());
+  } catch (error) {
+    showToast("删除歌单失败", error.message || "请稍后重试", "error", downloadNoticeDuration());
+  } finally {
+    collectionDeletePending = false;
+  }
 }
 
 function deleteCollectionFromModal(id) {
-  if (!confirm("确定删除此歌单吗？内部歌曲记录也将被清空。")) return;
-  fetch(`${API_ROOT}/collections/${id}`, { method: "DELETE" })
-    .then((r) => r.json())
-    .then((res) => {
-      if (res.error) return alert(res.error);
-      refreshAddToCollectionList();
-    });
+  return deleteCollection(id, true);
 }
 
 function refreshAddToCollectionList() {
