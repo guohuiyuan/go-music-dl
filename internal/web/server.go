@@ -675,7 +675,7 @@ func StartWithOptions(port string, opts StartOptions) {
 	queueContext, stopQueue := context.WithCancel(context.Background())
 	defer stopQueue()
 	if err := queue.Start(queueContext, processQueuedDownload); err != nil {
-		listener.Close()
+		_ = listener.Close()
 		fmt.Fprintf(os.Stderr, "Start download queue: %v\n", err)
 		return
 	}

@@ -13,9 +13,15 @@ import (
 )
 
 func TestDownloadQueueAPIPersistsAppendAndRejectsCrossOrigin(t *testing.T) {
-	core.CloseConfigDB()
+	if err := core.CloseConfigDB(); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(t.TempDir(), "settings.db"))
-	t.Cleanup(func() { core.CloseConfigDB() })
+	t.Cleanup(func() {
+		if err := core.CloseConfigDB(); err != nil {
+			t.Error(err)
+		}
+	})
 	q, err := core.OpenDownloadQueue()
 	if err != nil {
 		t.Fatal(err)

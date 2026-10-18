@@ -19,9 +19,15 @@ import (
 
 func setupContainerTests(t *testing.T) (*gin.Engine, *core.DownloadQueue) {
 	t.Helper()
-	core.CloseConfigDB()
+	if err := core.CloseConfigDB(); err != nil {
+		t.Fatal(err)
+	}
 	initCollectionDBForTest(t)
-	t.Cleanup(func() { core.CloseConfigDB() })
+	t.Cleanup(func() {
+		if err := core.CloseConfigDB(); err != nil {
+			t.Error(err)
+		}
+	})
 	q, err := core.OpenDownloadQueue()
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +67,9 @@ func TestDownloadWholePlaylistHasNoPageOr2000SongLimit(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	var result struct{ Added, Total int }
-	json.Unmarshal(w.Body.Bytes(), &result)
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
 	if result.Added != 2205 || result.Total != 2205 {
 		t.Fatal(w.Body.String())
 	}
@@ -148,9 +156,13 @@ func TestDeleteCollectionRemovesReferencesAndKeepsFilesAndQueue(t *testing.T) {
 	col := Collection{Name: "Disposable"}
 	db.Create(&col)
 	db.Create(&SavedSong{CollectionID: col.ID, SongID: "song", Source: "kuwo", Name: "Song"})
-	q.Enqueue("saved-queue", []core.DownloadTaskInput{{Song: model.Song{ID: "song", Source: "kuwo", Name: "Song"}, Directory: t.TempDir()}})
+	if _, err := q.Enqueue("saved-queue", []core.DownloadTaskInput{{Song: model.Song{ID: "song", Source: "kuwo", Name: "Song"}, Directory: t.TempDir()}}); err != nil {
+		t.Fatal(err)
+	}
 	audio := filepath.Join(t.TempDir(), "audio.mp3")
-	os.WriteFile(audio, []byte("audio"), 0644)
+	if err := os.WriteFile(audio, []byte("audio"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	deleteRequest := func(id, origin string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodDelete, RoutePrefix+"/collections/"+id, nil)
 		req.Header.Set("X-Requested-With", "XMLHttpRequest")
@@ -194,12 +206,18 @@ func TestDeleteCollectionRollsBackSavedSongsOnFailure(t *testing.T) {
 	db.Create(&col)
 	db.Create(&SavedSong{CollectionID: col.ID, SongID: "keep", Source: "kuwo"})
 	name := "test:fail_collection_delete"
-	db.Callback().Delete().Before("gorm:delete").Register(name, func(tx *gorm.DB) {
+	if err := db.Callback().Delete().Before("gorm:delete").Register(name, func(tx *gorm.DB) {
 		if tx.Statement.Table == "collections" {
-			tx.AddError(errors.New("simulated failure"))
+			_ = tx.AddError(errors.New("simulated failure"))
+		}
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := db.Callback().Delete().Remove(name); err != nil {
+			t.Error(err)
 		}
 	})
-	t.Cleanup(func() { db.Callback().Delete().Remove(name) })
 	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("%s/collections/%d", RoutePrefix, col.ID), nil)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	w := httptest.NewRecorder()

@@ -135,17 +135,17 @@ func saveDownloadedSongToFile(result *DownloadedSong, outDir string) (*Downloade
 		return nil, err
 	}
 	temporaryPath := temporary.Name()
-	defer os.Remove(temporaryPath)
+	defer func() { _ = os.Remove(temporaryPath) }()
 	if _, err = temporary.Write(result.Data); err != nil {
-		temporary.Close()
+		_ = temporary.Close()
 		return nil, err
 	}
 	if err = temporary.Chmod(0644); err != nil {
-		temporary.Close()
+		_ = temporary.Close()
 		return nil, err
 	}
 	if err = temporary.Sync(); err != nil {
-		temporary.Close()
+		_ = temporary.Close()
 		return nil, err
 	}
 	if err = temporary.Close(); err != nil {
