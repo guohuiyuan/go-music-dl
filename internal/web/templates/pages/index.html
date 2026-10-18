@@ -24,9 +24,9 @@
         <button id="auth-float-button" type="submit"><i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i></button>
     </form>
     <div class="rt-btn" onclick="openLocalMusicPage()" title="本地音乐"><i class="fa-solid fa-folder-plus"></i></div>
-    <button type="button" id="download-records-button" class="rt-btn rt-btn-download-records" onclick="openDownloadRecordsModal()" title="下载记录" aria-label="下载记录">
+    <button type="button" id="download-records-button" class="rt-btn rt-btn-download-records" onclick="openDownloadRecordsModal()" title="下载管理" aria-label="下载管理">
         <i class="fa-solid fa-clock-rotate-left"></i>
-        <span class="rt-download-records-dot" aria-hidden="true"></span>
+        <span class="rt-download-records-dot" aria-hidden="true"></span><span id="download-queue-badge" class="queue-badge" hidden></span>
     </button>
     <div class="rt-btn" onclick="openPlaybackHistoryModal()" title="播放历史"><i class="fa-solid fa-clock"></i></div>
 

@@ -467,12 +467,25 @@
     <div class="modal utility-modal download-records-modal">
         <div class="modal-header">
             <div>
-                <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载记录</h3>
-                <p class="download-records-subtitle">最近的下载、跳过和失败记录</p>
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载管理</h3>
+                <p class="download-records-subtitle">任务自动保存，重启后继续；中断歌曲会重新下载。</p>
             </div>
             <div class="modal-close" onclick="closeDownloadRecordsModal()"><i class="fa-solid fa-xmark"></i></div>
         </div>
         <div class="modal-body">
+            <div class="queue-tabs" role="tablist" aria-label="下载管理">
+                <button type="button" role="tab" data-download-tab="queue" aria-selected="true" onclick="switchDownloadManagerTab('queue')">下载队列</button>
+                <button type="button" role="tab" data-download-tab="history" aria-selected="false" onclick="switchDownloadManagerTab('history')">历史记录</button>
+            </div>
+            <section id="download-queue-panel">
+                <div id="download-queue-summary" aria-live="polite"></div>
+                <div class="queue-filter"><label for="download-queue-filter">显示任务</label><select id="download-queue-filter" onchange="downloadQueueFilter=this.value;loadDownloadQueue(1)"><option value="">全部</option><option value="active">等待与下载中</option><option value="success">成功</option><option value="skipped">跳过</option><option value="failed">失败</option><option value="canceled">已取消</option></select><button class="btn-pill" onclick="loadDownloadQueue()">刷新</button></div>
+                <p class="queue-note">关闭此面板不会停止下载。重启应用后自动恢复等待任务；此处显示任务状态和总体进度。</p>
+                <p id="download-queue-error" role="status"></p>
+                <div id="download-queue-list" class="utility-modal-list"></div>
+                <nav id="download-queue-pagination" class="utility-modal-pagination" aria-label="下载队列分页"></nav>
+            </section>
+            <section id="download-history-panel" hidden>
             <div class="utility-modal-toolbar download-records-toolbar">
                 <span id="download-records-count" class="utility-modal-count download-records-count">加载中...</span>
                 <div class="utility-modal-actions download-records-actions">
@@ -486,6 +499,7 @@
             </div>
             <div id="download-records-list" class="utility-modal-list download-records-list"></div>
             <nav id="download-records-pagination" class="utility-modal-pagination" aria-label="下载记录分页"></nav>
+            </section>
         </div>
     </div>
 </div>

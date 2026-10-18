@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestBatchDownloadUsesCompactRecordBackedFeedback(t *testing.T) {
+func TestBatchDownloadEnqueuesDurableTasks(t *testing.T) {
 	appContent, err := templateFS.ReadFile("templates/static/js/app.js")
 	if err != nil {
 		t.Fatalf("read app.js: %v", err)
@@ -20,6 +20,7 @@ func TestBatchDownloadUsesCompactRecordBackedFeedback(t *testing.T) {
 	batchDownloadJS := appJS[start:end]
 
 	for _, unwanted := range []string{
+		"requestLocalDownload(",
 		"showDownloadPanel(",
 		"updateDownloadPanelItem(",
 		"/api/downloads/precheck",
@@ -32,14 +33,14 @@ func TestBatchDownloadUsesCompactRecordBackedFeedback(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"确认批量下载",
+		"await confirmBatchDownload(songs.length)",
 		"downloadNoticeDuration()",
-		"批量下载已开始",
-		"右侧“下载记录”",
-		`setDownloadRecordsButtonState("downloading")`,
-		`setDownloadRecordsButtonState("updated")`,
-		"dismissBatchStartNotice(true)",
-		"refreshOpenDownloadRecords()",
+		"enqueueDownloadURLs(songs.map(song => song.url))",
+		"下载管理",
+		"已加入下载队列",
+		"result.added",
+		"result.existing",
+		"openDownloadRecordsModal()",
 	} {
 		if !strings.Contains(batchDownloadJS, want) {
 			t.Fatalf("batchDownload missing compact feedback token %q", want)
@@ -60,7 +61,7 @@ func TestBatchDownloadUsesCompactRecordBackedFeedback(t *testing.T) {
 	for _, want := range []string{
 		`id="download-records-button"`,
 		`class="rt-btn rt-btn-download-records"`,
-		`aria-label="下载记录"`,
+		`aria-label="下载管理"`,
 	} {
 		if !strings.Contains(indexHTML, want) {
 			t.Fatalf("download records entry missing %q", want)

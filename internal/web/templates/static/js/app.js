@@ -1374,44 +1374,20 @@ async function requestBrowserDownload(song) {
 }
 
 async function handleDownloadClick(link) {
-  if (!link) {
-    return false;
-  }
-
+  if (!link) return false;
   link.style.pointerEvents = "none";
   link.style.opacity = "0.6";
   try {
-    const data = await requestLocalDownload(link.href);
-    let message = data.path || webSettings.downloadDir;
-    let warning = false;
-    if (data.warning) {
-      message += `\n提示: ${data.warning}`;
-      warning = true;
-    }
-    if (data.webdav_error) {
-      message += `\nWebDAV: ${data.webdav_error}`;
-      warning = true;
-    }
-    showToast(
-      "下载完成",
-      message,
-      warning ? "warning" : "success",
-      downloadNoticeDuration(),
-    );
+    const result = await enqueueDownloadURLs([link.href]);
+    showToast("下载队列", result.added ? "已加入等待队列，可在右侧“下载管理”查看。" : "此歌曲已在等待或下载中。", "success", downloadNoticeDuration());
     return true;
   } catch (error) {
-    showToast(
-      "下载失败",
-      error.message || "下载失败",
-      "error",
-      downloadNoticeDuration(),
-    );
+    showToast("加入队列失败", error.message, "error", downloadNoticeDuration());
+    return false;
   } finally {
     link.style.pointerEvents = "";
     link.style.opacity = "";
   }
-
-  return false;
 }
 
 let navigationAbortController = null;
@@ -2082,6 +2058,7 @@ function isEditableElement(element) {
 }
 
 function hasVisibleModalOverlay() {
+  if (document.querySelector("dialog[open]")) return true;
   return Array.from(document.querySelectorAll(".modal-overlay")).some(
     (overlay) => {
       return window.getComputedStyle(overlay).display !== "none";
@@ -4978,6 +4955,99 @@ function closeUpdateModal() {
 // 下载记录
 // ==========================================
 
+let downloadQueuePage = 1;
+let downloadQueueLoading = false;
+let downloadQueueLastPoll = 0;
+let downloadQueueRenderKey = "";
+let downloadQueueFilter = "";
+let downloadManagerTab = "queue";
+
+async function enqueueDownloadURLs(urls) {
+  const songs = urls.map(raw => {
+    const params = new URL(raw, window.location.href).searchParams;
+    return Object.fromEntries(["id", "source", "name", "artist", "album", "cover", "extra"].map(key => [key, params.get(key) || ""]).concat([["embed", params.get("embed") === "1"]]));
+  });
+  const response = await fetch(`${API_ROOT}/api/downloads/queue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+    body: JSON.stringify({ request_id: crypto.randomUUID(), songs }),
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || "加入队列失败");
+  void loadDownloadQueue();
+  return data;
+}
+
+async function switchDownloadManagerTab(tab) {
+  downloadManagerTab = tab;
+  document.getElementById("download-queue-panel").hidden = tab !== "queue";
+  document.getElementById("download-history-panel").hidden = tab !== "history";
+  document.querySelectorAll("[data-download-tab]").forEach(button => {
+    button.setAttribute("aria-selected", String(button.dataset.downloadTab === tab));
+  });
+  if (tab === "queue") await loadDownloadQueue();
+  else await loadDownloadRecordsPage(1);
+}
+
+async function loadDownloadQueue(page = downloadQueuePage) {
+  if (downloadQueueLoading) return;
+  downloadQueueLoading = true;
+  downloadQueueLastPoll = Date.now();
+  const list = document.getElementById("download-queue-list");
+  const summary = document.getElementById("download-queue-summary");
+  try {
+    const params = new URLSearchParams({page: String(page), status: downloadQueueFilter});
+    const response = await fetch(`${API_ROOT}/api/downloads/queue?${params}`, {cache:"no-store"});
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "读取队列失败");
+    downloadQueuePage = data.page;
+    const c = data.counts || {};
+    const active = (c.waiting || 0) + (c.downloading || 0);
+    const finished = (c.success || 0) + (c.skipped || 0) + (c.failed || 0) + (c.canceled || 0);
+    const total = active + finished;
+    setDownloadRecordsButtonState(active ? "downloading" : "idle");
+    const badge = document.getElementById("download-queue-badge");
+    if (badge) { badge.textContent = active > 999 ? "999+" : active; badge.hidden = !active; }
+    if (summary) summary.innerHTML = `<div class="queue-overview"><strong>${finished}<small> / ${total} 已处理</small></strong><span>下载中 ${c.downloading || 0} · 等待 ${c.waiting || 0}</span></div><progress max="${total || 1}" value="${finished}" aria-label="队列总体进度"></progress><div class="queue-outcomes">成功 ${c.success || 0} · 跳过 ${c.skipped || 0} · 失败 ${c.failed || 0} · 已取消 ${c.canceled || 0}</div>`;
+    const renderKey = JSON.stringify([data.page, downloadQueueFilter, data.tasks]);
+    if (list && renderKey !== downloadQueueRenderKey) {
+      downloadQueueRenderKey = renderKey;
+      const labels = {waiting:"等待下载", downloading:"正在下载", success:"下载成功", skipped:"已下载，跳过", failed:"下载失败", canceled:"已取消"};
+      list.innerHTML = (data.tasks || []).map(task => {
+        const action = task.Status === "waiting" ? `<button class="btn-pill" onclick="downloadQueueAction(${task.ID},'cancel')">取消</button>` : ["failed","canceled"].includes(task.Status) ? `<button class="btn-pill" onclick="downloadQueueAction(${task.ID},'retry')">重试</button>` : "";
+        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${escapeHtml(task.Error || task.Warning || task.Path || task.Directory || "")}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(task.Status)}">${labels[task.Status] || "未知状态"}</span>${action}</div></article>`;
+      }).join("") || '<div class="download-records-empty">暂无任务。选择歌曲后点击“批量下载”即可加入队列。</div>';
+    }
+    const pagination = document.getElementById("download-queue-pagination");
+    if (pagination) pagination.innerHTML = renderUtilityModalPagination(data.page, Math.max(1,data.total_pages), "loadDownloadQueue");
+    // Status changes may empty the last page of a filter. Move back on the next poll.
+    if (data.page > Math.max(1,data.total_pages)) downloadQueuePage = Math.max(1,data.total_pages);
+    const error = document.getElementById("download-queue-error");
+    if (error) error.textContent = "";
+  } catch (error) {
+    const el = document.getElementById("download-queue-error");
+    if (el) el.textContent = `队列暂不可读取：${error.message}。将自动重试，已保存任务不会被清空。`;
+  } finally {
+    downloadQueueLoading = false;
+  }
+}
+
+async function downloadQueueAction(id, action) {
+  try {
+    const response = await fetch(`${API_ROOT}/api/downloads/queue/${id}/${action}`, {method:"POST", headers:{"X-Requested-With":"XMLHttpRequest"}});
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "操作失败");
+    await loadDownloadQueue();
+  } catch (error) { showToast("队列操作失败", error.message, "error", downloadNoticeDuration()); }
+}
+
+window.setInterval(() => {
+  if (document.hidden) return;
+  const modal = document.getElementById("downloadRecordsModal");
+  if ((modal && modal.style.display === "flex" && downloadManagerTab === "queue") || Date.now() - downloadQueueLastPoll >= 10000) void loadDownloadQueue();
+}, 2000);
+document.addEventListener("DOMContentLoaded", () => { void loadDownloadQueue(); });
+
 const DOWNLOAD_RECORDS_PAGE_SIZE = 20;
 let activeDownloadRecordsPage = 1;
 
@@ -4994,7 +5064,7 @@ async function openDownloadRecordsModal() {
   setDownloadRecordsButtonState("idle");
   modal.style.display = "flex";
 
-  await loadDownloadRecordsPage(1);
+  await switchDownloadManagerTab("queue");
 }
 
 function setDownloadRecordsButtonState(state = "idle") {
@@ -5007,10 +5077,10 @@ function setDownloadRecordsButtonState(state = "idle") {
   button.classList.toggle("has-download-updates", updated);
 
   const label = downloading
-    ? "下载记录，批量下载进行中"
+    ? "下载管理，队列执行中"
     : updated
-      ? "下载记录，有新的下载结果"
-      : "下载记录";
+      ? "下载管理，有新的下载结果"
+      : "下载管理";
   button.title = label;
   button.setAttribute("aria-label", label);
 }
@@ -8052,94 +8122,67 @@ async function batchCopyDownloadUrls() {
   }
 }
 
+// Use an in-page dialog: macOS WebView does not provide window.confirm panels.
+function confirmBatchDownload(count) {
+  return confirmAppAction({
+    title: "确认批量下载",
+    message: `将当前页选中的 ${count} 首歌曲加入下载队列？已有任务会继续执行，新歌曲将排队等待。`,
+    confirmLabel: "开始下载",
+  });
+}
+
+function confirmAppAction({title, message, confirmLabel}) {
+  return new Promise((resolve) => {
+    const previousFocus = document.activeElement;
+    const dialog = document.createElement("dialog");
+    dialog.className = "modal utility-modal batch-download-confirm";
+    dialog.setAttribute("aria-labelledby", "app-confirm-title");
+    dialog.setAttribute("aria-describedby", "app-confirm-message");
+    dialog.innerHTML = `
+      <div class="modal-header"><h3 id="app-confirm-title"></h3></div>
+      <form method="dialog" class="modal-body">
+        <p id="app-confirm-message"></p>
+        <div class="utility-modal-footer utility-modal-actions">
+          <button type="submit" class="btn-pill" value="cancel" autofocus>取消</button>
+          <button type="submit" class="btn-pill" value="confirm"></button>
+        </div>
+      </form>`;
+    dialog.querySelector("h3").textContent = title;
+    dialog.querySelector("p").textContent = message;
+    dialog.querySelector('button[value="confirm"]').textContent = confirmLabel;
+    dialog.addEventListener("close", () => {
+      const confirmed = dialog.returnValue === "confirm";
+      dialog.remove();
+      if (previousFocus && previousFocus.isConnected) previousFocus.focus();
+      resolve(confirmed);
+    }, { once: true });
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  });
+}
+
+let batchDownloadPending = false;
+
 async function batchDownload() {
-  const selectedSongs = getSelectedSongs();
-  const songs = selectedSongs.filter(
-    (song) => !isLocalMusicSourceValue(song.source),
-  );
-  const skippedLocalCount = selectedSongs.length - songs.length;
-  if (selectedSongs.length === 0) return;
-  if (songs.length === 0) {
-    alert("选中的歌曲都是本地歌曲，无需批量下载。");
-    return;
-  }
-  const batchDl = document.getElementById("btn-batch-dl");
-  const batchSwitch = document.getElementById("btn-batch-switch");
-  const originalBatchDlHTML = batchDl ? batchDl.innerHTML : "";
-
-  if (!confirm(`确认批量下载 ${songs.length} 首歌曲？`)) return;
-
-  if (batchDl) {
-    batchDl.disabled = true;
-    batchDl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 下载中';
-  }
-  if (batchSwitch) {
-    batchSwitch.disabled = true;
-  }
-
-  setDownloadRecordsButtonState("downloading");
-  const ignoredLocalText =
-    skippedLocalCount > 0 ? `，已忽略 ${skippedLocalCount} 首本地歌曲` : "";
-  const dismissBatchStartNotice = showToast(
-    "批量下载已开始",
-    `正在保存 ${songs.length} 首歌曲${ignoredLocalText}，进度与结果请查看右侧“下载记录”。`,
-    "info",
-    downloadNoticeDuration(),
-  );
-
-  let success = 0;
-  let skipped = 0;
-  let failed = 0;
-  let warningCount = 0;
-
+  if (batchDownloadPending) return;
+  batchDownloadPending = true;
   try {
-    for (const song of songs) {
-      try {
-        const result = await requestLocalDownload(song.url);
-        if (result && result.skipped) {
-          skipped++;
-        } else {
-          success++;
-          if (result && (result.warning || result.webdav_error)) {
-            warningCount++;
-          }
-        }
-      } catch (_) {
-        failed++;
-      }
-    }
-
-    const summary = [`成功 ${success}`, `跳过 ${skipped}`, `失败 ${failed}`];
-    if (skippedLocalCount > 0) {
-      summary.push(`忽略本地 ${skippedLocalCount}`);
-    }
-    if (warningCount > 0) {
-      summary.push(`降级提示 ${warningCount}`);
-    }
-
-    dismissBatchStartNotice(true);
-    showToast(
-      failed > 0 ? "批量下载部分完成" : "批量下载完成",
-      `${summary.join("，")}。详情请查看右侧“下载记录”。`,
-      failed > 0 ? "warning" : "success",
-      downloadNoticeDuration(),
-    );
-
-    setDownloadRecordsButtonState("updated");
-    if (await refreshOpenDownloadRecords()) {
-      setDownloadRecordsButtonState("idle");
-    }
+    await runBatchDownload();
   } finally {
-    if (batchDl) {
-      batchDl.innerHTML = originalBatchDlHTML;
-    }
-    updateBatchToolbar();
-    if (
-      batchSwitch &&
-      document.querySelectorAll(".song-checkbox:checked").length === 0
-    ) {
-      batchSwitch.disabled = true;
-    }
+    batchDownloadPending = false;
+  }
+}
+
+async function runBatchDownload() {
+  const songs = getSelectedSongs().filter(song => !isLocalMusicSourceValue(song.source));
+  if (!songs.length) return;
+  if (!(await confirmBatchDownload(songs.length))) return;
+  try {
+    const result = await enqueueDownloadURLs(songs.map(song => song.url));
+    showToast("已加入下载队列", `新增 ${result.added} 首，队列中已存在 ${result.existing} 首。可继续翻页追加，进度请查看右侧“下载管理”。`, "success", downloadNoticeDuration());
+    await openDownloadRecordsModal();
+  } catch (error) {
+    showToast("加入队列失败", error.message, "error", downloadNoticeDuration());
   }
 }
 

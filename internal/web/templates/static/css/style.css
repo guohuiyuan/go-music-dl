@@ -2516,3 +2516,34 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
         font-size: 50%;
     }
 }
+
+/* Native HTML dialog keeps confirmation usable in desktop WebViews. */
+.batch-download-confirm { margin: auto; color: var(--text-main); }
+.batch-download-confirm::backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); }
+
+/* Download manager: durable task queue, distinct from historical outcomes. */
+.queue-tabs { display:flex; gap:20px; border-bottom:1px solid #e2e8f0; margin-bottom:16px; }
+.queue-tabs button { border:0; background:none; padding:10px 2px; color:#64748b; cursor:pointer; border-bottom:2px solid transparent; font-weight:700; }
+.queue-tabs button[aria-selected="true"] { color:#047857; border-bottom-color:#10b981; }
+.queue-overview { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+.queue-overview strong { font-size:28px; color:#064e3b; font-variant-numeric:tabular-nums; }
+.queue-overview small, .queue-overview span, .queue-outcomes { font-size:12px; color:#64748b; font-weight:400; }
+#download-queue-summary progress { width:100%; height:8px; accent-color:#059669; margin:10px 0; }
+.queue-filter { display:flex; align-items:center; gap:10px; margin:16px 0 8px; font-size:12px; }
+.queue-filter select { padding:6px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#334155; }
+.queue-note { color:#64748b; font-size:12px; line-height:1.6; }
+#download-queue-error { color:#b91c1c; font-size:12px; }
+.queue-task { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid #edf2f7; }
+.queue-task:last-child { border-bottom:0; }
+.queue-task-main { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.queue-task-main strong { font-size:13px; color:#1e293b; overflow-wrap:anywhere; }
+.queue-task-main span, .queue-task-main small { font-size:11px; color:#64748b; overflow-wrap:anywhere; }
+.queue-task-action { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; flex-shrink:0; max-width:160px; }
+.queue-task-action button { font-size:11px; padding:4px 8px; }
+.queue-status { font-size:11px; color:#64748b; white-space:nowrap; }
+.queue-status-downloading { color:#047857; font-weight:700; }
+.queue-status-failed { color:#b91c1c; }
+.queue-status-success { color:#047857; }
+.queue-badge { position:absolute; top:-5px; right:-7px; background:#047857; color:#fff; border-radius:12px; font-size:10px; min-width:20px; padding:2px 4px; line-height:16px; }
+.queue-badge[hidden], #download-history-panel[hidden], #download-queue-panel[hidden] { display:none; }
+@media (max-width:600px) { .queue-overview { align-items:flex-start; flex-direction:column; gap:4px; } .queue-task-action { max-width:90px; } }
