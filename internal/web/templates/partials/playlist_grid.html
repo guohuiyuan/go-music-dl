@@ -94,6 +94,15 @@
                     </button>
                     {{ end }}
                 </div>
+                {{ if .ID }}
+                <button type="button" class="btn-pill container-download-button"
+                        data-container-kind="{{ if eq .Source "local" }}collection{{ else if eq $.SearchType "album" }}album{{ else }}playlist{{ end }}"
+                        data-container-id="{{.ID}}" data-container-source="{{.Source}}" data-container-link="{{.Link}}"
+                        title="获取完整曲目并加入下载队列，包含所有分页"
+                        onclick="event.stopPropagation(); downloadWholeCollection(this)">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> {{ if or (eq $.SearchType "album") (eq $contentType "album") }}下载整张专辑{{ else }}下载整个歌单{{ end }}
+                </button>
+                {{ end }}
             </div>
         </div>
         {{ end }}

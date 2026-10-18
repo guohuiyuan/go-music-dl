@@ -28,6 +28,15 @@
         </div>
 
         <div class="song-list-actions">
+            {{ if .ColID }}
+            <button type="button" class="ctrl-btn primary" data-container-kind="collection" data-container-id="{{.ColID}}" title="下载整个本地歌单，包含其他分页" onclick="downloadWholeCollection(this)"><i class="fa-solid fa-cloud-arrow-down"></i> {{ if eq .CollectionContentType "album" }}下载整张专辑{{ else }}下载整个歌单{{ end }}</button>
+            {{ else if and .ImportCollection .ImportCollection.Enabled }}
+            <button type="button" class="ctrl-btn primary"
+                    data-container-kind="{{.ImportCollection.ContentType}}" data-container-id="{{.ImportCollection.ExternalID}}" data-container-source="{{.ImportCollection.Source}}" data-container-link="{{.ImportCollection.Link}}"
+                    title="获取完整曲目并加入下载队列，包含所有分页" onclick="downloadWholeCollection(this)">
+                <i class="fa-solid fa-cloud-arrow-down"></i> {{ if eq .ImportCollection.ContentType "album" }}下载整张专辑{{ else }}下载整个歌单{{ end }}
+            </button>
+            {{ end }}
             {{ if .ImportCollection }}
             <button type="button"
                     class="ctrl-btn primary"

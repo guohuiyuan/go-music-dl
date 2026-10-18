@@ -2547,3 +2547,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
 .queue-badge { position:absolute; top:-5px; right:-7px; background:#047857; color:#fff; border-radius:12px; font-size:10px; min-width:20px; padding:2px 4px; line-height:16px; }
 .queue-badge[hidden], #download-history-panel[hidden], #download-queue-panel[hidden] { display:none; }
 @media (max-width:600px) { .queue-overview { align-items:flex-start; flex-direction:column; gap:4px; } .queue-task-action { max-width:90px; } }
+
+.container-download-button { width:100%; justify-content:center; gap:7px; margin-top:12px; border-color:#a7f3d0; background:#ecfdf5; color:#047857; }
+.container-download-button:hover:not(:disabled) { background:#d1fae5; border-color:#34d399; }
+.container-download-button:disabled { opacity:.6; cursor:wait; }

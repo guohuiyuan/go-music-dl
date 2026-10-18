@@ -8890,6 +8890,29 @@ function setImportCollectionButtonState(btn, imported) {
   }
 }
 
+async function downloadWholeCollection(button) {
+  if (!button || button.disabled) return;
+  const originalHTML = button.innerHTML;
+  button.disabled = true;
+  button.textContent = "正在获取完整曲目…";
+  try {
+    const response = await fetch(`${API_ROOT}/api/downloads/queue/container`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json", "X-Requested-With":"XMLHttpRequest"},
+      body: JSON.stringify({request_id:crypto.randomUUID(),kind:button.dataset.containerKind,id:button.dataset.containerId,source:button.dataset.containerSource || "",link:button.dataset.containerLink || "",embed:!!webSettings.embedDownload}),
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "加入队列失败");
+    showToast("完整曲目已加入队列", `共获取 ${data.total} 首，新增 ${data.added} 首，队列中已存在 ${data.existing} 首，跳过本地音乐 ${data.skipped_local} 首。`, "success", downloadNoticeDuration());
+    await openDownloadRecordsModal();
+  } catch (error) {
+    showToast("整单下载失败", error.message || "请稍后重试", "error", downloadNoticeDuration());
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalHTML;
+  }
+}
+
 function importCollectionFromButton(btn) {
   if (!btn) return;
 

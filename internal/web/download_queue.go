@@ -22,6 +22,7 @@ type queueSongRequest struct {
 }
 
 func RegisterDownloadQueueRoutes(api *gin.RouterGroup, queue *core.DownloadQueue) {
+	registerDownloadContainerRoute(api, queue)
 	api.GET("/api/downloads/queue", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

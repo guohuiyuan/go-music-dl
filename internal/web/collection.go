@@ -642,6 +642,7 @@ func RegisterCollectionRoutes(api *gin.RouterGroup) {
 			errMsg = fmt.Sprintf("获取歌单歌曲失败: %v", err)
 		}
 
+		c.Set("CollectionContentType", collection.normalizedContentType())
 		renderIndex(c, songs, nil, "", nil, errMsg, "song", collection.originalLink(), id, collection.Name, false, collection.normalizedKind(), nil)
 	})
 
