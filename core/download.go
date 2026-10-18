@@ -128,7 +128,30 @@ func saveDownloadedSongToFile(result *DownloadedSong, outDir string) (*Downloade
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(filePath, result.Data, 0644); err != nil {
+	// Commit only a complete file. A killed download must not leave a partial
+	// audio file that a later local-library scan could mistake for a success.
+	temporary, err := os.CreateTemp(filepath.Dir(filePath), ".musicdl-*.part")
+	if err != nil {
+		return nil, err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if _, err = temporary.Write(result.Data); err != nil {
+		temporary.Close()
+		return nil, err
+	}
+	if err = temporary.Chmod(0644); err != nil {
+		temporary.Close()
+		return nil, err
+	}
+	if err = temporary.Sync(); err != nil {
+		temporary.Close()
+		return nil, err
+	}
+	if err = temporary.Close(); err != nil {
+		return nil, err
+	}
+	if err = os.Rename(temporaryPath, filePath); err != nil {
 		return nil, err
 	}
 

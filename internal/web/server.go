@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -652,6 +653,13 @@ func StartWithOptions(port string, opts StartOptions) {
 	RegisterVideogenRoutes(api, videoDir)
 	RegisterUpdateRoutes(api)
 
+	queue, err := core.OpenDownloadQueue()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Initialize download queue: %v\n", err)
+		return
+	}
+	RegisterDownloadQueueRoutes(api, queue)
+
 	listenAddr := opts.ListenHost + ":" + port
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
@@ -660,6 +668,14 @@ func StartWithOptions(port string, opts StartOptions) {
 			return
 		}
 		fmt.Fprintf(os.Stderr, "Failed to start web server on %s: %v\n", listenAddr, err)
+		return
+	}
+
+	queueContext, stopQueue := context.WithCancel(context.Background())
+	defer stopQueue()
+	if err := queue.Start(queueContext, processQueuedDownload); err != nil {
+		listener.Close()
+		fmt.Fprintf(os.Stderr, "Start download queue: %v\n", err)
 		return
 	}
 
