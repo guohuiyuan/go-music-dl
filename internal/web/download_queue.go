@@ -66,6 +66,34 @@ func RegisterDownloadQueueRoutes(api *gin.RouterGroup, queue *core.DownloadQueue
 		}
 		c.JSON(http.StatusAccepted, gin.H{"added": added, "existing": len(inputs) - added})
 	})
+	api.DELETE("/api/downloads/queue", func(c *gin.Context) {
+		if !allowSameOriginWrite(c) {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+		if err := queue.Clear(); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+	api.DELETE("/api/downloads/queue/:id", func(c *gin.Context) {
+		if !allowSameOriginWrite(c) {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil || id == 0 {
+			c.JSON(400, gin.H{"error": "invalid task id"})
+			return
+		}
+		if err := queue.Remove(uint(id)); err != nil {
+			c.JSON(409, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	api.POST("/api/downloads/queue/:id/:action", func(c *gin.Context) {
 		if !allowSameOriginWrite(c) {
 			c.JSON(403, gin.H{"error": "forbidden"})

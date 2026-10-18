@@ -87,4 +87,24 @@ func TestDownloadQueueAPIPersistsAppendAndRejectsCrossOrigin(t *testing.T) {
 	if err != nil || total != 3 {
 		t.Fatal(total, err)
 	}
+	if w := request("DELETE", "/1", nil, "https://other.example"); w.Code != 403 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := request("DELETE", "", nil, "https://other.example"); w.Code != 403 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := request("DELETE", "/invalid", nil, "http://music.test"); w.Code != 400 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := request("DELETE", "/1", nil, "http://music.test"); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := request("DELETE", "", nil, "http://music.test"); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	_, total, _, err = q.List(1, 50, "")
+	if err != nil || total != 0 {
+		t.Fatal(total, err)
+	}
+
 }

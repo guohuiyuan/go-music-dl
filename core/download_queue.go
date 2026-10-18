@@ -33,6 +33,7 @@ type DownloadTaskInput struct {
 
 type DownloadTask struct {
 	ID         uint   `gorm:"primaryKey"`
+	Removed    bool   `gorm:"not null;default:false" json:"-"`
 	RequestKey string `gorm:"uniqueIndex" json:"-"`
 	TaskKey    string `gorm:"index" json:"-"`
 	Payload    string `gorm:"type:text;not null" json:"-"`
@@ -117,13 +118,13 @@ func (q *DownloadQueue) List(page, size int, status string) ([]DownloadTask, int
 		Status string
 		Count  int64
 	}
-	if err := q.db.Model(&DownloadTask{}).Select("status, count(*) as count").Group("status").Scan(&groups).Error; err != nil {
+	if err := q.db.Model(&DownloadTask{}).Where("removed = ?", false).Select("status, count(*) as count").Group("status").Scan(&groups).Error; err != nil {
 		return nil, 0, nil, err
 	}
 	for _, g := range groups {
 		counts[g.Status] = g.Count
 	}
-	query := q.db.Model(&DownloadTask{})
+	query := q.db.Model(&DownloadTask{}).Where("removed = ?", false)
 	if status == "active" {
 		query = query.Where("status IN ?", []string{TaskWaiting, TaskDownloading})
 	} else if status != "" {
@@ -163,10 +164,43 @@ func (q *DownloadQueue) Cancel(id uint) error {
 	return nil
 }
 
+// Remove hides an in-flight task until its write completes; waiting tasks are
+// deleted immediately. Files and the separate download history are untouched.
+func (q *DownloadQueue) Remove(id uint) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.db.Transaction(func(tx *gorm.DB) error {
+		var task DownloadTask
+		if err := tx.Where("id = ? AND removed = ?", id, false).First(&task).Error; err != nil {
+			return err
+		}
+		if task.Status == TaskDownloading {
+			return tx.Model(&task).Update("removed", true).Error
+		}
+		return tx.Delete(&task).Error
+	})
+}
+
+func (q *DownloadQueue) Clear() error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("status <> ?", TaskDownloading).Delete(&DownloadTask{}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&DownloadTask{}).Where("status = ?", TaskDownloading).Update("removed", true).Error
+	})
+}
+
 func (q *DownloadQueue) recoverInterrupted() error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return q.db.Model(&DownloadTask{}).Where("status = ?", TaskDownloading).Updates(map[string]interface{}{"status": TaskWaiting, "error": ""}).Error
+	return q.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("removed = ?", true).Delete(&DownloadTask{}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&DownloadTask{}).Where("status = ?", TaskDownloading).Updates(map[string]interface{}{"status": TaskWaiting, "error": ""}).Error
+	})
 }
 func (q *DownloadQueue) claim() (*DownloadTask, error) {
 	q.mu.Lock()
@@ -204,7 +238,12 @@ func (q *DownloadQueue) finish(id uint, result DownloadTaskResult, err error) er
 		status = DownloadStatusFailed
 		message = "invalid download result"
 	}
-	return q.db.Model(&DownloadTask{}).Where("id = ? AND status = ?", id, TaskDownloading).Updates(map[string]interface{}{"status": status, "error": message, "warning": result.Warning, "path": result.Path}).Error
+	return q.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ? AND removed = ?", id, true).Delete(&DownloadTask{}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&DownloadTask{}).Where("id = ? AND status = ?", id, TaskDownloading).Updates(map[string]interface{}{"status": status, "error": message, "warning": result.Warning, "path": result.Path}).Error
+	})
 }
 func processDownloadTask(process DownloadTaskProcessor, input DownloadTaskInput) (result DownloadTaskResult, err error) {
 	defer func() {

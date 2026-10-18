@@ -479,7 +479,16 @@
             </div>
             <section id="download-queue-panel">
                 <div id="download-queue-summary" aria-live="polite"></div>
-                <div class="queue-filter"><label for="download-queue-filter">显示任务</label><select id="download-queue-filter" onchange="downloadQueueFilter=this.value;loadDownloadQueue(1)"><option value="">全部</option><option value="active">等待与下载中</option><option value="success">成功</option><option value="skipped">跳过</option><option value="failed">失败</option><option value="canceled">已取消</option></select><button class="btn-pill" onclick="loadDownloadQueue()">刷新</button></div>
+                <div class="utility-modal-toolbar queue-toolbar">
+                    <div class="queue-filter">
+                        <label for="download-queue-filter">显示任务</label>
+                        <select id="download-queue-filter" onchange="downloadQueueFilter=this.value;loadDownloadQueue(1)"><option value="">全部</option><option value="active">等待与下载中</option><option value="success">成功</option><option value="skipped">跳过</option><option value="failed">失败</option><option value="canceled">已取消</option></select>
+                    </div>
+                    <div class="utility-modal-actions queue-toolbar-actions">
+                        <button type="button" class="btn-pill queue-refresh" onclick="loadDownloadQueue()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 刷新</button>
+                        <button type="button" class="btn-pill btn-pill-danger" onclick="clearDownloadQueue()"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> 清空任务</button>
+                    </div>
+                </div>
                 <p class="queue-note">关闭此面板不会停止下载。重启应用后自动恢复等待任务；此处显示任务状态和总体进度。</p>
                 <p id="download-queue-error" role="status"></p>
                 <div id="download-queue-list" class="utility-modal-list"></div>

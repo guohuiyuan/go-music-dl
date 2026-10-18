@@ -5014,8 +5014,8 @@ async function loadDownloadQueue(page = downloadQueuePage) {
       downloadQueueRenderKey = renderKey;
       const labels = {waiting:"等待下载", downloading:"正在下载", success:"下载成功", skipped:"已下载，跳过", failed:"下载失败", canceled:"已取消"};
       list.innerHTML = (data.tasks || []).map(task => {
-        const action = task.Status === "waiting" ? `<button class="btn-pill" onclick="downloadQueueAction(${task.ID},'cancel')">取消</button>` : ["failed","canceled"].includes(task.Status) ? `<button class="btn-pill" onclick="downloadQueueAction(${task.ID},'retry')">重试</button>` : "";
-        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${escapeHtml(task.Error || task.Warning || task.Path || task.Directory || "")}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(task.Status)}">${labels[task.Status] || "未知状态"}</span>${action}</div></article>`;
+        const action = task.Status === "waiting" ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'cancel')">取消</button>` : ["failed","canceled"].includes(task.Status) ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'retry')">重试</button>` : "";
+        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${escapeHtml(task.Error || task.Warning || task.Path || task.Directory || "")}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(task.Status)}">${labels[task.Status] || "未知状态"}</span><div class="queue-task-buttons">${action}<button type="button" class="queue-delete-button" onclick="removeDownloadQueueTask(${task.ID})" title="删除任务" aria-label="删除任务：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></div></div></article>`;
       }).join("") || '<div class="download-records-empty">暂无任务。选择歌曲后点击“批量下载”即可加入队列。</div>';
     }
     const pagination = document.getElementById("download-queue-pagination");
@@ -5038,6 +5038,26 @@ async function downloadQueueAction(id, action) {
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error || "操作失败");
     await loadDownloadQueue();
+  } catch (error) { showToast("队列操作失败", error.message, "error", downloadNoticeDuration()); }
+}
+
+async function removeDownloadQueueTask(id) {
+  await deleteDownloadQueue(`${API_ROOT}/api/downloads/queue/${id}`);
+}
+
+async function clearDownloadQueue() {
+  if (!(await confirmAppAction({title:"清空下载队列", message:"确定清空全部任务？等待任务将停止排队；正在下载的一首会完成写入。已下载文件和下载记录会保留。", confirmLabel:"清空队列", destructive:true}))) return;
+  await deleteDownloadQueue(`${API_ROOT}/api/downloads/queue`);
+}
+
+async function deleteDownloadQueue(url) {
+  try {
+    const response = await fetch(url, {method:"DELETE", headers:{"X-Requested-With":"XMLHttpRequest"}});
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "删除失败");
+    downloadQueuePage = 1;
+    downloadQueueRenderKey = "";
+    await loadDownloadQueue(1);
   } catch (error) { showToast("队列操作失败", error.message, "error", downloadNoticeDuration()); }
 }
 
@@ -8131,7 +8151,7 @@ function confirmBatchDownload(count) {
   });
 }
 
-function confirmAppAction({title, message, confirmLabel}) {
+function confirmAppAction({title, message, confirmLabel, destructive = false}) {
   return new Promise((resolve) => {
     const previousFocus = document.activeElement;
     const dialog = document.createElement("dialog");
@@ -8144,7 +8164,7 @@ function confirmAppAction({title, message, confirmLabel}) {
         <p id="app-confirm-message"></p>
         <div class="utility-modal-footer utility-modal-actions">
           <button type="submit" class="btn-pill" value="cancel" autofocus>取消</button>
-          <button type="submit" class="btn-pill" value="confirm"></button>
+          <button type="submit" class="btn-pill ${destructive ? "btn-pill-danger" : "btn-pill-primary"}" value="confirm"></button>
         </div>
       </form>`;
     dialog.querySelector("h3").textContent = title;

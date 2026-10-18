@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/guohuiyuan/music-lib/model"
+	"gorm.io/gorm"
 )
 
 func queueInputs(n int) []DownloadTaskInput {
@@ -189,5 +190,65 @@ func TestDownloadQueueConcurrentBatches(t *testing.T) {
 	_, total, _, err := q.List(1, 50, "")
 	if err != nil || total != 20 {
 		t.Fatalf("%d %v", total, err)
+	}
+}
+
+func TestDownloadQueueRemoveAndClearKeepInFlightIdentityUntilFinished(t *testing.T) {
+	q := testDownloadQueue(t)
+	if _, err := q.Enqueue("remove", queueInputs(3)); err != nil {
+		t.Fatal(err)
+	}
+	active, err := q.claim()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Remove(active.ID); err != nil {
+		t.Fatal(err)
+	}
+	tasks, total, counts, err := q.List(1, 50, "")
+	if err != nil || total != 2 || counts[TaskDownloading] != 0 {
+		t.Fatal(total, counts, err)
+	}
+	if added, err := q.Enqueue("duplicate", queueInputs(1)); err != nil || added != 0 {
+		t.Fatal("in-flight dedup lost", added, err)
+	}
+	if err := q.Remove(tasks[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	if next, err := q.claim(); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatal("cleared task was claimed", next, err)
+	}
+	if err := q.finish(active.ID, DownloadTaskResult{Status: DownloadStatusSuccess, Path: "/keep/audio.mp3"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	_, total, counts, err = q.List(1, 50, "")
+	if err != nil || total != 0 || len(counts) != 0 {
+		t.Fatal("task reappeared", total, counts, err)
+	}
+	if added, err := q.Enqueue("after-finish", queueInputs(1)); err != nil || added != 1 {
+		t.Fatal(added, err)
+	}
+}
+
+func TestDownloadQueueClearDoesNotRestoreRemovedTaskOnRestart(t *testing.T) {
+	q := testDownloadQueue(t)
+	if _, err := q.Enqueue("restart-clear", queueInputs(2)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.claim(); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.recoverInterrupted(); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	if err := q.db.Model(&DownloadTask{}).Count(&count).Error; err != nil || count != 0 {
+		t.Fatal(count, err)
 	}
 }
