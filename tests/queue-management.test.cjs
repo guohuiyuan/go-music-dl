@@ -28,3 +28,24 @@ test('canceling clear does not send DELETE; confirming clears all pages and filt
   await context.removeDownloadQueueTask(27);
   assert.equal(calls[2][0],'/music/api/downloads/queue/27');
 });
+
+test('native folder picker replaces the old path and cancel preserves it', async () => {
+  let result = '/Users/test/Music/新目录';
+  const events = [];
+  const input = {value:'/old',focus(){},dispatchEvent:event=>events.push(event)};
+  const context = {
+    window:{musicDlPickDownloadFolder:async()=>result},
+    document:{getElementById:()=>input}, Event:class {constructor(type){this.type=type;}},
+    syncDownloadDirPresetFromInput(){}, showToast(){},
+  };
+  vm.createContext(context);
+  const start = app.indexOf('async function pickDownloadFolder(');
+  vm.runInContext(app.slice(start,app.indexOf('function proxiedGithubURL',start)),context);
+  await context.pickDownloadFolder();
+  assert.equal(input.value,result);
+  assert.equal(events.length,1);
+  result = '';
+  await context.pickDownloadFolder();
+  assert.equal(input.value,'/Users/test/Music/新目录');
+  assert.equal(events.length,1);
+});

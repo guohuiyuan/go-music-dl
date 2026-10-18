@@ -450,7 +450,7 @@ function bindDownloadDirPresetEvents() {
   presetSelect.dataset.bound = "1";
   presetSelect.addEventListener("change", () => {
     if (presetSelect.value === DOWNLOAD_DIR_CUSTOM_VALUE) {
-      dirInput.focus();
+      void pickDownloadFolder();
       return;
     }
     dirInput.value = presetSelect.value;
@@ -5404,27 +5404,24 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-// 选择下载目录文件夹
+// Native desktop selection returns an absolute path usable by the local server.
 async function pickDownloadFolder() {
+  const input = document.getElementById("setting-download-dir");
+  if (!input) return;
   try {
-    if (!window.showDirectoryPicker) {
-      // 降级：让用户手动选择预设或输入路径
-      document.getElementById("setting-download-dir-preset").value = "__custom__";
-      document.getElementById("setting-download-dir").focus();
+    if (typeof window.musicDlPickDownloadFolder !== "function") {
+      input.focus();
+      showToast("自定义下载目录", "当前浏览器无法获取服务器上的完整目录，请粘贴或输入目录路径。", "info");
       return;
     }
-    const dirHandle = await window.showDirectoryPicker();
-    const path = dirHandle.name;
-    // showDirectoryPicker 不暴露完整路径，用名称回填让用户补全
-    // 但大多数情况下用户知道自己的目录结构
-    const input = document.getElementById("setting-download-dir");
-    input.value = input.value || path;
+    const path = await window.musicDlPickDownloadFolder();
+    if (!path) return;
+    input.value = path;
+    syncDownloadDirPresetFromInput();
+    input.dispatchEvent(new Event("input", {bubbles:true}));
     input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
   } catch (err) {
-    if (err.name !== "AbortError") {
-      console.warn("文件夹选择器不可用:", err);
-    }
+    showToast("选择目录失败", String(err.message || err), "error");
   }
 }
 
