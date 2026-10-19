@@ -7708,6 +7708,7 @@ async function expandPlaybackQueue({local, url, totalPages}) {
         const response = await fetch(`${API_ROOT}/local_music?offset=${offset}&limit=500`, {signal:controller.signal, cache:"no-store"});
         const data = await response.json();
         if (!response.ok || data.error) throw new Error(data.error || "读取本地音乐失败");
+        if (data.offset !== offset) throw new Error("服务器返回的分页起点不一致，请重启应用后重试");
         const tracks = data.tracks || [];
         append(tracks.map(localMusicSongFromTrack));
         offset += tracks.length;

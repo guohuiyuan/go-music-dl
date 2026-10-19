@@ -227,7 +227,7 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 
 	api.GET("/local_music", func(c *gin.Context) {
 		forceRefresh := c.Query("refresh") == "1" || c.Query("force") == "1"
-		offset := parseLocalMusicRangeInt(c.Query("offset"), 0)
+		offset := parseLocalMusicOffset(c.Query("offset"))
 		limit := parseLocalMusicRangeInt(c.Query("limit"), 0)
 
 		// 快速路径：从 SQLite 索引加载（无文件 IO）
@@ -898,6 +898,15 @@ func invalidateLocalMusicScanCache() {
 	localMusicScanCacheMu.Lock()
 	localMusicScanCache = localMusicScanSnapshot{}
 	localMusicScanCacheMu.Unlock()
+}
+
+// Offset is a position in the complete library, not a page-size limit.
+func parseLocalMusicOffset(raw string) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || value < 0 {
+		return 0
+	}
+	return value
 }
 
 func parseLocalMusicRangeInt(raw string, fallback int) int {

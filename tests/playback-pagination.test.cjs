@@ -20,12 +20,12 @@ test('local playback loads beyond 200 and 500 tracks and deduplicates visible so
   const offsets=[];
   const ctx=setup(async url=>{
     const offset=Number(new URL(url,'http://local').searchParams.get('offset')); offsets.push(offset);
-    const tracks=Array.from({length:Math.min(500,1201-offset)},(_,i)=>({id:String(offset+i),source:'local',name:'song'}));
-    return {ok:true,json:async()=>({tracks,has_more:offset+tracks.length<1201})};
+    const tracks=Array.from({length:Math.min(500,2880-offset)},(_,i)=>({id:String(offset+i),source:'local',name:'song'}));
+    return {ok:true,json:async()=>({tracks,offset,has_more:offset+tracks.length<2880})};
   });
   await ctx.expandPlaybackQueue({local:true});
-  assert.deepEqual(offsets,[0,500,1000]);
-  assert.equal(ctx.ap.list.audios.length,1201);
+  assert.deepEqual(offsets,[0,500,1000,1500,2000,2500]);
+  assert.equal(ctx.ap.list.audios.length,2880);
 });
 test('online playback traverses all result pages and preserves equal IDs from different sources',async()=>{
   let requests=0;
@@ -41,7 +41,7 @@ test('late response from an old playback queue cannot append to a new queue',asy
   const pending=ctx.expandPlaybackQueue({local:true});
   ctx.cancelPlaybackExpansion();
   ctx.ap.list.audios=[{custom_id:'new',source:'qq'}];
-  release({ok:true,json:async()=>({tracks:[{id:'old',source:'local'}],has_more:false})});
+  release({ok:true,json:async()=>({tracks:[{id:'old',source:'local'}],offset:0,has_more:false})});
   await pending;
   assert.equal(ctx.ap.list.audios.length,1);
   assert.equal(ctx.ap.list.audios[0].custom_id,'new');
@@ -54,4 +54,12 @@ test('page jump rejects invalid input and routes a valid page to its own handler
   ctx.submitPageJump(event,form);assert.equal(calls.length,0);
   input.reportValidity=()=>true;ctx.submitPageJump(event,form);assert.deepEqual(calls,[7]);
   ctx.submitPageJump(event,form,page=>calls.push(`queue:${page}`));assert.equal(calls[1],'queue:7');
+});
+
+
+test('clamped server offset stops rather than endlessly reloading the same batch', async()=>{
+ let calls=0;
+ const ctx=setup(async()=>{calls++;return {ok:true,json:async()=>({offset:1000,tracks:[],has_more:true})};});
+ await ctx.expandPlaybackQueue({local:true});
+ assert.equal(calls,1);
 });
