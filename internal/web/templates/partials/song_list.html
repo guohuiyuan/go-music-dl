@@ -352,6 +352,10 @@
             <i class="fa-solid fa-chevron-left"></i> 上一页
         </button>
         <span class="pagination-text">第 {{ .Page }} / {{ .TotalPages }} 页</span>
+        <form class="page-jump" onsubmit="return submitPageJump(event,this)">
+            <label>跳至 <input type="number" min="1" max="{{ .TotalPages }}" step="1" value="{{ .Page }}" required aria-label="目标页码" inputmode="numeric"> 页</label>
+            <button type="submit" class="utility-modal-page-button" aria-label="跳转到指定页">跳转</button>
+        </form>
         <span class="pagination-shortcut-hint">PgUp / PgDn</span>
         <button type="button" class="ctrl-btn primary" onclick="goToPage({{ .Page }} + 1, {{ .PageSize }})" {{ if ge .Page .TotalPages }}disabled{{ end }}>
             下一页 <i class="fa-solid fa-chevron-right"></i>

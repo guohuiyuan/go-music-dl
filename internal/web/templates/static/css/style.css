@@ -2562,3 +2562,11 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
 .container-download-button { width:100%; justify-content:center; gap:7px; margin-top:12px; border-color:#a7f3d0; background:#ecfdf5; color:#047857; }
 .container-download-button:hover:not(:disabled) { background:#d1fae5; border-color:#34d399; }
 .container-download-button:disabled { opacity:.6; cursor:wait; }
+
+/* Page jump shares the compact controls used by the existing pagination. */
+.page-jump { display:inline-flex; align-items:center; gap:7px; margin:0; color:var(--text-sub); font-size:12px; }
+.page-jump label { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+.page-jump input { width:58px; min-height:30px; box-sizing:border-box; padding:4px 6px; border:1px solid #cce7da; border-radius:8px; background:#fff; color:var(--text-main); text-align:center; font:inherit; }
+.page-jump input:focus-visible { outline:2px solid #059669; outline-offset:2px; }
+.page-jump .utility-modal-page-button { width:auto; min-width:42px; padding:0 8px; font-size:12px; }
+.utility-modal-pagination { flex-wrap:wrap; }

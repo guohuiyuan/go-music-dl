@@ -2944,6 +2944,19 @@ function goToTopLists() {
   }
 }
 
+function submitPageJump(event, form, onPageChange = goToPage) {
+  event.preventDefault();
+  const input = form.querySelector("input");
+  if (!input || !input.reportValidity()) return false;
+  const page = Number(input.value);
+  if (Number.isInteger(page) && page >= 1) onPageChange(page);
+  return false;
+}
+
+function renderPageJump(page, totalPages, onPageChange = "goToPage") {
+  return `<form class="page-jump" onsubmit="return submitPageJump(event,this,${onPageChange})"><label>跳至 <input type="number" min="1" max="${totalPages}" step="1" value="${page}" required aria-label="目标页码" inputmode="numeric"> 页</label><button type="submit" class="utility-modal-page-button" aria-label="跳转到指定页">跳转</button></form>`;
+}
+
 function goToPage(page, pageSize) {
   const target = parseInt(page, 10);
   if (!Number.isFinite(target) || target < 1) return;
@@ -3370,6 +3383,7 @@ function renderLocalMusicPagePagination(page, totalPages) {
             <i class="fa-solid fa-chevron-left"></i> 上一页
         </button>
         <span class="pagination-text">第 ${page} / ${totalPages} 页</span>
+        ${renderPageJump(page, totalPages)}
         <span class="pagination-shortcut-hint">PgUp / PgDn</span>
         <button type="button" class="ctrl-btn primary" onclick="goToPage(${page + 1})" ${page >= totalPages ? "disabled" : ""}>
             下一页 <i class="fa-solid fa-chevron-right"></i>
@@ -5075,7 +5089,7 @@ function renderUtilityModalPagination(page, totalPages, onPageChange) {
   if (totalPages <= 1) return "";
   return `<button type="button" class="utility-modal-page-button" onclick="${onPageChange}(${page - 1})" ${page <= 1 ? "disabled" : ""} aria-label="上一页"><i class="fa-solid fa-chevron-left"></i></button>
     <span class="utility-modal-page-status">第 ${page} / ${totalPages} 页</span>
-    <button type="button" class="utility-modal-page-button" onclick="${onPageChange}(${page + 1})" ${page >= totalPages ? "disabled" : ""} aria-label="下一页"><i class="fa-solid fa-chevron-right"></i></button>`;
+    <button type="button" class="utility-modal-page-button" onclick="${onPageChange}(${page + 1})" ${page >= totalPages ? "disabled" : ""} aria-label="下一页"><i class="fa-solid fa-chevron-right"></i></button>${renderPageJump(page, totalPages, onPageChange)}`;
 }
 
 async function openDownloadRecordsModal() {
@@ -7645,6 +7659,84 @@ function switchSource(btn, options = {}) {
     });
 }
 
+let playbackExpansionController = null;
+
+function cancelPlaybackExpansion() {
+  playbackExpansionController?.abort();
+  playbackExpansionController = null;
+}
+
+if (ap?.on) ap.on("listclear", cancelPlaybackExpansion);
+
+function playbackEntryFromSong(song) {
+  const localMatch = localMusicMatchCache[song.id];
+  const playback = localMatch?.id ? {...song, id:localMatch.id, source:"local", name:localMatch.name || song.name, artist:localMatch.artist || song.artist} : song;
+  const lyrics = lyricURLsForPlayback(playback);
+  return {
+    name:playback.name, artist:playback.artist, album:playback.album || "",
+    url:buildStreamURL(playback.id, playback.source, playback.name, playback.artist, playback.album || "", playback.cover || "", playback.extra || ""),
+    cover:song.cover || "", lrc:lyrics.line, raw_lrc:lyrics.auto, theme:"#10b981",
+    custom_id:playback.id, original_id:song.id, original_source:song.source,
+    source:playback.source, duration:playback.duration || 0, extra:playback.extra || "",
+  };
+}
+
+// Keep the selected song playing while extending its queue across result pages.
+// A new playlist aborts this request so delayed pages cannot mix into it.
+async function expandPlaybackQueue({local, url, totalPages}) {
+  cancelPlaybackExpansion();
+  if (!local && totalPages <= 1) return;
+  const controller = new AbortController();
+  playbackExpansionController = controller;
+  const key = song => JSON.stringify([song.original_source || song.source, String(song.original_id || song.custom_id)]);
+  const seen = new Set(ap.list.audios.map(key));
+  const append = songs => {
+    if (controller.signal.aborted || playbackExpansionController !== controller) return;
+    const additions = [];
+    for (const song of songs) {
+      const entry = playbackEntryFromSong(song);
+      const identity = key(entry);
+      if (!seen.has(identity)) { seen.add(identity); additions.push(entry); }
+    }
+    if (additions.length) ap.list.add(additions);
+  };
+  try {
+    showToast("正在补齐播放列表", "其他分页将自动加入，随机播放覆盖加载后的完整列表。", "info", 2500);
+    if (local) {
+      let offset = 0;
+      while (!controller.signal.aborted) {
+        const response = await fetch(`${API_ROOT}/local_music?offset=${offset}&limit=500`, {signal:controller.signal, cache:"no-store"});
+        const data = await response.json();
+        if (!response.ok || data.error) throw new Error(data.error || "读取本地音乐失败");
+        const tracks = data.tracks || [];
+        append(tracks.map(localMusicSongFromTrack));
+        offset += tracks.length;
+        if (!data.has_more) break;
+        if (!tracks.length) throw new Error("本地音乐分页未返回后续曲目");
+      }
+    } else {
+      const target = new URL(url);
+      target.searchParams.set("page_size", "500");
+      let pages = 1;
+      for (let page = 1; page <= pages; page++) {
+        target.searchParams.set("page", String(page));
+        const response = await fetch(target.toString(), {signal:controller.signal, headers:{"X-Requested-With":"XMLHttpRequest"}});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const doc = new DOMParser().parseFromString(await response.text(), "text/html");
+        const cards = Array.from(doc.querySelectorAll(".song-card"));
+        if (!cards.length) throw new Error("后续分页未返回歌曲");
+        append(cards.map(songFromCard).filter(Boolean));
+        pages = parsePositiveInt(doc.querySelector(".pagination-bar")?.dataset.totalPages, 1);
+      }
+    }
+    if (!controller.signal.aborted) showToast("播放列表已补齐", `共 ${ap.list.audios.length} 首，随机播放不再局限当前页。`, "success", 3000);
+  } catch (error) {
+    if (!controller.signal.aborted) showToast("播放列表未加载完整", `${error.message}，已加载歌曲仍可播放；重新点击歌曲可重试。`, "error");
+  } finally {
+    if (playbackExpansionController === controller) playbackExpansionController = null;
+  }
+}
+
 function playAllAndJumpTo(btn) {
   const currentCard = btn.closest(".song-card");
   const allCards = Array.from(document.querySelectorAll(".song-card"));
@@ -7671,58 +7763,14 @@ function playAllAndJumpTo(btn) {
   const playlist = [];
 
   allCards.forEach((card) => {
-    const ds = card.dataset;
     const song = songFromCard(card);
-    if (!song) return;
-    let coverUrl = ds.cover || "";
-    const imgEl = card.querySelector(".cover-wrapper img");
-    if (imgEl && imgEl.src) coverUrl = imgEl.src;
-
-    const localMatch = localMusicMatchCache[ds.id];
-    const useLocal = localMatch && localMatch.id;
-    const playbackSong = useLocal
-      ? {
-          id: localMatch.id,
-          source: "local",
-          name: localMatch.name || song.name,
-          artist: localMatch.artist || song.artist,
-          album: song.album || "",
-          cover: song.cover || "",
-          duration: song.duration || 0,
-          extra: song.extra || "",
-        }
-      : song;
-    const lyricURLs = lyricURLsForPlayback(playbackSong);
-    const streamUrl = buildStreamURL(
-      playbackSong.id,
-      playbackSong.source,
-      playbackSong.name,
-      playbackSong.artist,
-      playbackSong.album || "",
-      playbackSong.cover || "",
-      playbackSong.extra || "",
-    );
-
-    playlist.push({
-      name: playbackSong.name,
-      artist: playbackSong.artist,
-      album: playbackSong.album || "",
-      url: streamUrl,
-      cover: coverUrl,
-      lrc: lyricURLs.line,
-      raw_lrc: lyricURLs.auto,
-      theme: "#10b981",
-      custom_id: playbackSong.id,
-      original_id: ds.id,
-      source: playbackSong.source,
-      duration: playbackSong.duration || parsePositiveInt(ds.duration, 0),
-      extra: playbackSong.extra || "",
-    });
+    if (song) playlist.push(playbackEntryFromSong(song));
   });
 
   ap.list.add(playlist);
-  ap.list.switch(clickedIndex);
+  ap.list.switch(playlist.findIndex(song => song.original_id === clickedId && song.original_source === currentCard.dataset.source));
   ap.play();
+  void expandPlaybackQueue({local: isLocalMusicPageActive(), url: window.location.href, totalPages: getActivePaginationState()?.totalPages || 1});
 
   currentPlayingId = clickedId;
   highlightCard(currentPlayingId);
