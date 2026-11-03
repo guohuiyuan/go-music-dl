@@ -993,7 +993,7 @@ function bindAuthFloat() {
   form.addEventListener("submit", function (event) {
     if (form.dataset.loggedIn === "1") return;
     event.preventDefault();
-    openSystemConfig();
+    openSystemConfig("cookies");
   });
 }
 
@@ -5547,7 +5547,7 @@ async function openLatestUpdatePage(target = "download") {
   openClientExternalURL(url, popup);
 }
 
-async function openSystemConfig() {
+async function openSystemConfig(initialTab = "general") {
   const modal = document.getElementById("cookieModal");
   try {
     const [cookiesResponse, settingsResponse] = await Promise.all([
@@ -5566,6 +5566,7 @@ async function openSystemConfig() {
       if (el) el.value = v;
     }
     bindSettingsTabs();
+    setSettingsTab(initialTab);
     setAuthFloatLoggedIn(true);
     if (modal) modal.style.display = "flex";
   } catch (error) {
