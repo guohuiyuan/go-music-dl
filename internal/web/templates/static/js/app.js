@@ -7085,6 +7085,242 @@ window.musicDlTaskbarControl = function (action, value) {
   }
 };
 
+const AI_PLAYER_PATH = `${API_ROOT}/api/ai/player`;
+const AI_PLAYER_CLIENT_ID =
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `player-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+let aiPlayerEventSource = null;
+let aiPlayerStatePublishing = false;
+let aiPlayerLastPlaybackError = "";
+
+function aiPlayerCurrentSongPayload() {
+  const song = currentPlayerActionSong();
+  if (!song) return null;
+  return {
+    id: String(song.id || ""),
+    source: String(song.source || ""),
+    name: String(song.name || ""),
+    artist: String(song.artist || ""),
+    album: String(song.album || ""),
+    duration: Number(song.duration) || 0,
+    extra: normalizeSongExtra(song.extra),
+  };
+}
+
+function aiPlayerStatePayload() {
+  const audio = ap?.audio;
+  const currentIndex = Number(ap?.list?.index);
+  return {
+    client_id: AI_PLAYER_CLIENT_ID,
+    ready: Boolean(audio && ap?.list && Array.isArray(ap.list.audios)),
+    playing: Boolean(audio && !audio.paused && !audio.ended),
+    current: aiPlayerCurrentSongPayload(),
+    position: Math.max(0, Number(audio?.currentTime) || 0),
+    duration: Math.max(0, Number(audio?.duration) || 0),
+    volume: Math.min(1, Math.max(0, Number(audio?.volume) || 0)),
+    playback_rate: Number(audio?.playbackRate) || 1,
+    queue_length: ap?.list?.audios?.length || 0,
+    queue_index: Number.isInteger(currentIndex)
+      ? currentIndex
+      : ap?.list?.audios?.length
+        ? 0
+        : -1,
+    page_visible: document.visibilityState !== "hidden",
+    last_error: aiPlayerLastPlaybackError,
+  };
+}
+
+async function publishAIPlayerState() {
+  if (aiPlayerStatePublishing) return;
+  aiPlayerStatePublishing = true;
+  try {
+    await fetch(`${AI_PLAYER_PATH}/state`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify(aiPlayerStatePayload()),
+      cache: "no-store",
+    });
+  } catch (_) {
+    // The event stream will reconnect automatically when the server returns.
+  } finally {
+    aiPlayerStatePublishing = false;
+  }
+}
+
+function requestAIPlayerPlayback() {
+  if (!ap?.list?.audios?.length || !ap.audio) return false;
+  aiPlayerLastPlaybackError = "";
+  resumeVideoGenAudioRouting();
+  try {
+    const result = ap.play();
+    if (result && typeof result.catch === "function") {
+      result.catch((error) => {
+        aiPlayerLastPlaybackError =
+          error?.message || "browser blocked or failed playback";
+        void publishAIPlayerState();
+      });
+    }
+    return true;
+  } catch (error) {
+    aiPlayerLastPlaybackError = error?.message || "playback failed";
+    return false;
+  }
+}
+
+function playAIPlayerSong(song) {
+  if (!ap?.list || !ap.audio || !song?.id || !song?.source) return false;
+  const normalizedSong = {
+    ...song,
+    id: String(song.id),
+    source: String(song.source),
+    name: String(song.name || ""),
+    artist: String(song.artist || ""),
+    album: String(song.album || ""),
+    duration: Number(song.duration) || 0,
+    extra: serializeSongExtra(song.extra),
+  };
+
+  let index = ap.list.audios.findIndex(
+    (audio) =>
+      String(audio.original_id || audio.custom_id || "") === normalizedSong.id &&
+      String(audio.original_source || audio.source || "") ===
+        normalizedSong.source,
+  );
+  if (index < 0) {
+    ap.list.add([playbackEntryFromSong(normalizedSong)]);
+    index = ap.list.audios.findIndex(
+      (audio) =>
+        String(audio.original_id || audio.custom_id || "") ===
+          normalizedSong.id &&
+        String(audio.original_source || audio.source || "") ===
+          normalizedSong.source,
+    );
+  }
+  if (index < 0) return false;
+
+  ap.list.switch(index);
+  currentPlayingId = normalizedSong.id;
+  highlightCard(currentPlayingId);
+  syncAllPlayButtons();
+  return requestAIPlayerPlayback();
+}
+
+window.musicDlAIPlayerControl = function (command) {
+  const action = String(command?.action || "").toLowerCase();
+  switch (action) {
+    case "play_song":
+      return playAIPlayerSong(command.song);
+    case "play":
+      return requestAIPlayerPlayback();
+    case "pause":
+      if (!ap?.audio) return false;
+      ap.pause();
+      return true;
+    case "toggle":
+      if (!ap?.audio || !ap.list?.audios?.length) return false;
+      if (ap.audio.paused) return requestAIPlayerPlayback();
+      ap.pause();
+      return true;
+    case "stop":
+      if (!ap?.audio) return false;
+      ap.pause();
+      seekCurrentTrack(0);
+      currentPlayingId = null;
+      window.currentPlayingId = null;
+      highlightCard(null);
+      syncAllPlayButtons();
+      return true;
+    case "next":
+      switchTrackByOffset(1);
+      return Boolean(ap?.list?.audios?.length);
+    case "previous":
+      switchTrackByOffset(-1);
+      return Boolean(ap?.list?.audios?.length);
+    case "seek":
+      if (!ap?.audio || !Number.isFinite(Number(command.position))) {
+        return false;
+      }
+      seekCurrentTrack(Number(command.position));
+      return true;
+    case "volume": {
+      const volume = Number(command.volume);
+      if (!ap?.audio || !Number.isFinite(volume)) return false;
+      const normalized = Math.min(1, Math.max(0, volume));
+      if (typeof ap.volume === "function") ap.volume(normalized, true);
+      else ap.audio.volume = normalized;
+      return true;
+    }
+    case "rate": {
+      const rate = Number(command.rate);
+      if (!PLAYER_SPEEDS.includes(rate)) return false;
+      setPlayerPlaybackRate(rate);
+      return true;
+    }
+    default:
+      return false;
+  }
+};
+
+function handleAIPlayerCommand(command) {
+  const target = String(command?.client_id || "").trim();
+  if (target && target !== AI_PLAYER_CLIENT_ID) return;
+  const handled = window.musicDlAIPlayerControl(command);
+  if (!handled) {
+    aiPlayerLastPlaybackError =
+      `player command failed: ${String(command?.action || "unknown")}`;
+  }
+  void publishAIPlayerState();
+  setTimeout(publishAIPlayerState, 350);
+}
+
+function connectAIPlayerEvents() {
+  if (aiPlayerEventSource || typeof EventSource === "undefined") return;
+  const source = new EventSource(
+    `${AI_PLAYER_PATH}/events?client_id=${encodeURIComponent(AI_PLAYER_CLIENT_ID)}`,
+  );
+  aiPlayerEventSource = source;
+  source.addEventListener("player_command", (event) => {
+    try {
+      handleAIPlayerCommand(JSON.parse(event.data));
+    } catch (error) {
+      aiPlayerLastPlaybackError =
+        error?.message || "invalid player command payload";
+      void publishAIPlayerState();
+    }
+  });
+}
+
+if (ap?.audio) {
+  for (const eventName of [
+    "play",
+    "playing",
+    "pause",
+    "ended",
+    "seeked",
+    "volumechange",
+    "ratechange",
+    "loadedmetadata",
+  ]) {
+    ap.audio.addEventListener(eventName, () => {
+      if (eventName === "playing") aiPlayerLastPlaybackError = "";
+      setTimeout(publishAIPlayerState, 120);
+    });
+  }
+  ap.audio.addEventListener("error", () => {
+    aiPlayerLastPlaybackError = "audio stream failed to load or play";
+    void publishAIPlayerState();
+  });
+}
+
+setInterval(publishAIPlayerState, 2000);
+connectAIPlayerEvents();
+publishAIPlayerState();
+
 setInterval(syncPlayerTrackControls, 500);
 setInterval(syncTaskbarPlaybackState, 500);
 syncPlayerTrackControls();

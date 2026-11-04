@@ -1,30 +1,34 @@
 # go-music-dl AI API
 
-Use the running service's compact JSON API instead of scraping rendered HTML.
+Only player control is AI-specific. Every other operation uses the existing go-music-dl route; there are no parallel AI search, playlist, source-switch, download, or library routes.
 
 Start:
 
 - `GET {base}/api/ai/index`
-- `GET {base}/api/ai/search?q=周杰伦&type=song&sources=qq,netease&limit=5`
+- `GET {base}/search?q=周杰伦&type=song&sources=qq&sources=netease`
 
 Discover:
 
-- Rankings/toplists: `GET {base}/api/ai/toplists`
-- Playlist categories: `GET {base}/api/ai/playlist-categories`
-- Playlists in a category: `GET {base}/api/ai/category-playlists`
-- Recommendations: `GET {base}/api/ai/recommend`
-- Account playlists: `GET {base}/api/ai/user-playlists`
+- Rankings: `GET {base}/toplists`
+- Ranked songs: `GET {base}/toplist_songs?source=...&toplist_id=...`
+- Playlist categories: `GET {base}/playlist_categories`
+- Category playlists: `GET {base}/category_playlists?source=...&category_id=...`
+- Recommendations: `GET {base}/recommend`
+- Account playlists: `GET {base}/user_playlists`
 
 Details:
 
-- Playlist or local collection: `GET {base}/api/ai/playlist`
-- Album: `GET {base}/api/ai/album`
-- Ranked chart songs: `GET {base}/api/ai/toplist`
+- Playlist: `GET {base}/playlist?id=...&source=...`
+- Album: `GET {base}/album?id=...&source=...`
 
-Play and download:
+Playback and downloads:
 
-- Stream: `GET {base}/download?...&stream=1`
-- Playback check: `GET {base}/inspect`
+- Player state: `GET {base}/api/ai/player/state`
+- Play a searched or explicit song: `POST {base}/api/ai/player/play`
+- Control current playback: `POST {base}/api/ai/player/command`
+- Source switch: `GET {base}/switch_source?name=...&artist=...&source=...&target=...`
+- Playback resolution check: `GET {base}/inspect`
+- Audio stream: `GET {base}/download?...&stream=1`
 - Lyrics: `GET {base}/lyric`
 - Queue status: `GET {base}/api/downloads/queue`
 - Enqueue songs: `POST {base}/api/downloads/queue`
@@ -32,9 +36,9 @@ Play and download:
 
 Library and health:
 
-- Compact local music: `GET {base}/api/ai/local-music`
+- Local music: `GET {base}/local_music?offset=0&limit=50`
 - Local collections: `GET {base}/collections`
 - Collection songs: `GET {base}/collections/{id}/songs`
 - Health: `GET {base}/healthz`
 
-`{base}` defaults to `/music`. The runtime index is the source of truth for parameters. Use small limits and only the sources you need. Preserve a song's `extra` object because some platforms require it for playback or lyrics. Write calls must send `X-Requested-With: XMLHttpRequest`. Do not expose cookies, login, or configuration endpoints to an AI client.
+`{base}` defaults to `/music`. The runtime index is the source of truth for parameters. Existing search, playlist, album, ranking, recommendation, and category routes return the normal rendered page. Preserve a song's `extra` object because some platforms require it for playback or lyrics. Player controls require an open web or desktop player; otherwise the route returns `409 player_not_connected`. With multiple players, pass `client_id`. Without it, the default prefers a connected, playing, visible player and uses stable connection order. A full command queue returns `503 player_busy`; disconnected clients expire after 10 minutes. Player writes must send `X-Requested-With: XMLHttpRequest`. Do not expose cookies, login, or configuration routes to an AI client.

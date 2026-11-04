@@ -6,7 +6,7 @@
   <img src="./internal/web/templates/static/images/icon.png" alt="Music Downloader Icon" width="220" />
 </p>
 
-Go Music DL 是一个多平台音乐搜索与下载工具，支持 **Web**、**TUI** 和**桌面端**，覆盖单曲、歌单、专辑、排行榜与本地音乐。
+Go Music DL 是一个多平台音乐搜索与下载工具，支持 **Web**、**TUI** 和**桌面端**，覆盖单曲、歌单、专辑、排行榜与本地音乐。它同时暴露了一套 AI 可调用的接口——**AI 可以直接操控你正开着的网页播放器**，点歌、切歌、暂停、调音量都不用你动手，详见 [AI / Agent 调用](#ai--agent-调用)。
 
 ## 🚀 快速开始
 
@@ -43,14 +43,55 @@ docker compose up -d --pull always --remove-orphans
 
 ### AI / Agent 调用
 
-Web 服务提供精简的 AI JSON API，避免 AI 为了获取结构化数据读取整页 HTML。
+Web 服务提供 AI 能力索引和播放器控制接口。搜索、歌单、专辑、排行榜、歌单分类、换源、歌词、下载和本地音乐等能力全部复用现有的 `/music/*` 接口，不再维护第二套 AI 包装路由。
 
 ```bash
-# 搜索歌曲，只请求 QQ 和网易云，返回最多 5 首
-curl "http://localhost:8080/music/api/ai/search?q=周杰伦&type=song&sources=qq,netease&limit=5"
+# 搜索歌曲，只请求 QQ 和网易云
+curl "http://localhost:8080/music/search?q=周杰伦&type=song&sources=qq&sources=netease"
 ```
 
-API 索引：`http://localhost:8080/music/api/ai/index`，精简说明：`http://localhost:8080/music/llms.txt`。除歌曲、歌单和专辑搜索外，还包含排行榜、歌单分类、推荐、个人歌单、播放、歌词、下载队列和本地音乐；单个来源失败时会返回 `errors`，其他来源结果不受影响。
+API 索引：`http://localhost:8080/music/api/ai/index`，精简说明：`http://localhost:8080/music/llms.txt`。索引会列出可直接复用的现有搜索、详情、排行榜、歌单分类、换源、下载和本地音乐接口，以及新增的播放器控制接口。
+
+#### AI 可以直接操控网页播放器
+
+只要浏览器里开着本站页面，AI 就能**远程操作这个页面**：点歌、切歌、暂停、调音量、拖动进度，全部靠一条 HTTP 请求完成。不需要浏览器自动化、不需要模拟点击、也不需要接管你的鼠标键盘。
+
+原理是页面自己维持着一条 SSE 长连接（`GET /music/api/ai/player/events`）：AI 把命令 POST 到服务端，服务端推给在线的页面，页面执行后把播放状态回传。所以 AI 看到的 `playing`、`position`、`current` 都是页面的真实状态，而不是猜测。
+
+典型对话：**“帮我放一首 ClariS 的歌”** → AI 调 `/music/search` 找歌 → 调 `/api/ai/player/play` 点播 → 轮询 `/api/ai/player/state` 确认已经在放。
+
+```bash
+# 1. 看看当前有哪些播放器在线、在放什么
+curl "http://localhost:8080/music/api/ai/player/state"
+
+# 2. 直接点播（用 id + source，或只给 query 让服务端自己搜第一首）
+curl -X POST "http://localhost:8080/music/api/ai/player/play" \
+  -H "Content-Type: application/json" \
+  -H "X-Requested-With: XMLHttpRequest" \
+  -d '{"id":"1958384591","source":"netease","name":"ALIVE","artist":"ClariS"}'
+
+# 3. 传输控制
+curl -X POST "http://localhost:8080/music/api/ai/player/command" \
+  -H "Content-Type: application/json" \
+  -H "X-Requested-With: XMLHttpRequest" \
+  -d '{"action":"pause"}'
+```
+
+`/api/ai/player/command` 支持 `play`、`pause`、`toggle`、`stop`、`next`、`previous`、`seek`、`volume` 和 `rate`。没有已打开的播放器时会返回 `409 player_not_connected`。
+
+#### 多客户端：各控各的
+
+每个打开的页面（标签页、桌面端、另一台设备）都是独立客户端，**状态互不覆盖，命令互不串台**：
+
+* 连接时带 `?client_id=xxx` 声明身份；老页面匿名连上来后，第一次上报状态时会被自动认领。
+* `POST /play` 和 `/command` 带 `client_id` 就只投给那一台；只有 1 台在线时自动定向，一条 curl 照样能用。
+* **多台在线又不带 `client_id`** → 返回 `409 ambiguous_client` 和候选列表，绝不并发让所有页面一起切歌。
+* `GET /state` 不带参数时优先选择在线、正在播放、页面可见的客户端，同类按连接顺序稳定选择，不会被 2 秒一次的状态上报带着来回跳；`GET /state?client_id=xxx` 精确读取某一台。
+* 每台客户端分别保存 `last_command`，查询某台不会混入其他客户端的命令。
+* 页面关掉后不会立刻消失，而是标记 `connected:false` 并保留最后状态 10 分钟；定向投给它返回 `409 client_not_connected`。
+* 在线事件流最多 64 个；命令通道写满时返回 `503 player_busy`，不会假装投递成功。
+
+**使用前提：** 页面必须处于打开状态（后台标签页也能收命令，但浏览器会节流定时器，进度上报会变慢）；升级后请 `Ctrl+F5` 硬刷新，`app.js` 是编译进二进制的，旧页面用不了 `client_id` 定向。这套接口默认无鉴权，仅靠 `X-Requested-With` 做 CSRF 防护，**请勿把服务直接暴露到公网**；远程使用请走 SSH 隧道或放在反向代理的鉴权后面。
 
 ---
 
@@ -68,6 +109,7 @@ API 索引：`http://localhost:8080/music/api/ai/index`，精简说明：`http:/
 * **登录能力**：支持 Cookie 与扫码登录，用于个人歌单、更高音质和部分受限资源。
 * **本地音乐**：扫描、上传、搜索和整理本地音频，自动读取元数据、封面与歌词。
 * **播放体验**：支持逐字歌词、歌词字体、全局快捷键、媒体键和播放缓存。
+* **AI 操控网页**：AI 可通过 HTTP 接口直接控制已打开的网页播放器（点歌、切歌、暂停、音量、进度），多客户端各自独立，详见 [AI 可以直接操控网页播放器](#ai-可以直接操控网页播放器)。
 
 ## 歌单 / 专辑支持
 
@@ -120,6 +162,7 @@ FFmpeg 与 `ffprobe` 用于本地音乐探测和元数据写入。Docker 镜像�
 * **本地音乐**：升级为 `local` 搜索源，支持分页缓存、后台刷新、批量收藏、硬删除和歌单失效换源。
 * **登录与汽水**：支持 Cookie、扫码登录和汽水会员整曲签名，均不可用时自动回退公开试听。
 * **下载与同步**：支持自动缓存、封面 / 歌词下载、内嵌元数据、WebDAV 和自动换源。
+* **AI 通道**：新增 AI 能力索引与播放器控制接口，AI 可直接点播并操控已打开的网页；多客户端按 `client_id` 隔离，命令定向投递、状态分槽存储，多标签页互不干扰。
 * **桌面与移动端**：增加应用设置、歌词字体、圆角图标，Android 支持蓝牙媒体键和内置 FFmpeg。
 
 ## CLI/TUI 常用命令
@@ -410,6 +453,9 @@ go build
 
 **Q: Web 模式打不开？**
 检查端口是否占用，或浏览器插件是否拦截。
+
+**Q: AI 帮我点了歌，但网页没反应？**
+按顺序排查：① 页面是否还开着（关掉后返回 `409 player_not_connected`）；② 多标签页在线时是否漏了 `client_id`（返回 `409 ambiguous_client`，响应里带候选列表）；③ 是否升级后没硬刷新，旧页面的 `app.js` 不会带 `client_id`，可以先用不带 `client_id` 的单客户端方式验证；④ 是否返回 `503 player_busy`，这表示目标页面暂时没消费完命令队列，稍后重试即可；⑤ 曲目本身能否取流——换源或配好对应平台 Cookie 再试。
 
 **Q: 如何设置 Cookie 获取更高音质？**
 Web 右上角“设置”里可添加平台 Cookie。网易云音乐、QQ 音乐、酷狗音乐、Bilibili 支持点击输入框右侧的“扫码”按钮登录，扫码成功后会自动保存 Cookie。汽水音乐新版扫码登录暂未调通，入口已临时隐藏，请先手动配置 Cookie；汽水音乐会员曲目想要下载整曲，默认用内置的“本机签名器”（装过汽水官方客户端即自动可用，无需额外服务）。客户端不在默认位置时，可在“汽水音乐安装目录”中填写包含 `SodaMusic.exe` 和 `bdms.node` 的版本目录；也可以设置 `QISHUI_CLIENT_DIR`，环境变量优先。“汽水音乐整曲取流”里的签名服务地址留空即可；如果要在别的机器上跑签名服务，再填上那边的地址与 Token。
