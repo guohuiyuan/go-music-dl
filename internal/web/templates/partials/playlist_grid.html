@@ -58,7 +58,9 @@
                 {{ end }}
 
                 <div class="playlist-card-actions">
-                    <div class="playlist-count">共 {{ .TrackCount }} 首</div>
+                    <div class="playlist-count">
+                        {{ if gt .TrackCount 0 }}共 {{ .TrackCount }} 首{{ else if and (eq .Source "local") (ne $collectionKind "imported") }}共 0 首{{ else }}进入查看{{ end }}
+                    </div>
 
                     {{ if eq .Source "local" }}
                     <div style="display:flex; gap:6px;">

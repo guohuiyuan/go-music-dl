@@ -1176,7 +1176,7 @@ function updateBrowserDownloadButton(link) {
 }
 
 function updateLyricButton(link) {
-  if (!link) return;
+  if (!(link instanceof HTMLAnchorElement)) return;
 
   const card = link.closest(".song-card");
   const song = songFromCard(card);
@@ -1206,7 +1206,7 @@ function buildCoverDownloadURL(song) {
 }
 
 function updateCoverButton(link) {
-  if (!link) return;
+  if (!(link instanceof HTMLAnchorElement)) return;
 
   const card = link.closest(".song-card");
   const song = songFromCard(card);
@@ -1656,6 +1656,35 @@ function ensureSongActionFold(card) {
 }
 
 // === 本地音乐匹配缓存 ===
+function setSongActionMenuState(button, open) {
+  const container = button?.closest(".action-more");
+  const menu = container?.querySelector(".action-more-menu");
+  if (!button || !menu) return;
+
+  menu.hidden = !open;
+  button.setAttribute("aria-expanded", String(open));
+  button.classList.toggle("is-open", open);
+  button.closest(".song-card")?.classList.toggle("menu-open", open);
+}
+
+function closeSongActionMenus(exceptButton = null) {
+  document.querySelectorAll(".action-more-toggle").forEach((button) => {
+    if (button !== exceptButton) setSongActionMenuState(button, false);
+  });
+}
+
+function toggleSongActionMenu(button, event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  if (!button) return;
+
+  const shouldOpen =
+    button.getAttribute("aria-expanded") !== "true" ||
+    Boolean(button.closest(".action-more")?.querySelector(".action-more-menu")?.hidden);
+  closeSongActionMenus(button);
+  setSongActionMenuState(button, shouldOpen);
+}
+
 let localMusicMatchCache = {};
 let batchMatchTimer = null;
 let autoCachePending = {}; // 防止重复缓存请求
@@ -2217,6 +2246,29 @@ function bindPageNavigationEvents() {
     if (!event.target.closest(".song-list-tools")) {
       closeSongListTools();
     }
+  });
+
+  document.addEventListener("click", function (event) {
+    const menuAction = event.target.closest(
+      ".action-more-menu a, .action-more-menu button",
+    );
+    if (menuAction) {
+      window.setTimeout(() => closeSongActionMenus(), 0);
+      return;
+    }
+    if (!event.target.closest(".action-more")) {
+      closeSongActionMenus();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    const openButton = document.querySelector(
+      '.action-more-toggle[aria-expanded="true"]',
+    );
+    if (!openButton) return;
+    closeSongActionMenus();
+    openButton.focus();
   });
 
   document.addEventListener(
@@ -3386,11 +3438,20 @@ function renderLocalMusicPageCard(track) {
                 <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单" onclick="openAddToCollectionModal(this)">
                     <i class="fa-regular fa-heart"></i>
                 </button>
-                ${lyricButton}
-                ${coverButton}
-                <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐" onclick="deleteLocalMusicFromButton(this)">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <div class="action-more">
+                    <button type="button" class="btn-circle action-more-toggle" title="更多操作"
+                            aria-label="更多本地歌曲操作" aria-haspopup="menu" aria-expanded="false"
+                            onclick="toggleSongActionMenu(this, event)">
+                        <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                    </button>
+                    <div class="action-more-menu" role="menu" hidden>
+                        ${lyricButton || '<span class="btn-circle btn-dl btn-lyric is-disabled" title="暂无歌词" aria-disabled="true"><i class="fa-solid fa-file-lines"></i></span>'}
+                        ${coverButton || '<span class="btn-circle btn-dl btn-cover is-disabled" title="暂无封面" aria-disabled="true"><i class="fa-regular fa-image"></i></span>'}
+                        <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐" onclick="deleteLocalMusicFromButton(this)">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </li>
     `;
@@ -6835,11 +6896,113 @@ document.addEventListener("keydown", resumeVideoGenAudioRouting, {
 
 let lastTaskbarPlaybackState = "";
 
+function currentPlayerActionSong(audio = getCurrentAPlayerAudio()) {
+  if (!audio) return null;
+  const playbackSource = String(audio.source || "").trim();
+  const originalSource = String(audio.original_source || "").trim();
+  const preferOriginal =
+    isLocalMusicSourceValue(playbackSource) &&
+    originalSource &&
+    !isLocalMusicSourceValue(originalSource);
+  const id = String(
+    preferOriginal
+      ? audio.original_id || audio.custom_id || ""
+      : audio.custom_id || audio.original_id || "",
+  ).trim();
+  const source = preferOriginal
+    ? originalSource
+    : playbackSource || originalSource;
+  if (!id || !source) return null;
+
+  return {
+    id,
+    source,
+    name: audio.name || "",
+    artist: audio.artist || "",
+    album: audio.album || "",
+    cover: audio.cover || "",
+    duration: Number(audio.duration) || 0,
+    extra: normalizeSongExtra(audio.extra),
+  };
+}
+
+function ensurePlayerTrackActions(player) {
+  let actions = player.querySelector(".player-track-actions");
+  if (actions) return actions;
+
+  actions = document.createElement("div");
+  actions.className = "player-track-actions";
+
+  const favorite = document.createElement("button");
+  favorite.type = "button";
+  favorite.className = "player-track-action player-track-favorite";
+  favorite.title = "收藏当前歌曲";
+  favorite.setAttribute("aria-label", "收藏当前歌曲");
+  favorite.innerHTML = '<i class="fa-regular fa-heart" aria-hidden="true"></i>';
+  favorite.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const song = currentPlayerActionSong();
+    if (song) openAddToCollectionForSong(song);
+  });
+
+  const download = document.createElement("a");
+  download.className = "player-track-action player-track-download btn-download";
+  download.target = "_blank";
+  download.rel = "noopener";
+  download.innerHTML = '<i class="fa-solid fa-download" aria-hidden="true"></i>';
+  download.addEventListener("click", (event) => {
+    if (download.getAttribute("aria-disabled") !== "true") return;
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  actions.append(favorite, download);
+  (player.querySelector(".aplayer-body") || player).appendChild(actions);
+  return actions;
+}
+
+function syncPlayerTrackActions(player) {
+  const actions = ensurePlayerTrackActions(player);
+  const favorite = actions.querySelector(".player-track-favorite");
+  const download = actions.querySelector(".player-track-download");
+  const song = currentPlayerActionSong();
+  const canDownload = Boolean(song && !isLocalMusicSourceValue(song.source));
+
+  favorite.disabled = !song;
+  favorite.setAttribute("aria-disabled", String(!song));
+  favorite.title = song ? "收藏当前歌曲" : "当前没有可收藏的歌曲";
+  favorite.setAttribute("aria-label", favorite.title);
+
+  if (canDownload) {
+    download.href = buildDownloadURL(
+      song.id,
+      song.source,
+      song.name,
+      song.artist,
+      song.album,
+      song.cover,
+      serializeSongExtra(song.extra),
+    );
+    download.title = "下载当前歌曲";
+    download.setAttribute("aria-label", "下载当前歌曲");
+    download.setAttribute("aria-disabled", "false");
+    download.removeAttribute("tabindex");
+  } else {
+    download.removeAttribute("href");
+    download.title = song ? "本地歌曲无需下载" : "当前没有可下载的歌曲";
+    download.setAttribute("aria-label", download.title);
+    download.setAttribute("aria-disabled", "true");
+    download.setAttribute("tabindex", "-1");
+  }
+}
+
 function syncPlayerTrackControls() {
   const player = document.querySelector(".aplayer.aplayer-fixed");
   const hasTracks = Boolean(ap?.list?.audios?.length);
   player?.classList.toggle("is-empty", !hasTracks);
   if (!player) return;
+  syncPlayerTrackActions(player);
   syncPlaybackQueueControls(player);
 
   const controls = [
@@ -6848,9 +7011,9 @@ function syncPlayerTrackControls() {
     [".aplayer-icon-order", "切换播放模式"],
     [".aplayer-icon-loop", "切换播放模式"],
     [".aplayer-icon-menu", "播放列表"],
-    [".aplayer-icon-volume-down", "减小音量"],
-    [".aplayer-icon-volume-up", "增大音量"],
-    [".aplayer-icon-volume-off", "静音或恢复音量"],
+    [".aplayer-icon-volume-down", "调整音量"],
+    [".aplayer-icon-volume-up", "调整音量"],
+    [".aplayer-icon-volume-off", "调整音量"],
     [".aplayer-icon-lrc", "显示或隐藏歌词"],
   ];
   controls.forEach(([selector, label]) => {
@@ -7475,39 +7638,57 @@ function syncLocalSongActionButtons(card, song) {
   if (!actions) return;
 
   const extra = normalizeSongExtra(song.extra);
-  const deleteBtn = actions.querySelector(".btn-delete-local");
+  const menu = actions.querySelector(".action-more-menu") || actions;
   const insertBefore = (node) => {
+    const deleteBtn = menu.querySelector(".btn-delete-local");
     if (deleteBtn) {
-      actions.insertBefore(node, deleteBtn);
+      menu.insertBefore(node, deleteBtn);
     } else {
-      actions.appendChild(node);
+      menu.appendChild(node);
     }
   };
 
-  if (extra.lyric && !actions.querySelector(".btn-lyric")) {
-    const lyric = document.createElement("a");
-    lyric.id = `lrc-${song.id}`;
-    lyric.className = "btn-circle btn-dl btn-lyric";
-    lyric.title = "下载歌词";
-    lyric.target = "_blank";
-    lyric.href = lyricURLsForSong(song).download;
-    lyric.innerHTML = '<i class="fa-solid fa-file-lines"></i>';
-    const coverBtn = actions.querySelector(".btn-cover");
+  let lyric = menu.querySelector(".btn-lyric");
+  if (extra.lyric && !(lyric instanceof HTMLAnchorElement)) {
+    const nextLyric = document.createElement("a");
+    nextLyric.id = `lrc-${song.id}`;
+    nextLyric.className = "btn-circle btn-dl btn-lyric";
+    nextLyric.title = "下载歌词";
+    nextLyric.target = "_blank";
+    nextLyric.rel = "noopener";
+    nextLyric.href = lyricURLsForSong(song).download;
+    nextLyric.innerHTML = '<i class="fa-solid fa-file-lines"></i>';
+    const coverBtn = menu.querySelector(".btn-cover");
     if (coverBtn?.parentNode) {
-      coverBtn.parentNode.insertBefore(lyric, coverBtn);
+      coverBtn.parentNode.insertBefore(nextLyric, coverBtn);
+      lyric?.remove();
+    } else if (lyric) {
+      lyric.replaceWith(nextLyric);
     } else {
-      insertBefore(lyric);
+      insertBefore(nextLyric);
     }
+    lyric = nextLyric;
+  } else if (lyric instanceof HTMLAnchorElement) {
+    lyric.href = lyricURLsForSong(song).download;
   }
 
-  if (song.cover && !actions.querySelector(".btn-cover")) {
-    const cover = document.createElement("a");
-    cover.className = "btn-circle btn-dl btn-cover";
-    cover.title = "下载封面";
-    cover.target = "_blank";
+  let cover = menu.querySelector(".btn-cover");
+  if (song.cover && !(cover instanceof HTMLAnchorElement)) {
+    const disabledCover = cover;
+    const nextCover = document.createElement("a");
+    nextCover.className = "btn-circle btn-dl btn-cover";
+    nextCover.title = "下载封面";
+    nextCover.target = "_blank";
+    nextCover.rel = "noopener";
+    nextCover.href = buildCoverDownloadURL(song);
+    nextCover.innerHTML = '<i class="fa-regular fa-image"></i>';
+    if (disabledCover) {
+      disabledCover.replaceWith(nextCover);
+    } else {
+      insertBefore(nextCover);
+    }
+  } else if (cover instanceof HTMLAnchorElement) {
     cover.href = buildCoverDownloadURL(song);
-    cover.innerHTML = '<i class="fa-regular fa-image"></i>';
-    insertBefore(cover);
   }
   ensureSongActionFold(card);
 }
@@ -9195,27 +9376,23 @@ function refreshAddToCollectionList() {
 function openAddToCollectionModal(btn) {
   const card = btn.closest(".song-card");
   if (!card) return;
+  const song = songFromCard(card);
+  if (song) openAddToCollectionForSong(song);
+}
 
-  let coverUrl = card.dataset.cover || "";
-  const imgEl = card.querySelector(".cover-wrapper img");
-  if (imgEl && imgEl.src) coverUrl = imgEl.src;
-
-  let extra = {};
-  try {
-    const parsed = JSON.parse(card.dataset.extra || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      extra = parsed;
-    }
-  } catch (_) {}
+function openAddToCollectionForSong(song) {
+  if (!song?.id || !song?.source) return;
+  const extra = normalizeSongExtra(song.extra);
   extra.saved_from = "web_ui";
 
   pendingFavSong = {
-    id: card.dataset.id,
-    source: card.dataset.source,
-    name: card.dataset.name,
-    artist: card.dataset.artist,
-    duration: parseInt(card.dataset.duration) || 0,
-    cover: coverUrl,
+    id: String(song.id),
+    source: String(song.source),
+    name: song.name || "",
+    artist: song.artist || "",
+    album: song.album || "",
+    duration: parsePositiveInt(song.duration, 0),
+    cover: song.cover || "",
     extra: extra,
   };
   pendingBatchFavIds = [];
@@ -9439,6 +9616,14 @@ function syncPlaybackQueueControls(player) {
   if (list.dataset.queueControlsCount === String(count) && (!count || ol.lastElementChild?.querySelector(".playback-remove-track"))) return;
   list.dataset.queueControlsCount = String(count);
   for (const row of ol.children) {
+    const titleElement = row.querySelector(".aplayer-list-title");
+    const authorElement = row.querySelector(".aplayer-list-author");
+    if (titleElement && titleElement.title !== titleElement.textContent) {
+      titleElement.title = titleElement.textContent || "";
+    }
+    if (authorElement && authorElement.title !== authorElement.textContent) {
+      authorElement.title = authorElement.textContent || "";
+    }
     if (row.querySelector(".playback-remove-track")) continue;
     const button = document.createElement("button");
     button.type = "button";

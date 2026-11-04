@@ -321,6 +321,7 @@
                 </div>
                 <div class="cookie-list">
                     {{ range $source := .AllSources }}
+                    {{ if ne $source "local" }}
                     <div class="cookie-item">
                         <label>{{ $source }}</label>
                         <div class="cookie-input-row">
@@ -346,6 +347,7 @@
                         <p id="cookie-hint-{{$source}}" class="setting-hint cookie-source-hint">本地音乐直接从下载目录读取文件，不需要 Cookie。</p>
                         {{ end }}
                     </div>
+                    {{ end }}
                     {{ end }}
                 </div>
                 <div class="settings-panel-subtitle">汽水音乐整曲取流（会员音质）</div>

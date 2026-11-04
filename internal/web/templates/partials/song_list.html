@@ -261,24 +261,41 @@
                     <i class="fa-regular fa-heart"></i>
                 </button>
 
-                {{ if index .Extra "lyric" }}
-                <a href="{{$.Root}}/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{.Album}}&duration={{.Duration}}&extra={{urlquery (tojson .Extra)}}"
-                   id="lrc-{{.ID}}" class="btn-circle btn-dl btn-lyric" title="下载歌词" target="_blank">
-                    <i class="fa-solid fa-file-lines"></i>
-                </a>
-                {{ end }}
+                <div class="action-more">
+                    <button type="button" class="btn-circle action-more-toggle" title="更多操作"
+                            aria-label="更多本地歌曲操作" aria-haspopup="menu" aria-expanded="false"
+                            onclick="toggleSongActionMenu(this, event)">
+                        <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                    </button>
+                    <div class="action-more-menu" role="menu" hidden>
+                        {{ if index .Extra "lyric" }}
+                        <a href="{{$.Root}}/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{.Album}}&duration={{.Duration}}&extra={{urlquery (tojson .Extra)}}"
+                           id="lrc-{{.ID}}" class="btn-circle btn-dl btn-lyric" title="下载歌词" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </a>
+                        {{ else }}
+                        <span class="btn-circle btn-dl btn-lyric is-disabled" title="暂无歌词" aria-disabled="true">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </span>
+                        {{ end }}
 
-                {{ if .Cover }}
-                <a href="{{$.Root}}/local_music/cover?id={{urlquery .ID}}&download=1&name={{urlquery .Name}}&artist={{urlquery .Artist}}"
-                   class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank">
-                    <i class="fa-regular fa-image"></i>
-                </a>
-                {{ end }}
+                        {{ if .Cover }}
+                        <a href="{{$.Root}}/local_music/cover?id={{urlquery .ID}}&download=1&name={{urlquery .Name}}&artist={{urlquery .Artist}}"
+                           class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank" rel="noopener">
+                            <i class="fa-regular fa-image"></i>
+                        </a>
+                        {{ else }}
+                        <span class="btn-circle btn-dl btn-cover is-disabled" title="暂无封面" aria-disabled="true">
+                            <i class="fa-regular fa-image"></i>
+                        </span>
+                        {{ end }}
 
-                <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐"
-                        onclick="deleteLocalMusicFromButton(this)">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                        <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐"
+                                onclick="deleteLocalMusicFromButton(this)">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
                 {{ end }}
 
                 {{ if not $isLocalMusicPage }}
@@ -301,40 +318,63 @@
                 </button>
                 {{ end }}
 
-                {{ if not $isLocalSong }}
-                <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
-                   id="dl-{{.ID}}" class="btn-circle btn-dl btn-download" title="保存到本地目录" target="_blank">
-                    <i class="fa-solid fa-download"></i>
-                </a>
-                <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
-                   id="browser-dl-{{.ID}}" class="btn-circle btn-dl btn-browser-download" title="浏览器下载" target="_blank">
-                    <i class="fa-solid fa-cloud-arrow-down"></i>
-                </a>
-                {{ end }}
+                <div class="action-more">
+                    <button type="button" class="btn-circle action-more-toggle" title="更多操作"
+                            aria-label="更多歌曲操作" aria-haspopup="menu" aria-expanded="false"
+                            onclick="toggleSongActionMenu(this, event)">
+                        <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                    </button>
+                    <div class="action-more-menu" role="menu" hidden>
+                        {{ if not $isLocalSong }}
+                        <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
+                           id="dl-{{.ID}}" class="btn-circle btn-dl btn-download" title="保存到本地目录" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-download"></i>
+                        </a>
+                        {{ end }}
+                        {{ if not $isLocalSong }}
+                        <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
+                           id="browser-dl-{{.ID}}" class="btn-circle btn-dl btn-browser-download" title="浏览器下载" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-cloud-arrow-down"></i>
+                        </a>
+                        {{ end }}
 
-                <a href="{{$.Root}}/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{.Album}}&duration={{.Duration}}&extra={{urlquery (tojson .Extra)}}"
-                   id="lrc-{{.ID}}" class="btn-circle btn-dl btn-lyric" title="下载歌词" target="_blank">
-                    <i class="fa-solid fa-file-lines"></i>
-                </a>
+                        <a href="{{$.Root}}/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{.Album}}&duration={{.Duration}}&extra={{urlquery (tojson .Extra)}}"
+                           id="lrc-{{.ID}}" class="btn-circle btn-dl btn-lyric" title="下载歌词" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </a>
 
-                {{ if $isLocalSong }}
-                <a href="{{$.Root}}/local_music/cover?id={{urlquery .ID}}&download=1&name={{urlquery .Name}}&artist={{urlquery .Artist}}"
-                   class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank">
-                    <i class="fa-regular fa-image"></i>
-                </a>
-                {{ else }}
-                <a href="{{$.Root}}/download_cover?url={{ .Cover }}&name={{ .Name }}&artist={{ .Artist }}"
-                   class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank">
-                    <i class="fa-regular fa-image"></i>
-                </a>
-                {{ end }}
+                        {{ if $isLocalSong }}
+                            {{ if .Cover }}
+                            <a href="{{$.Root}}/local_music/cover?id={{urlquery .ID}}&download=1&name={{urlquery .Name}}&artist={{urlquery .Artist}}"
+                               class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank" rel="noopener">
+                                <i class="fa-regular fa-image"></i>
+                            </a>
+                            {{ else }}
+                            <span class="btn-circle btn-dl btn-cover is-disabled" title="暂无封面" aria-disabled="true">
+                                <i class="fa-regular fa-image"></i>
+                            </span>
+                            {{ end }}
+                        {{ else }}
+                            {{ if .Cover }}
+                            <a href="{{$.Root}}/download_cover?url={{ .Cover }}&name={{ .Name }}&artist={{ .Artist }}"
+                               class="btn-circle btn-dl btn-cover" title="下载封面" target="_blank" rel="noopener">
+                                <i class="fa-regular fa-image"></i>
+                            </a>
+                            {{ else }}
+                            <span class="btn-circle btn-dl btn-cover is-disabled" title="暂无封面" aria-disabled="true">
+                                <i class="fa-regular fa-image"></i>
+                            </span>
+                            {{ end }}
+                        {{ end }}
 
-                {{ if and $isLocalSong (eq $.ColID "") }}
-                <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐"
-                        onclick="deleteLocalMusicFromButton(this)">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-                {{ end }}
+                        {{ if and $isLocalSong (eq $.ColID "") }}
+                        <button type="button" class="btn-circle btn-delete-local" title="删除本地音乐"
+                                onclick="deleteLocalMusicFromButton(this)">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        {{ end }}
+                    </div>
+                </div>
                 {{ end }}
             </div>
         </li>

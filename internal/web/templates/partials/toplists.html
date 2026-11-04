@@ -45,7 +45,13 @@
                 {{ range $src.TopLists }}
                 <a class="toplist-card" href="{{ .URL }}" onclick="event.preventDefault(); navigateTo(this.href)"{{ if .Description }} title="{{ .Description }}"{{ end }}>
                     <div class="toplist-cover">
-                        <img src="{{ .Cover }}" loading="lazy" onerror="this.src='https://via.placeholder.com/400?text=TopList'">
+                        {{ if .Cover }}
+                        <img src="{{ .Cover }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+                        {{ end }}
+                        <span class="toplist-cover-fallback"{{ if .Cover }} hidden{{ end }}>
+                            {{ if eq .Source "apple" }}<i class="fa-brands fa-apple" aria-hidden="true"></i>{{ else }}<i class="fa-solid fa-ranking-star" aria-hidden="true"></i>{{ end }}
+                            <span>{{ .Name }}</span>
+                        </span>
                         {{ if .UpdateFrequency }}<span class="toplist-freq-tag">{{ .UpdateFrequency }}</span>{{ end }}
                     </div>
                     <div class="toplist-meta">
