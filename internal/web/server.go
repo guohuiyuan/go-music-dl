@@ -587,6 +587,8 @@ func StartWithOptions(port string, opts StartOptions) {
 
 	api := r.Group(RoutePrefix)
 
+	RegisterAIRoutes(api)
+
 	api.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"app":    "go-music-dl",

@@ -1,0 +1,40 @@
+# go-music-dl AI API
+
+Use the running service's compact JSON API instead of scraping rendered HTML.
+
+Start:
+
+- `GET {base}/api/ai/index`
+- `GET {base}/api/ai/search?q=周杰伦&type=song&sources=qq,netease&limit=5`
+
+Discover:
+
+- Rankings/toplists: `GET {base}/api/ai/toplists`
+- Playlist categories: `GET {base}/api/ai/playlist-categories`
+- Playlists in a category: `GET {base}/api/ai/category-playlists`
+- Recommendations: `GET {base}/api/ai/recommend`
+- Account playlists: `GET {base}/api/ai/user-playlists`
+
+Details:
+
+- Playlist or local collection: `GET {base}/api/ai/playlist`
+- Album: `GET {base}/api/ai/album`
+- Ranked chart songs: `GET {base}/api/ai/toplist`
+
+Play and download:
+
+- Stream: `GET {base}/download?...&stream=1`
+- Playback check: `GET {base}/inspect`
+- Lyrics: `GET {base}/lyric`
+- Queue status: `GET {base}/api/downloads/queue`
+- Enqueue songs: `POST {base}/api/downloads/queue`
+- Enqueue a complete container: `POST {base}/api/downloads/queue/container`
+
+Library and health:
+
+- Compact local music: `GET {base}/api/ai/local-music`
+- Local collections: `GET {base}/collections`
+- Collection songs: `GET {base}/collections/{id}/songs`
+- Health: `GET {base}/healthz`
+
+`{base}` defaults to `/music`. The runtime index is the source of truth for parameters. Use small limits and only the sources you need. Preserve a song's `extra` object because some platforms require it for playback or lyrics. Write calls must send `X-Requested-With: XMLHttpRequest`. Do not expose cookies, login, or configuration endpoints to an AI client.

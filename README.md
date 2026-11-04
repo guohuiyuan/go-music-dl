@@ -41,6 +41,17 @@ docker compose up -d --pull always --remove-orphans
 
 访问 `http://localhost:8080`。首次启动会自动创建 `./data` 并配置好容器写权限；Compose 不依赖仓库里的 Dockerfile 或其他文件，只需 `docker-compose.yml` 和镜像即可启动。修改源码后可使用 `docker compose -f docker-compose.dev.yml up -d --build` 本地构建。
 
+### AI / Agent 调用
+
+Web 服务提供精简的 AI JSON API，避免 AI 为了获取结构化数据读取整页 HTML。
+
+```bash
+# 搜索歌曲，只请求 QQ 和网易云，返回最多 5 首
+curl "http://localhost:8080/music/api/ai/search?q=周杰伦&type=song&sources=qq,netease&limit=5"
+```
+
+API 索引：`http://localhost:8080/music/api/ai/index`，精简说明：`http://localhost:8080/music/llms.txt`。除歌曲、歌单和专辑搜索外，还包含排行榜、歌单分类、推荐、个人歌单、播放、歌词、下载队列和本地音乐；单个来源失败时会返回 `errors`，其他来源结果不受影响。
+
 ---
 
 ![Web UI 1](./screenshots/web1.png)
