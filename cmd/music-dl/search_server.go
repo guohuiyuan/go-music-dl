@@ -2,20 +2,22 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
+	"io"
 	"net"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/guohuiyuan/go-music-dl/core"
 )
 
-type searchResult struct {
+type searchServerSong struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Artist   string `json:"artist"`
@@ -25,33 +27,58 @@ type searchResult struct {
 	Cover    string `json:"cover"`
 }
 
-func main() {
-	core.CM.Load()
+type searchProviderLookup func(string) core.SearchFunc
 
+var searchServerCmd = &cobra.Command{
+	Use:    "search-server",
+	Short:  "启动本地搜索服务",
+	Hidden: true,
+	Args:   cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		core.CM.Load()
+		return runSearchServer(cmd.OutOrStdout(), core.GetSearchFunc)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(searchServerCmd)
+}
+
+func runSearchServer(stdout io.Writer, lookup searchProviderLookup) error {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		log.Fatalf("can not listen: %v", err)
+		return fmt.Errorf("listen for local search: %w", err)
 	}
+	defer listener.Close()
 
 	port := listener.Addr().(*net.TCPAddr).Port
-	fmt.Printf("PORT:%d\n", port)
-	os.Stdout.Sync()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/search", handleSearch)
+	if _, err := fmt.Fprintf(stdout, "PORT:%d\n", port); err != nil {
+		return fmt.Errorf("write local search port: %w", err)
+	}
+	if syncer, ok := stdout.(interface{ Sync() error }); ok {
+		_ = syncer.Sync()
+	}
 
 	server := &http.Server{
-		Handler:      mux,
+		Handler:      newSearchServerHandler(lookup),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 60 * time.Second,
 	}
-
-	if err := server.Serve(listener); err != nil {
-		log.Fatalf("server error: %v", err)
+	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("serve local search: %w", err)
 	}
+	return nil
 }
 
-func handleSearch(w http.ResponseWriter, r *http.Request) {
+func newSearchServerHandler(lookup searchProviderLookup) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
+		handleSearchServerRequest(w, r, lookup)
+	})
+	return mux
+}
+
+func handleSearchServerRequest(w http.ResponseWriter, r *http.Request, lookup searchProviderLookup) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -59,7 +86,6 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	keyword := strings.TrimSpace(r.URL.Query().Get("keyword"))
 	sourcesParam := strings.TrimSpace(r.URL.Query().Get("sources"))
-
 	if keyword == "" {
 		http.Error(w, "missing keyword", http.StatusBadRequest)
 		return
@@ -70,14 +96,10 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sources := strings.Split(sourcesParam, ",")
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
 	var (
 		mu      sync.Mutex
 		wg      sync.WaitGroup
-		results []searchResult
+		results []searchServerSong
 	)
 
 	for _, source := range sources {
@@ -86,36 +108,35 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		searchFn := core.GetSearchFunc(source)
-		if searchFn == nil {
+		search := lookup(source)
+		if search == nil {
 			continue
 		}
 
 		wg.Add(1)
-		go func(src string, fn core.SearchFunc) {
+		go func() {
 			defer wg.Done()
 
-			songs, err := fn(keyword)
+			songs, err := search(keyword)
 			if err != nil {
 				return
 			}
 
 			mu.Lock()
+			defer mu.Unlock()
 			for _, song := range songs {
-				results = append(results, searchResult{
+				results = append(results, searchServerSong{
 					ID:       song.ID,
 					Name:     song.Name,
 					Artist:   song.Artist,
 					Album:    song.Album,
 					Duration: song.Duration,
-					Source:   src,
+					Source:   source,
 					Cover:    song.Cover,
 				})
 			}
-			mu.Unlock()
-		}(source, searchFn)
+		}()
 	}
-
 	wg.Wait()
 
 	sort.Slice(results, func(i, j int) bool {
@@ -125,12 +146,12 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		return results[i].Name < results[j].Name
 	})
 
-	resp := map[string]interface{}{
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"keyword": keyword,
 		"sources": sources,
 		"songs":   results,
 		"total":   len(results),
-	}
-
-	json.NewEncoder(w).Encode(resp)
+	})
 }
