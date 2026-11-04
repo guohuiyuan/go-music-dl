@@ -20,6 +20,20 @@ type downloadContainerRequest struct {
 	Embed     bool   `json:"embed"`
 }
 
+const maxSkippedDownloadSongLabels = 5
+
+func downloadSongLabel(song model.Song) string {
+	name := strings.TrimSpace(song.Name)
+	if name == "" {
+		name = "未知歌曲"
+	}
+	artist := strings.TrimSpace(song.Artist)
+	if artist == "" {
+		return name
+	}
+	return name + " - " + artist
+}
+
 func loadDownloadContainerSongs(req downloadContainerRequest) ([]model.Song, error) {
 	switch req.Kind {
 	case "collection":
@@ -72,18 +86,34 @@ func registerDownloadContainerRoute(api *gin.RouterGroup, queue *core.DownloadQu
 		}
 		inputs := make([]core.DownloadTaskInput, 0, len(songs))
 		local := 0
+		skippedInvalid := 0
+		skippedSongs := make([]string, 0, maxSkippedDownloadSongLabels)
 		for _, song := range songs {
 			if isLocalMusicSource(song.Source) {
 				local++
 				continue
 			}
 			if strings.TrimSpace(song.ID) == "" || strings.TrimSpace(song.Source) == "" {
-				c.JSON(400, gin.H{"error": "部分曲目缺少 ID 或音源，本次未加入队列"})
-				return
+				skippedInvalid++
+				if len(skippedSongs) < maxSkippedDownloadSongLabels {
+					skippedSongs = append(skippedSongs, downloadSongLabel(song))
+				}
+				continue
 			}
 			inputs = append(inputs, core.DownloadTaskInput{Song: song, Directory: core.DownloadDirOrDefault(settings.DownloadDir), FilenameTemplate: settings.DownloadFilenameTemplate, Embed: req.Embed})
 		}
 		if len(inputs) == 0 {
+			if skippedInvalid > 0 {
+				message := fmt.Sprintf("没有可加入下载队列的歌曲，已跳过 %d 首缺少歌曲 ID 或音源的歌曲", skippedInvalid)
+				if len(skippedSongs) > 0 {
+					message += "：" + strings.Join(skippedSongs, "、")
+					if skippedInvalid > len(skippedSongs) {
+						message += "等"
+					}
+				}
+				c.JSON(400, gin.H{"error": message, "skipped_invalid": skippedInvalid, "skipped_songs": skippedSongs})
+				return
+			}
 			c.JSON(400, gin.H{"error": "歌单中均为已有本地音乐，无需重复下载"})
 			return
 		}
@@ -92,6 +122,13 @@ func registerDownloadContainerRoute(api *gin.RouterGroup, queue *core.DownloadQu
 			c.JSON(500, gin.H{"error": "加入队列失败：" + err.Error()})
 			return
 		}
-		c.JSON(http.StatusAccepted, gin.H{"added": added, "existing": len(inputs) - added, "total": len(songs), "skipped_local": local})
+		c.JSON(http.StatusAccepted, gin.H{
+			"added":           added,
+			"existing":        len(inputs) - added,
+			"total":           len(songs),
+			"skipped_local":   local,
+			"skipped_invalid": skippedInvalid,
+			"skipped_songs":   skippedSongs,
+		})
 	})
 }

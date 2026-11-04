@@ -151,6 +151,108 @@ func TestDownloadContainerUpstreamErrorDoesNotEnqueuePartialResults(t *testing.T
 		t.Fatal(total, err)
 	}
 }
+
+func TestDownloadContainerSkipsInvalidSongsAndEnqueuesValidSongs(t *testing.T) {
+	r, q := setupContainerTests(t)
+	original := playlistDetailFuncProvider
+	t.Cleanup(func() { playlistDetailFuncProvider = original })
+	playlistDetailFuncProvider = func(source string) func(string) ([]model.Song, error) {
+		return func(id string) ([]model.Song, error) {
+			if source != "qq" || id != "mixed-playlist" {
+				t.Fatalf("unexpected container %s %s", source, id)
+			}
+			return []model.Song{
+				{ID: "valid-1", Source: "qq", Name: "Valid One", Artist: "Artist One"},
+				{ID: "", Source: "qq", Name: "Cloud One", Artist: "Cloud Artist"},
+				{ID: "valid-2", Source: "qq", Name: "Valid Two"},
+				{ID: "", Source: "qq", Name: "Cloud Two"},
+			}, nil
+		}
+	}
+
+	w := containerRequest(r, "/api/downloads/queue/container", downloadContainerRequest{
+		RequestID: "mixed",
+		Kind:      collectionContentPlaylist,
+		ID:        "mixed-playlist",
+		Source:    "qq",
+	})
+	if w.Code != http.StatusAccepted {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	var result struct {
+		Added          int      `json:"added"`
+		Total          int      `json:"total"`
+		SkippedInvalid int      `json:"skipped_invalid"`
+		SkippedSongs   []string `json:"skipped_songs"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Added != 2 || result.Total != 4 || result.SkippedInvalid != 2 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if len(result.SkippedSongs) != 2 || result.SkippedSongs[0] != "Cloud One - Cloud Artist" || result.SkippedSongs[1] != "Cloud Two" {
+		t.Fatalf("unexpected skipped songs: %#v", result.SkippedSongs)
+	}
+	tasks, total, _, err := q.List(1, 50, "")
+	if err != nil || total != 2 || len(tasks) != 2 {
+		t.Fatal(total, tasks, err)
+	}
+	for _, task := range tasks {
+		if task.ID == 0 || task.Source != "qq" || task.Name == "" {
+			t.Fatalf("invalid queued task: %#v", task)
+		}
+	}
+}
+
+func TestDownloadContainerRejectsPlaylistWhenAllSongsLackIDs(t *testing.T) {
+	r, q := setupContainerTests(t)
+	original := playlistDetailFuncProvider
+	t.Cleanup(func() { playlistDetailFuncProvider = original })
+	playlistDetailFuncProvider = func(string) func(string) ([]model.Song, error) {
+		return func(string) ([]model.Song, error) {
+			return []model.Song{
+				{ID: "", Source: "qq", Name: "Cloud One"},
+				{ID: "", Source: "qq", Name: "Cloud Two"},
+			}, nil
+		}
+	}
+
+	w := containerRequest(r, "/api/downloads/queue/container", downloadContainerRequest{
+		RequestID: "all-invalid",
+		Kind:      collectionContentPlaylist,
+		ID:        "all-invalid-playlist",
+		Source:    "qq",
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"skipped_invalid":2`)) || !bytes.Contains(w.Body.Bytes(), []byte("Cloud One")) {
+		t.Fatal(w.Body.String())
+	}
+	_, total, _, err := q.List(1, 50, "")
+	if err != nil || total != 0 {
+		t.Fatal(total, err)
+	}
+}
+
+func TestDownloadWholeCollectionUIReportsSkippedInvalidSongs(t *testing.T) {
+	content, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"data.skipped_invalid",
+		"data.skipped_songs",
+		"已加入下载队列（部分跳过）",
+		"跳过缺少歌曲 ID 或音源",
+	} {
+		if !bytes.Contains(content, []byte(want)) {
+			t.Fatalf("app.js missing %q", want)
+		}
+	}
+}
+
 func TestDeleteCollectionRemovesReferencesAndKeepsFilesAndQueue(t *testing.T) {
 	r, q := setupContainerTests(t)
 	col := Collection{Name: "Disposable"}

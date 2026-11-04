@@ -9218,7 +9218,18 @@ async function downloadWholeCollection(button) {
     });
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error || "加入队列失败");
-    showToast("完整曲目已加入队列", `共获取 ${data.total} 首，新增 ${data.added} 首，队列中已存在 ${data.existing} 首，跳过本地音乐 ${data.skipped_local} 首。`, "success", downloadNoticeDuration());
+    const skippedInvalid = Number(data.skipped_invalid) || 0;
+    const skippedSongs = Array.isArray(data.skipped_songs) ? data.skipped_songs.filter(Boolean) : [];
+    let skippedInvalidText = "";
+    if (skippedInvalid > 0) {
+      skippedInvalidText = `，跳过缺少歌曲 ID 或音源 ${skippedInvalid} 首`;
+      if (skippedSongs.length > 0) {
+        skippedInvalidText += `（${skippedSongs.join("、")}${skippedInvalid > skippedSongs.length ? "等" : ""}）`;
+      }
+    }
+    const title = skippedInvalid > 0 ? "已加入下载队列（部分跳过）" : "完整曲目已加入队列";
+    const type = skippedInvalid > 0 ? "warning" : "success";
+    showToast(title, `共获取 ${data.total} 首，新增 ${data.added} 首，队列中已存在 ${data.existing} 首，跳过本地音乐 ${data.skipped_local} 首${skippedInvalidText}。`, type, downloadNoticeDuration());
     await openDownloadRecordsModal();
   } catch (error) {
     showToast("整单下载失败", error.message || "请稍后重试", "error", downloadNoticeDuration());
