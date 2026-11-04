@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -1214,6 +1215,9 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			if result.Warning != "" {
 				payload["warning"] = result.Warning
 			}
+			if result.LyricPath != "" {
+				payload["lyric_path"] = result.LyricPath
+			}
 			if webdavError != "" {
 				payload["webdav_error"] = webdavError
 			}
@@ -1327,7 +1331,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 				c.Header("Content-Range", rangeFetch.ContentRange)
 			}
 			c.Status(rangeFetch.StatusCode)
-			if err := rangeFetch.WriteTo(c.Writer); err != nil {
+			if err := rangeFetch.WriteRangeTo(c.Writer); err != nil {
 				return
 			}
 			return
@@ -1428,14 +1432,22 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			c.String(404, "Lyric not found")
 			return
 		}
+		if saveLocal {
+			standardLRC := core.StandardLRCForExport(lrc)
+			if standardLRC == "" {
+				c.String(http.StatusNotFound, "Lyric not found")
+				return
+			}
+			settings := core.GetWebSettings()
+			filename := core.BuildDownloadFilename(song, "lrc", settings.DownloadFilenameTemplate)
+			c.Header("X-Lyric-Format", classifyLyricFormat(standardLRC))
+			saveWebAssetRelativeResponse(c, filename, []byte(standardLRC))
+			return
+		}
 		lrc = formatLyricForMode(lrc, c.DefaultQuery("format", "auto"))
 		c.Header("X-Lyric-Format", classifyLyricFormat(lrc))
 
 		filename := fmt.Sprintf("%s - %s.lrc", name, artist)
-		if saveLocal {
-			saveWebAssetResponse(c, filename, []byte(lrc))
-			return
-		}
 		setDownloadHeader(c, filename)
 		c.String(200, lrc)
 	}
@@ -1612,6 +1624,24 @@ func saveWebAssetResponse(c *gin.Context, filename string, data []byte) {
 	})
 }
 
+func saveWebAssetRelativeResponse(c *gin.Context, filename string, data []byte) {
+	savedPath, savedFilename, err := saveWebAssetRelativeToLocal(filename, data)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, os.ErrExist) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status":   "ok",
+		"saved":    true,
+		"path":     savedPath,
+		"filename": savedFilename,
+	})
+}
+
 func saveWebAssetToLocal(filename string, data []byte) (string, string, error) {
 	if len(data) == 0 {
 		return "", "", fmt.Errorf("empty file data")
@@ -1633,6 +1663,68 @@ func saveWebAssetToLocal(filename string, data []byte) (string, string, error) {
 	if err := os.WriteFile(savedPath, data, 0644); err != nil {
 		return "", "", err
 	}
+	return savedPath, savedFilename, nil
+}
+
+func saveWebAssetRelativeToLocal(filename string, data []byte) (string, string, error) {
+	if len(data) == 0 {
+		return "", "", fmt.Errorf("empty file data")
+	}
+	settings := core.GetWebSettings()
+	targetDir := strings.TrimSpace(settings.DownloadDir)
+	if targetDir == "" {
+		targetDir = core.DefaultWebDownloadDir
+	}
+	targetDir = filepath.Clean(targetDir)
+
+	cleanedName := path.Clean(strings.ReplaceAll(strings.TrimSpace(filename), "\\", "/"))
+	if cleanedName == "" || cleanedName == "." || strings.HasPrefix(cleanedName, "/") || cleanedName == ".." || strings.HasPrefix(cleanedName, "../") {
+		return "", "", fmt.Errorf("invalid relative filename")
+	}
+	savedFilename := filepath.FromSlash(cleanedName)
+	if filepath.VolumeName(savedFilename) != "" {
+		return "", "", fmt.Errorf("invalid relative filename")
+	}
+	savedPath := filepath.Join(targetDir, savedFilename)
+	if !isPathInside(targetDir, savedPath) {
+		return "", "", fmt.Errorf("invalid relative filename")
+	}
+	if err := os.MkdirAll(filepath.Dir(savedPath), 0755); err != nil {
+		return "", "", err
+	}
+
+	existing, err := os.ReadFile(savedPath)
+	if err == nil {
+		if bytes.Equal(existing, data) {
+			return savedPath, savedFilename, nil
+		}
+		return "", "", fmt.Errorf("%w: %s", os.ErrExist, savedFilename)
+	}
+	if !os.IsNotExist(err) {
+		return "", "", err
+	}
+
+	file, err := os.OpenFile(savedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return "", "", err
+	}
+	keep := false
+	defer func() {
+		_ = file.Close()
+		if !keep {
+			_ = os.Remove(savedPath)
+		}
+	}()
+	if _, err := file.Write(data); err != nil {
+		return "", "", err
+	}
+	if err := file.Sync(); err != nil {
+		return "", "", err
+	}
+	if err := file.Close(); err != nil {
+		return "", "", err
+	}
+	keep = true
 	return savedPath, savedFilename, nil
 }
 

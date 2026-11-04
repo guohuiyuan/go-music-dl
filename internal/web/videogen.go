@@ -260,7 +260,7 @@ func RegisterVideogenRoutes(api *gin.RouterGroup, videoDir string) {
 		} else {
 			settings := core.GetWebSettings()
 			tempSong := &model.Song{ID: id, Source: source, Name: "render", Artist: "render"}
-			result, err := core.SaveSongToFileWithTemplate(tempSong, tempDir, false, false, settings.DownloadFilenameTemplate)
+			result, err := core.SaveSongToFileWithoutLyricsSidecar(tempSong, tempDir, false, false, settings.DownloadFilenameTemplate)
 			if err != nil {
 				os.RemoveAll(tempDir)
 				c.JSON(500, gin.H{"error": "Audio download failed: " + err.Error()})

@@ -90,6 +90,9 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if defaults.DownloadToLocal {
 		t.Fatalf("default DownloadToLocal should be false")
 	}
+	if defaults.DownloadLyricsToLocal {
+		t.Fatalf("default DownloadLyricsToLocal should be false")
+	}
 	if defaults.DownloadDir != normalizeWebDownloadDir(DefaultWebDownloadDir) {
 		t.Fatalf("default DownloadDir mismatch: got %q want %q", defaults.DownloadDir, normalizeWebDownloadDir(DefaultWebDownloadDir))
 	}
@@ -181,6 +184,7 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if err := SaveWebSettings(WebSettings{
 		EmbedDownload:            true,
 		DownloadToLocal:          true,
+		DownloadLyricsToLocal:    true,
 		DownloadDir:              "",
 		DownloadFilenameTemplate: "{artist} - {name}.{ext}",
 		WebDAVEnabled:            true,
@@ -222,6 +226,7 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	want := WebSettings{
 		EmbedDownload:            true,
 		DownloadToLocal:          true,
+		DownloadLyricsToLocal:    true,
 		DownloadDir:              normalizeWebDownloadDir(DefaultWebDownloadDir),
 		DownloadFilenameTemplate: "{artist} - {name}.{ext}",
 		WebDAVEnabled:            true,
@@ -278,6 +283,9 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	}
 	if got.DisableFloatingLyrics {
 		t.Fatalf("custom save should fallback DisableFloatingLyrics to default false: %#v", got)
+	}
+	if got.DownloadLyricsToLocal {
+		t.Fatalf("custom save should fallback DownloadLyricsToLocal to default false: %#v", got)
 	}
 	if got.WebPageSize != DefaultWebPageSize {
 		t.Fatalf("custom save should fallback WebPageSize to default: got %d want %d", got.WebPageSize, DefaultWebPageSize)
@@ -366,6 +374,9 @@ func TestWebSettingsLegacyPayloadUsesCurrentSwitchDefaults(t *testing.T) {
 	}
 	if got.AutoCacheOnPlay {
 		t.Fatalf("legacy settings should default AutoCacheOnPlay to false: %#v", got)
+	}
+	if got.DownloadLyricsToLocal {
+		t.Fatalf("legacy settings should default DownloadLyricsToLocal to false: %#v", got)
 	}
 	if got.ShortcutPlayPause != DefaultShortcutPlayPause || got.LyricFontFamily != DefaultLyricFontFamily || got.LyricFontSize != DefaultLyricFontSize {
 		t.Fatalf("legacy settings should receive playback setting defaults: %#v", got)

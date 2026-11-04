@@ -50,6 +50,7 @@ type cookieEntry struct {
 type WebSettings struct {
 	EmbedDownload            bool   `json:"embedDownload"`
 	DownloadToLocal          bool   `json:"downloadToLocal"`
+	DownloadLyricsToLocal    bool   `json:"downloadLyricsToLocal"`
 	DownloadDir              string `json:"downloadDir"`
 	DownloadFilenameTemplate string `json:"downloadFilenameTemplate"`
 	DownloadTipDuration      int    `json:"downloadTipDuration"`
@@ -208,6 +209,7 @@ func defaultWebSettings() WebSettings {
 	return normalizeWebSettings(WebSettings{
 		EmbedDownload:            true,
 		DownloadToLocal:          false,
+		DownloadLyricsToLocal:    false,
 		DownloadDir:              DefaultWebDownloadDir,
 		DownloadFilenameTemplate: DefaultDownloadFilenameTemplate,
 		DisableFloatingLyrics:    false,

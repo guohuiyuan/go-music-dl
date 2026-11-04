@@ -1324,7 +1324,7 @@ func FetchBytesWithMime(urlStr string, source string) ([]byte, string, error) {
 		if fetch.ContentLength > 0 && fetch.ContentLength <= int64(1<<(strconv.IntSize-1)-1) {
 			buf.Grow(int(fetch.ContentLength))
 		}
-		if err := fetch.WriteTo(&buf); err != nil {
+		if err := fetch.WriteRangeTo(&buf); err != nil {
 			return nil, "", err
 		}
 		return buf.Bytes(), fetch.ContentType, nil
@@ -1440,7 +1440,7 @@ func NewSourceRangeFetch(urlStr string, source string, rangeHeader string) (*Sou
 	return fetch, true, nil
 }
 
-func (f *SourceRangeFetch) WriteTo(w io.Writer) error {
+func (f *SourceRangeFetch) WriteRangeTo(w io.Writer) error {
 	if f == nil {
 		return errors.New("nil range fetch")
 	}

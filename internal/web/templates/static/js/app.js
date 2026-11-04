@@ -57,6 +57,7 @@ function isLocalMusicSourceValue(source) {
 
 let webSettings = {
   embedDownload: true,
+  downloadLyricsToLocal: false,
   downloadToLocal: true,
   downloadDir: "data/downloads",
   downloadFilenameTemplate: "{name} - {artist}",
@@ -99,6 +100,7 @@ let webSettings = {
 function normalizeWebSettings(raw) {
   const next = {
     embedDownload: true,
+    downloadLyricsToLocal: false,
     downloadToLocal: true,
     downloadDir: "data/downloads",
     downloadFilenameTemplate: "{name} - {artist}",
@@ -144,6 +146,9 @@ function normalizeWebSettings(raw) {
 
   if (typeof raw.embedDownload === "boolean") {
     next.embedDownload = raw.embedDownload;
+  }
+  if (typeof raw.downloadLyricsToLocal === "boolean") {
+    next.downloadLyricsToLocal = raw.downloadLyricsToLocal;
   }
   if (typeof raw.downloadDir === "string" && raw.downloadDir.trim() !== "") {
     next.downloadDir = raw.downloadDir.trim();
@@ -749,6 +754,12 @@ function applyWebSettings(settings) {
   if (embedToggle) {
     embedToggle.checked = webSettings.embedDownload;
   }
+  const downloadLyricsToggle = document.getElementById(
+    "setting-download-lyrics-to-local",
+  );
+  if (downloadLyricsToggle) {
+    downloadLyricsToggle.checked = webSettings.downloadLyricsToLocal;
+  }
 
   const webdavEnabledToggle = document.getElementById(
     "setting-webdav-enabled",
@@ -1232,6 +1243,33 @@ async function requestLocalDownload(url) {
     throw new Error((data && data.error) || "保存失败");
   }
   return data;
+}
+
+async function handleLyricLocalSave(link) {
+  if (!link) return false;
+  link.style.pointerEvents = "none";
+  link.style.opacity = "0.6";
+  try {
+    const result = await requestLocalDownload(link.href);
+    showToast(
+      "歌词已保存",
+      result.path || result.filename || "已保存到本地目录",
+      "success",
+      downloadNoticeDuration(),
+    );
+    return true;
+  } catch (error) {
+    showToast(
+      "歌词保存失败",
+      error.message || "请稍后重试",
+      "error",
+      downloadNoticeDuration(),
+    );
+    return false;
+  } finally {
+    link.style.pointerEvents = "";
+    link.style.opacity = "";
+  }
 }
 
 function formatBatchSongLabel(song) {
@@ -2166,6 +2204,13 @@ function bindPageNavigationEvents() {
     if (!link) return;
     event.preventDefault();
     await handleDownloadClick(link);
+  });
+
+  document.addEventListener("click", async function (event) {
+    const link = event.target.closest(".btn-lyric");
+    if (!link || !webSettings.downloadLyricsToLocal) return;
+    event.preventDefault();
+    await handleLyricLocalSave(link);
   });
 
   document.addEventListener("click", function (event) {
@@ -5593,6 +5638,9 @@ async function saveCookies() {
     nextSettings = normalizeWebSettings({
       embedDownload: !!document.getElementById("setting-embed-download")
         ?.checked,
+      downloadLyricsToLocal: !!document.getElementById(
+        "setting-download-lyrics-to-local",
+      )?.checked,
       downloadDir: document.getElementById("setting-download-dir")?.value || "",
       downloadFilenameTemplate:
         document.getElementById("setting-download-filename-template")?.value ||

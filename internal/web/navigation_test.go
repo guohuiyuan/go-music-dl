@@ -436,6 +436,7 @@ func TestSettingsModalIncludesDownloadDirPresets(t *testing.T) {
 	html := string(content)
 	for _, want := range []string{
 		`id="setting-download-dir-preset"`,
+		`id="setting-download-lyrics-to-local"`,
 		`id="setting-download-filename-template"`,
 		`id="setting-auto-cache-on-play"`,
 		`id="setting-floating-lyrics"`,
@@ -479,6 +480,27 @@ func TestSettingsModalIncludesDownloadDirPresets(t *testing.T) {
 	} {
 		if strings.Contains(html, unwanted) {
 			t.Fatalf("modals.html should not contain removed update control %q", unwanted)
+		}
+	}
+}
+
+func TestDownloadLyricsToLocalSettingIsWired(t *testing.T) {
+	content, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatalf("ReadFile(app.js): %v", err)
+	}
+	js := string(content)
+	for _, want := range []string{
+		`downloadLyricsToLocal: false`,
+		`typeof raw.downloadLyricsToLocal === "boolean"`,
+		`setting-download-lyrics-to-local`,
+		`downloadLyricsToggle.checked = webSettings.downloadLyricsToLocal`,
+		`downloadLyricsToLocal: !!document.getElementById(`,
+		`async function handleLyricLocalSave(link)`,
+		`!link || !webSettings.downloadLyricsToLocal`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("app.js missing download lyric setting token %q", want)
 		}
 	}
 }

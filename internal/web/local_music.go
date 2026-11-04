@@ -1673,6 +1673,17 @@ func localMusicLyricFilename(track *localMusicTrack) string {
 	return utils.SanitizeFilename(fmt.Sprintf("%s - %s.lrc", name, artist))
 }
 
+func localMusicLyricSidecarFilename(track *localMusicTrack) string {
+	if track == nil {
+		return "lyrics.lrc"
+	}
+	relPath := strings.TrimSpace(track.RelPath)
+	if relPath == "" {
+		return localMusicLyricFilename(track)
+	}
+	return strings.TrimSuffix(filepath.ToSlash(relPath), filepath.Ext(relPath)) + ".lrc"
+}
+
 func serveLocalMusicLyric(c *gin.Context, song *model.Song, download bool, saveLocal ...bool) {
 	if song == nil {
 		c.String(http.StatusNotFound, "Lyric not found")
@@ -1702,7 +1713,12 @@ func serveLocalMusicLyric(c *gin.Context, song *model.Song, download bool, saveL
 	c.Header("X-Lyric-Format", classifyLyricFormat(lyrics))
 	if download {
 		if len(saveLocal) > 0 && saveLocal[0] {
-			saveWebAssetResponse(c, localMusicLyricFilename(track), []byte(lyrics))
+			standardLRC := core.StandardLRCForExport(lyrics)
+			if standardLRC == "" {
+				c.String(http.StatusNotFound, "Lyric not found")
+				return
+			}
+			saveWebAssetRelativeResponse(c, localMusicLyricSidecarFilename(track), []byte(standardLRC))
 			return
 		}
 		setDownloadHeader(c, localMusicLyricFilename(track))

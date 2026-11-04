@@ -19,6 +19,8 @@ type DownloadedSong struct {
 	ContentType string
 	Filename    string
 	SavedPath   string
+	Lyric       string
+	LyricPath   string
 	Warning     string
 	Skipped     bool // 因已存在而跳过下载
 }
@@ -28,6 +30,10 @@ func DownloadSongData(song *model.Song, withCover bool, withLyrics bool) (*Downl
 }
 
 func DownloadSongDataWithTemplate(song *model.Song, withCover bool, withLyrics bool, filenameTemplate string) (*DownloadedSong, error) {
+	return downloadSongDataWithTemplate(song, withCover, withLyrics, withLyrics, filenameTemplate)
+}
+
+func downloadSongDataWithTemplate(song *model.Song, withCover, fetchLyrics, embedLyrics bool, filenameTemplate string) (*DownloadedSong, error) {
 	if song == nil {
 		return nil, errors.New("song is nil")
 	}
@@ -61,7 +67,7 @@ func DownloadSongDataWithTemplate(song *model.Song, withCover bool, withLyrics b
 	}
 
 	var lyric string
-	if withLyrics {
+	if fetchLyrics {
 		if lyricFn := GetLyricFunc(normalized.Source); lyricFn != nil {
 			lyric, _ = lyricFn(&normalized)
 		}
@@ -75,8 +81,12 @@ func DownloadSongDataWithTemplate(song *model.Song, withCover bool, withLyrics b
 
 	finalData := audioData
 	warning := ""
-	if (ext == "mp3" || ext == "flac" || ext == "m4a" || ext == "wma") && (normalized.Album != "" || lyric != "" || len(coverData) > 0) {
-		embeddedData, embedErr := EmbedSongMetadata(audioData, &normalized, lyric, coverData, coverMime)
+	lyricForEmbedding := ""
+	if embedLyrics {
+		lyricForEmbedding = lyric
+	}
+	if (ext == "mp3" || ext == "flac" || ext == "m4a" || ext == "wma") && (normalized.Album != "" || lyricForEmbedding != "" || len(coverData) > 0) {
+		embeddedData, embedErr := EmbedSongMetadata(audioData, &normalized, lyricForEmbedding, coverData, coverMime)
 		switch {
 		case embedErr == nil:
 			finalData = embeddedData
@@ -96,6 +106,7 @@ func DownloadSongDataWithTemplate(song *model.Song, withCover bool, withLyrics b
 		Ext:         ext,
 		ContentType: AudioMimeByExt(ext),
 		Filename:    BuildDownloadFilename(&normalized, ext, filenameTemplate),
+		Lyric:       lyric,
 		Warning:     warning,
 	}, nil
 }
@@ -105,14 +116,36 @@ func SaveSongToFile(song *model.Song, outDir string, withCover bool, withLyrics 
 }
 
 func SaveSongToFileWithTemplate(song *model.Song, outDir string, withCover bool, withLyrics bool, filenameTemplate string) (*DownloadedSong, error) {
-	result, err := DownloadSongDataWithTemplate(song, withCover, withLyrics, filenameTemplate)
+	settings := GetWebSettings()
+	return saveSongToFileWithTemplate(song, outDir, withCover, withLyrics, filenameTemplate, settings.DownloadLyricsToLocal)
+}
+
+// SaveSongToFileWithoutLyricsSidecar is for internal audio staging such as
+// video rendering. It never fetches or writes a sidecar LRC, even when the
+// download setting is enabled, and avoids leaving staging files behind.
+func SaveSongToFileWithoutLyricsSidecar(song *model.Song, outDir string, withCover bool, withLyrics bool, filenameTemplate string) (*DownloadedSong, error) {
+	return saveSongToFileWithTemplate(song, outDir, withCover, withLyrics, filenameTemplate, false)
+}
+
+func saveSongToFileWithTemplate(song *model.Song, outDir string, withCover bool, withLyrics bool, filenameTemplate string, exportLyrics bool) (*DownloadedSong, error) {
+	result, err := downloadSongDataWithTemplate(
+		song,
+		withCover,
+		withLyrics || exportLyrics,
+		withLyrics,
+		filenameTemplate,
+	)
 	if err != nil {
 		return nil, err
 	}
-	return saveDownloadedSongToFile(result, outDir)
+	return saveDownloadedSongToFileWithLyricSidecar(result, outDir, exportLyrics)
 }
 
 func saveDownloadedSongToFile(result *DownloadedSong, outDir string) (*DownloadedSong, error) {
+	return saveDownloadedSongToFileWithLyricSidecar(result, outDir, GetWebSettings().DownloadLyricsToLocal)
+}
+
+func saveDownloadedSongToFileWithLyricSidecar(result *DownloadedSong, outDir string, exportLyrics bool) (*DownloadedSong, error) {
 	if result == nil {
 		return nil, errors.New("download result is nil")
 	}
@@ -157,6 +190,7 @@ func saveDownloadedSongToFile(result *DownloadedSong, outDir string) (*Downloade
 
 	result.Filename = fileName
 	result.SavedPath = filePath
+	saveDownloadedSongLyricSidecar(result, exportLyrics)
 	return result, nil
 }
 
