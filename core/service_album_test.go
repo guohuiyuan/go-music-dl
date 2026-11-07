@@ -24,7 +24,7 @@ type playlistIntegrationCase struct {
 }
 
 func TestAlbumFactoriesAndSourceList(t *testing.T) {
-	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "soda", "apple"}
+	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "soda", "apple", "spotify"}
 	for _, source := range supported {
 		if fn := GetAlbumSearchFunc(source); fn == nil {
 			t.Fatalf("GetAlbumSearchFunc(%q) returned nil", source)
@@ -43,7 +43,7 @@ func TestAlbumFactoriesAndSourceList(t *testing.T) {
 }
 
 func TestPlaylistFactoriesAndSourceList(t *testing.T) {
-	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "bilibili", "soda", "fivesing", "apple"}
+	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "bilibili", "soda", "fivesing", "apple", "spotify"}
 	for _, source := range supported {
 		if fn := GetPlaylistSearchFunc(source); fn == nil {
 			t.Fatalf("GetPlaylistSearchFunc(%q) returned nil", source)
@@ -62,7 +62,7 @@ func TestPlaylistFactoriesAndSourceList(t *testing.T) {
 }
 
 func TestUserPlaylistFactoriesAndSourceList(t *testing.T) {
-	supported := []string{"netease", "qq", "kugou", "soda"}
+	supported := []string{"netease", "qq", "kugou", "soda", "spotify"}
 	for _, source := range supported {
 		if fn := GetUserPlaylistsFunc(source); fn == nil {
 			t.Fatalf("GetUserPlaylistsFunc(%q) returned nil", source)

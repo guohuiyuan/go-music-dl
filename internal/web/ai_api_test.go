@@ -190,7 +190,8 @@ func TestParseAIPlayerSourcesSupportsCommaAndAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(all) == 0 || !containsStringValue(all, "qq") ||
-		!containsStringValue(all, "apple") || !containsStringValue(all, "local") {
+		!containsStringValue(all, "apple") || !containsStringValue(all, "spotify") ||
+		!containsStringValue(all, "local") {
 		t.Fatalf("unexpected all sources: %v", all)
 	}
 

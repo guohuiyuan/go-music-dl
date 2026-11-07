@@ -49,7 +49,7 @@
                         <img src="{{ .Cover }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
                         {{ end }}
                         <span class="toplist-cover-fallback"{{ if .Cover }} hidden{{ end }}>
-                            {{ if eq .Source "apple" }}<i class="fa-brands fa-apple" aria-hidden="true"></i>{{ else }}<i class="fa-solid fa-ranking-star" aria-hidden="true"></i>{{ end }}
+                            {{ if eq .Source "apple" }}<i class="fa-brands fa-apple" aria-hidden="true"></i>{{ else if eq .Source "spotify" }}<i class="fa-brands fa-spotify" aria-hidden="true"></i>{{ else }}<i class="fa-solid fa-ranking-star" aria-hidden="true"></i>{{ end }}
                             <span>{{ .Name }}</span>
                         </span>
                         {{ if .UpdateFrequency }}<span class="toplist-freq-tag">{{ .UpdateFrequency }}</span>{{ end }}

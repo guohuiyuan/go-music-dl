@@ -296,6 +296,11 @@ func cookieCaptureHints() map[string]cookieCaptureHint {
 			Domain:   "api.bilibili.com",
 			Hint:     "登录并播放任意视频或音频，筛选该域请求；Cookie 中通常包含 SESSDATA。",
 		},
+		"spotify": {
+			LoginURL: "https://developer.spotify.com/dashboard",
+			Domain:   "api.spotify.com",
+			Hint:     `Paste JSON: {"client_id":"...","client_secret":"...","refresh_token":"...","market":"US"}. Public catalog only needs client_id and client_secret; personal playlists need OAuth playlist-read-private scope.`,
+		},
 		"apple": {
 			LoginURL: "https://music.apple.com",
 			Domain:   "amp-api.music.apple.com",

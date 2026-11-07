@@ -6,7 +6,7 @@ import (
 )
 
 func TestPlaylistCategoryFactoriesAndSourceList(t *testing.T) {
-	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "qianqian", "joox", "soda", "apple"}
+	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "qianqian", "joox", "soda", "apple", "spotify"}
 	if got := GetPlaylistCategorySourceNames(); !reflect.DeepEqual(got, supported) {
 		t.Fatalf("GetPlaylistCategorySourceNames() = %v, want %v", got, supported)
 	}

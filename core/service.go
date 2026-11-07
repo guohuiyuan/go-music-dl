@@ -32,6 +32,7 @@ import (
 	"github.com/guohuiyuan/music-lib/qianqian"
 	"github.com/guohuiyuan/music-lib/qq"
 	"github.com/guohuiyuan/music-lib/soda"
+	"github.com/guohuiyuan/music-lib/spotify"
 	"gorm.io/gorm"
 )
 
@@ -174,6 +175,8 @@ func GetSearchFunc(source string) SearchFunc {
 		return NewSodaClient(c).Search
 	case "apple":
 		return apple.New(c).Search
+	case "spotify":
+		return spotify.New(c).Search
 	default:
 		return nil
 	}
@@ -202,6 +205,8 @@ func GetAlbumSearchFunc(source string) SearchPlaylistFunc {
 		return NewSodaClient(c).SearchAlbum
 	case "apple":
 		return apple.New(c).SearchAlbum
+	case "spotify":
+		return spotify.New(c).SearchAlbum
 	default:
 		return nil
 	}
@@ -234,6 +239,8 @@ func GetPlaylistSearchFunc(source string) SearchPlaylistFunc {
 		return fivesing.New(c).SearchPlaylist
 	case "apple":
 		return apple.New(c).SearchPlaylist
+	case "spotify":
+		return spotify.New(c).SearchPlaylist
 	default:
 		return nil
 	}
@@ -262,6 +269,8 @@ func GetAlbumDetailFunc(source string) func(string) ([]model.Song, error) {
 		return NewSodaClient(c).GetAlbumSongs
 	case "apple":
 		return apple.New(c).GetAlbumSongs
+	case "spotify":
+		return spotify.New(c).GetAlbumSongs
 	default:
 		return nil
 	}
@@ -294,6 +303,8 @@ func GetPlaylistDetailFunc(source string) func(string) ([]model.Song, error) {
 		return fivesing.New(c).GetPlaylistSongs
 	case "apple":
 		return apple.New(c).GetPlaylistSongs
+	case "spotify":
+		return spotify.New(c).GetPlaylistSongs
 	default:
 		return nil
 	}
@@ -310,6 +321,8 @@ func GetRecommendFunc(source string) func() ([]model.Playlist, error) {
 		return kugou.New(c).GetRecommendedPlaylists
 	case "kuwo":
 		return kuwo.New(c).GetRecommendedPlaylists
+	case "spotify":
+		return spotify.New(c).GetRecommendedPlaylists
 	default:
 		return nil
 	}
@@ -336,6 +349,8 @@ func GetPlaylistCategoriesFunc(source string) PlaylistCategoriesFunc {
 		return NewSodaClient(c).GetPlaylistCategories
 	case "apple":
 		return apple.New(c).GetPlaylistCategories
+	case "spotify":
+		return spotify.New(c).GetPlaylistCategories
 	default:
 		return nil
 	}
@@ -362,6 +377,8 @@ func GetCategoryPlaylistsFunc(source string) CategoryPlaylistsFunc {
 		return NewSodaClient(c).GetCategoryPlaylists
 	case "apple":
 		return apple.New(c).GetCategoryPlaylists
+	case "spotify":
+		return spotify.New(c).GetCategoryPlaylists
 	default:
 		return nil
 	}
@@ -384,6 +401,8 @@ func GetTopListsFunc(source string) TopListsFunc {
 		return migu.New(CM.Get(source)).GetTopLists
 	case "apple":
 		return apple.New(CM.Get(source)).GetTopLists
+	case "spotify":
+		return spotify.New(CM.Get(source)).GetTopLists
 	default:
 		return nil
 	}
@@ -406,6 +425,8 @@ func GetTopListSongsFunc(source string) TopListSongsFunc {
 		return migu.New(CM.Get(source)).GetTopListSongs
 	case "apple":
 		return apple.New(CM.Get(source)).GetTopListSongs
+	case "spotify":
+		return spotify.New(CM.Get(source)).GetTopListSongs
 	default:
 		return nil
 	}
@@ -464,17 +485,19 @@ func GetUserPlaylistsFunc(source string) UserPlaylistsFunc {
 		return kugou.New(c).GetUserPlaylists
 	case "soda":
 		return NewSodaClient(c).GetUserPlaylists
+	case "spotify":
+		return spotify.New(c).GetUserPlaylists
 	default:
 		return nil
 	}
 }
 
 func GetUserPlaylistSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "soda"}
+	return []string{"netease", "qq", "kugou", "soda", "spotify"}
 }
 
 func GetRecommendSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo"}
+	return []string{"netease", "qq", "kugou", "kuwo", "spotify"}
 }
 
 func GetDownloadFunc(source string) func(*model.Song) (string, error) {
@@ -504,6 +527,8 @@ func GetDownloadFunc(source string) func(*model.Song) (string, error) {
 		return qianqian.New(c).GetDownloadURL
 	case "apple":
 		return apple.New(c).GetDownloadURL
+	case "spotify":
+		return spotify.New(c).GetDownloadURL
 	default:
 		return nil
 	}
@@ -536,6 +561,8 @@ func GetLyricFunc(source string) func(*model.Song) (string, error) {
 		return qianqian.New(c).GetLyrics
 	case "apple":
 		return apple.New(c).GetLyrics
+	case "spotify":
+		return spotify.New(c).GetLyrics
 	default:
 		return nil
 	}
@@ -568,6 +595,8 @@ func GetParseFunc(source string) func(string) (*model.Song, error) {
 		return qianqian.New(c).Parse
 	case "apple":
 		return apple.New(c).Parse
+	case "spotify":
+		return spotify.New(c).Parse
 	default:
 		return nil
 	}
@@ -600,6 +629,8 @@ func GetParsePlaylistFunc(source string) func(string) (*model.Playlist, []model.
 		return fivesing.New(c).ParsePlaylist
 	case "apple":
 		return apple.New(c).ParsePlaylist
+	case "spotify":
+		return spotify.New(c).ParsePlaylist
 	default:
 		return nil
 	}
@@ -628,6 +659,8 @@ func GetParseAlbumFunc(source string) func(string) (*model.Playlist, []model.Son
 		return NewSodaClient(c).ParseAlbum
 	case "apple":
 		return apple.New(c).ParseAlbum
+	case "spotify":
+		return spotify.New(c).ParseAlbum
 	default:
 		return nil
 	}
@@ -674,7 +707,19 @@ func DetectSource(link string) string {
 	if strings.Contains(link, "music.apple.com") || strings.Contains(link, "itunes.apple.com") {
 		return "apple"
 	}
+	if strings.Contains(link, "open.spotify.com") || strings.HasPrefix(strings.TrimSpace(link), "spotify:") {
+		return "spotify"
+	}
 	return ""
+}
+
+var spotifyTopListPlaylistIDs = map[string]string{
+	"global-top-50": "37i9dQZEVXbMDoHDwVN2tF",
+	"us-top-50":     "37i9dQZEVXbLRQDuF5jeBp",
+	"uk-top-50":     "37i9dQZEVXbLnolsZ8PSNw",
+	"jp-top-50":     "37i9dQZEVXbKXQ4mDTEBXq",
+	"au-top-50":     "37i9dQZEVXbJPcfkRz0wJ0",
+	"ca-top-50":     "37i9dQZEVXbKj23U1GF4IR",
 }
 
 func GetOriginalLink(source, id, typeStr string) string {
@@ -778,6 +823,17 @@ func GetOriginalLink(source, id, typeStr string) string {
 			return "https://music.apple.com/playlist/" + id
 		}
 		return "https://music.apple.com/song/" + id
+	case "spotify":
+		if typeStr == "album" {
+			return "https://open.spotify.com/album/" + id
+		}
+		if typeStr == "playlist" {
+			if playlistID, ok := spotifyTopListPlaylistIDs[id]; ok {
+				return "https://open.spotify.com/playlist/" + playlistID
+			}
+			return "https://open.spotify.com/playlist/" + id
+		}
+		return "https://open.spotify.com/track/" + id
 	case "fivesing":
 		if typeStr == "playlist" {
 			return "http://5sing.kugou.com/dj/" + id + ".html"
@@ -811,7 +867,7 @@ func BuildSourceRequest(method, urlStr, source, rangeHeader string) (*http.Reque
 	if source == "qq" {
 		req.Header.Set("Referer", "http://y.qq.com")
 	}
-	if cookie := CM.Get(source); cookie != "" {
+	if cookie := CM.Get(source); cookie != "" && source != "spotify" {
 		req.Header.Set("Cookie", cookie)
 	}
 	return req, nil
@@ -1057,29 +1113,29 @@ func OpenBrowser(url string) {
 }
 
 func GetAllSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "soda", "bilibili", "apple", "local"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "soda", "bilibili", "apple", "spotify", "local"}
 }
 
 func GetPlaylistSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "bilibili", "soda", "fivesing", "apple"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "bilibili", "soda", "fivesing", "apple", "spotify"}
 }
 
 func GetAlbumSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "soda", "apple"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "soda", "apple", "spotify"}
 }
 
 func GetPlaylistCategorySourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo", "migu", "qianqian", "joox", "soda", "apple"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "qianqian", "joox", "soda", "apple", "spotify"}
 }
 
 func GetTopListSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo", "soda", "migu", "apple"}
+	return []string{"netease", "qq", "kugou", "kuwo", "soda", "migu", "apple", "spotify"}
 }
 
 func GetDefaultSourceNames() []string {
 	allSources := GetAllSourceNames()
 	var defaultSources []string
-	excluded := map[string]bool{"bilibili": true, "joox": true, "jamendo": true, "fivesing": true, "local": true}
+	excluded := map[string]bool{"bilibili": true, "joox": true, "jamendo": true, "fivesing": true, "spotify": true, "local": true}
 	for _, source := range allSources {
 		if !excluded[source] {
 			defaultSources = append(defaultSources, source)
@@ -1102,6 +1158,7 @@ func GetSourceDescription(source string) string {
 		"soda":     "汽水音乐",
 		"bilibili": "Bilibili",
 		"apple":    "Apple Music",
+		"spotify":  "Spotify",
 		"local":    "本地音乐",
 	}
 	if desc, exists := descriptions[source]; exists {

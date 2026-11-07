@@ -49,7 +49,9 @@ func runSearchServer(stdout io.Writer, lookup searchProviderLookup) error {
 	if err != nil {
 		return fmt.Errorf("listen for local search: %w", err)
 	}
-	defer listener.Close()
+	defer func() {
+		_ = listener.Close()
+	}()
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	if _, err := fmt.Fprintf(stdout, "PORT:%d\n", port); err != nil {

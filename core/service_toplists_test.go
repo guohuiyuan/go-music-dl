@@ -6,7 +6,7 @@ import (
 )
 
 func TestTopListFactoriesAndSourceList(t *testing.T) {
-	supported := []string{"netease", "qq", "kugou", "kuwo", "soda", "migu", "apple"}
+	supported := []string{"netease", "qq", "kugou", "kuwo", "soda", "migu", "apple", "spotify"}
 	if got := GetTopListSourceNames(); !reflect.DeepEqual(got, supported) {
 		t.Fatalf("GetTopListSourceNames() = %v, want %v", got, supported)
 	}
@@ -21,7 +21,7 @@ func TestTopListFactoriesAndSourceList(t *testing.T) {
 	}
 
 	for _, source := range GetPlaylistSourceNames() {
-		if source == "netease" || source == "qq" || source == "kugou" || source == "kuwo" || source == "soda" || source == "migu" || source == "apple" {
+		if source == "netease" || source == "qq" || source == "kugou" || source == "kuwo" || source == "soda" || source == "migu" || source == "apple" || source == "spotify" {
 			continue
 		}
 		if fn := GetTopListsFunc(source); fn != nil {

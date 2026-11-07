@@ -1852,6 +1852,9 @@ func switchCandidateSources(current string, target string) []string {
 	sources := make([]string, 0)
 	add := func(source string) {
 		source = strings.TrimSpace(source)
+		if source == "spotify" {
+			return
+		}
 		if seen[source] || !isSwitchSourceAllowed(source, current) || switchSearchFuncProvider(source) == nil {
 			return
 		}

@@ -31,6 +31,7 @@ import (
 	"github.com/guohuiyuan/music-lib/netease"
 	"github.com/guohuiyuan/music-lib/qianqian"
 	"github.com/guohuiyuan/music-lib/qq"
+	"github.com/guohuiyuan/music-lib/spotify"
 )
 
 // --- 常量与样式 ---
@@ -189,6 +190,8 @@ func getSearchFunc(source string) func(string) ([]model.Song, error) {
 		return qianqian.New(c).Search
 	case "apple":
 		return apple.New(c).Search
+	case "spotify":
+		return spotify.New(c).Search
 	default:
 		return nil
 	}
@@ -221,6 +224,8 @@ func getDownloadFunc(source string) func(*model.Song) (string, error) {
 		return qianqian.New(c).GetDownloadURL
 	case "apple":
 		return apple.New(c).GetDownloadURL
+	case "spotify":
+		return spotify.New(c).GetDownloadURL
 	default:
 		return nil
 	}
@@ -253,6 +258,8 @@ func getLyricFunc(source string) func(*model.Song) (string, error) {
 		return qianqian.New(c).GetLyrics
 	case "apple":
 		return apple.New(c).GetLyrics
+	case "spotify":
+		return spotify.New(c).GetLyrics
 	default:
 		return nil
 	}
@@ -286,6 +293,8 @@ func getParseFunc(source string) func(string) (*model.Song, error) {
 		return qianqian.New(c).Parse
 	case "apple":
 		return apple.New(c).Parse
+	case "spotify":
+		return spotify.New(c).Parse
 	default:
 		return nil
 	}
@@ -319,6 +328,8 @@ func getPlaylistSearchFunc(source string) func(string) ([]model.Playlist, error)
 		return fivesing.New(c).SearchPlaylist
 	case "apple":
 		return apple.New(c).SearchPlaylist
+	case "spotify":
+		return spotify.New(c).SearchPlaylist
 	default:
 		return nil
 	}
@@ -347,6 +358,8 @@ func getAlbumSearchFunc(source string) func(string) ([]model.Playlist, error) {
 		return core.NewSodaClient(c).SearchAlbum
 	case "apple":
 		return apple.New(c).SearchAlbum
+	case "spotify":
+		return spotify.New(c).SearchAlbum
 	default:
 		return nil
 	}
@@ -380,6 +393,8 @@ func getPlaylistDetailFunc(source string) func(string) ([]model.Song, error) {
 		return fivesing.New(c).GetPlaylistSongs
 	case "apple":
 		return apple.New(c).GetPlaylistSongs
+	case "spotify":
+		return spotify.New(c).GetPlaylistSongs
 	default:
 		return nil
 	}
@@ -408,6 +423,8 @@ func getAlbumDetailFunc(source string) func(string) ([]model.Song, error) {
 		return core.NewSodaClient(c).GetAlbumSongs
 	case "apple":
 		return apple.New(c).GetAlbumSongs
+	case "spotify":
+		return spotify.New(c).GetAlbumSongs
 	default:
 		return nil
 	}
@@ -425,6 +442,8 @@ func getRecommendFunc(source string) func() ([]model.Playlist, error) {
 		return kugou.New(c).GetRecommendedPlaylists
 	case "kuwo":
 		return kuwo.New(c).GetRecommendedPlaylists
+	case "spotify":
+		return spotify.New(c).GetRecommendedPlaylists
 	default:
 		return nil
 	}
@@ -458,6 +477,8 @@ func getParsePlaylistFunc(source string) func(string) (*model.Playlist, []model.
 		return fivesing.New(c).ParsePlaylist
 	case "apple":
 		return apple.New(c).ParsePlaylist
+	case "spotify":
+		return spotify.New(c).ParsePlaylist
 	default:
 		return nil
 	}
@@ -486,6 +507,8 @@ func getParseAlbumFunc(source string) func(string) (*model.Playlist, []model.Son
 		return core.NewSodaClient(c).ParseAlbum
 	case "apple":
 		return apple.New(c).ParseAlbum
+	case "spotify":
+		return spotify.New(c).ParseAlbum
 	default:
 		return nil
 	}
@@ -528,6 +551,9 @@ func detectSource(link string) string {
 	}
 	if strings.Contains(link, "music.apple.com") || strings.Contains(link, "itunes.apple.com") {
 		return "apple"
+	}
+	if strings.Contains(link, "open.spotify.com") || strings.HasPrefix(strings.TrimSpace(link), "spotify:") {
+		return "spotify"
 	}
 	return ""
 }
@@ -1461,7 +1487,7 @@ func findBestSwitchSong(current model.Song) (model.Song, error) {
 		if src == "" || src == current.Source {
 			continue
 		}
-		if src == "soda" || src == "fivesing" {
+		if src == "soda" || src == "fivesing" || src == "spotify" {
 			continue
 		}
 		fn := getSearchFunc(src)
