@@ -10,6 +10,20 @@ import (
 	"github.com/guohuiyuan/music-lib/model"
 )
 
+func TestLyricDownloadFilenameUsesAudioFilenameTemplate(t *testing.T) {
+	initCollectionDBForTest(t)
+	if err := core.SaveWebSettings(core.WebSettings{
+		DownloadFilenameTemplate: "{artist} - {name}",
+	}); err != nil {
+		t.Fatalf("SaveWebSettings: %v", err)
+	}
+
+	song := &model.Song{Name: "Song", Artist: "Artist", Album: "Album"}
+	if got, want := lyricDownloadFilename(song), filepath.Join("Artist - Song.lrc"); got != want {
+		t.Fatalf("lyricDownloadFilename() = %q, want %q", got, want)
+	}
+}
+
 func TestSaveWebAssetRelativeToLocalUsesFilenameTemplate(t *testing.T) {
 	initCollectionDBForTest(t)
 	downloadDir := t.TempDir()

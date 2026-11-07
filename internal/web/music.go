@@ -1409,8 +1409,6 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 	downloadLRCHandler := func(c *gin.Context) {
 		song := lyricSongFromQuery(c)
-		name := song.Name
-		artist := song.Artist
 		saveLocal := wantsSaveLocal(c)
 		if saveLocal && !allowSaveLocalRequest(c) {
 			return
@@ -1438,8 +1436,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 				c.String(http.StatusNotFound, "Lyric not found")
 				return
 			}
-			settings := core.GetWebSettings()
-			filename := core.BuildDownloadFilename(song, "lrc", settings.DownloadFilenameTemplate)
+			filename := lyricDownloadFilename(song)
 			c.Header("X-Lyric-Format", classifyLyricFormat(standardLRC))
 			saveWebAssetRelativeResponse(c, filename, []byte(standardLRC))
 			return
@@ -1447,7 +1444,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		lrc = formatLyricForMode(lrc, c.DefaultQuery("format", "auto"))
 		c.Header("X-Lyric-Format", classifyLyricFormat(lrc))
 
-		filename := fmt.Sprintf("%s - %s.lrc", name, artist)
+		filename := lyricDownloadFilename(song)
 		setDownloadHeader(c, filename)
 		c.String(200, lrc)
 	}
@@ -1739,6 +1736,11 @@ func lyricSongFromQuery(c *gin.Context) *model.Song {
 		Duration: duration,
 		Extra:    parseSongExtraQuery(c.Query("extra")),
 	}
+}
+
+func lyricDownloadFilename(song *model.Song) string {
+	settings := core.GetWebSettings()
+	return core.BuildDownloadFilename(song, "lrc", settings.DownloadFilenameTemplate)
 }
 
 type switchCandidate struct {
