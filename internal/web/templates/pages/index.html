@@ -20,6 +20,10 @@
 <div class="right-toolbar">
     <!-- 功能按钮组 -->
     <div class="rt-btn" onclick="openSystemConfig()" title="系统配置"><i class="fa-solid fa-gear"></i></div>
+    <button type="button" id="scheduled-playback-toolbar-button" class="rt-btn rt-btn-scheduled-playback" onclick="openScheduledPlaybackModal()" title="定时播放" aria-label="定时播放" aria-haspopup="dialog" aria-controls="scheduledPlaybackModal">
+        <i class="fa-regular fa-clock" aria-hidden="true"></i>
+        <span id="scheduled-playback-toolbar-badge" class="rt-scheduled-badge" aria-hidden="true" hidden></span>
+    </button>
     <form id="auth-float-form" class="rt-form" action="{{.Root}}/logout" method="post" title="登录">
         <button id="auth-float-button" type="submit"><i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i></button>
     </form>

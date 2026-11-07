@@ -29,6 +29,10 @@ const DEFAULT_UPDATE_REPO_URL = "https://github.com/guohuiyuan/go-music-dl";
 const DEFAULT_GITHUB_PROXY_URL = "https://edgeone.gh-proxy.com";
 const DEFAULT_DOWNLOAD_TIP_DURATION = 8;
 const OPEN_CONFIG_QUERY = "open_config";
+const SCHEDULED_PLAYBACK_STORAGE_KEY = "musicdl:scheduledPlayback";
+const SCHEDULED_PLAYBACK_REPEAT_ONCE = "once";
+const SCHEDULED_PLAYBACK_REPEAT_DAILY = "daily";
+const SCHEDULED_PLAYBACK_WAKE_INTERVAL_MS = 30000;
 const GITHUB_PROXY_PRESETS = [
   "https://edgeone.gh-proxy.com",
   "https://hk.gh-proxy.com/",
@@ -6875,6 +6879,398 @@ try {
 }
 
 window.ap = ap;
+
+let scheduledPlayback = null;
+let scheduledPlaybackTimer = null;
+let scheduledPlaybackTicker = null;
+let scheduledPlaybackTriggering = false;
+
+function parseScheduledPlaybackTime(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  return {
+    hour,
+    minute,
+    time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+  };
+}
+
+function nextScheduledPlaybackTimestamp(timeValue, from = Date.now()) {
+  const parsed = parseScheduledPlaybackTime(timeValue);
+  if (!parsed) return 0;
+  const candidate = new Date(from);
+  candidate.setHours(parsed.hour, parsed.minute, 0, 0);
+  if (candidate.getTime() <= from) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+  return candidate.getTime();
+}
+
+function normalizeScheduledPlayback(raw, now = Date.now()) {
+  if (!raw || typeof raw !== "object") return null;
+  const parsed = parseScheduledPlaybackTime(raw.time);
+  if (!parsed) return null;
+  const repeat =
+    raw.repeat === SCHEDULED_PLAYBACK_REPEAT_DAILY
+      ? SCHEDULED_PLAYBACK_REPEAT_DAILY
+      : SCHEDULED_PLAYBACK_REPEAT_ONCE;
+  let nextAt = Number(raw.nextAt);
+  if (!Number.isFinite(nextAt) || nextAt <= now) {
+    if (repeat !== SCHEDULED_PLAYBACK_REPEAT_DAILY) return null;
+    nextAt = nextScheduledPlaybackTimestamp(parsed.time, now);
+  }
+  return { time: parsed.time, repeat, nextAt };
+}
+
+function readScheduledPlayback() {
+  let raw = null;
+  try {
+    raw = JSON.parse(
+      localStorage.getItem(SCHEDULED_PLAYBACK_STORAGE_KEY) || "null",
+    );
+  } catch (_) {
+    return null;
+  }
+  if (!raw) return null;
+  const normalized = normalizeScheduledPlayback(raw);
+  if (!normalized) {
+    try {
+      localStorage.removeItem(SCHEDULED_PLAYBACK_STORAGE_KEY);
+    } catch (_) {
+      // Ignore storage cleanup failures; the invalid schedule is already inactive.
+    }
+  }
+  return normalized;
+}
+
+function persistScheduledPlayback() {
+  try {
+    if (scheduledPlayback) {
+      localStorage.setItem(
+        SCHEDULED_PLAYBACK_STORAGE_KEY,
+        JSON.stringify(scheduledPlayback),
+      );
+    } else {
+      localStorage.removeItem(SCHEDULED_PLAYBACK_STORAGE_KEY);
+    }
+  } catch (error) {
+    console.warn("[music-dl] 无法保存定时播放设置:", error);
+  }
+}
+
+function formatScheduledPlaybackDate(timestamp) {
+  const target = new Date(timestamp);
+  const now = new Date();
+  const time = `${String(target.getHours()).padStart(2, "0")}:${String(
+    target.getMinutes(),
+  ).padStart(2, "0")}`;
+  const targetDay = Date.UTC(
+    target.getFullYear(),
+    target.getMonth(),
+    target.getDate(),
+  );
+  const nowDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayOffset = Math.round((targetDay - nowDay) / 86400000);
+  if (dayOffset === 0) return `今天 ${time}`;
+  if (dayOffset === 1) return `明天 ${time}`;
+  return `${target.getMonth() + 1}月${target.getDate()}日 ${time}`;
+}
+
+function formatScheduledPlaybackCountdown(timestamp) {
+  const totalSeconds = Math.max(0, Math.ceil((timestamp - Date.now()) / 1000));
+  if (totalSeconds >= 3600) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours} 小时 ${minutes} 分钟`;
+  }
+  if (totalSeconds >= 60) {
+    const minutes = Math.floor(totalSeconds / 60);
+    return `${minutes} 分 ${totalSeconds % 60} 秒`;
+  }
+  return `${totalSeconds} 秒`;
+}
+
+function formatScheduledPlaybackBadge(timestamp) {
+  const totalSeconds = Math.max(0, Math.ceil((timestamp - Date.now()) / 1000));
+  if (totalSeconds >= 3600) return `${Math.ceil(totalSeconds / 3600)}h`;
+  if (totalSeconds >= 60) return `${Math.ceil(totalSeconds / 60)}m`;
+  return `${totalSeconds}s`;
+}
+
+function updateScheduledPlaybackUI() {
+  const active = Boolean(scheduledPlayback);
+  const button = document.getElementById("scheduled-playback-toolbar-button");
+  const badge = document.getElementById("scheduled-playback-toolbar-badge");
+  const statusTitle = document.getElementById("scheduled-playback-status-title");
+  const statusCopy = document.getElementById("scheduled-playback-status-copy");
+  const activePanel = document.getElementById("scheduled-playback-active");
+  const activeTarget = document.getElementById("scheduled-playback-active-target");
+  const activeCountdown = document.getElementById(
+    "scheduled-playback-active-countdown",
+  );
+
+  if (button) {
+    button.classList.toggle("is-scheduled", active);
+    const label = active
+      ? `定时播放：${formatScheduledPlaybackDate(
+          scheduledPlayback.nextAt,
+        )}，还有 ${formatScheduledPlaybackCountdown(scheduledPlayback.nextAt)}`
+      : "定时播放";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+  }
+  if (badge) {
+    badge.hidden = !active;
+    badge.textContent = active
+      ? formatScheduledPlaybackBadge(scheduledPlayback.nextAt)
+      : "";
+  }
+  if (statusTitle && statusCopy) {
+    statusTitle.textContent = active ? "已安排定时播放" : "尚未安排定时播放";
+    statusCopy.textContent = active
+      ? `${formatScheduledPlaybackDate(scheduledPlayback.nextAt)}自动开始播放`
+      : "选择时间后，播放器会在到点时自动开始播放当前清单。";
+  }
+  if (activePanel) activePanel.hidden = !active;
+  if (activeTarget && activeCountdown && active) {
+    activeTarget.textContent = formatScheduledPlaybackDate(
+      scheduledPlayback.nextAt,
+    );
+    activeCountdown.textContent = `还有 ${formatScheduledPlaybackCountdown(
+      scheduledPlayback.nextAt,
+    )}`;
+  }
+}
+
+function scheduleScheduledPlaybackWake() {
+  if (scheduledPlaybackTimer) {
+    clearTimeout(scheduledPlaybackTimer);
+    scheduledPlaybackTimer = null;
+  }
+  if (!scheduledPlayback) return;
+  const untilTrigger = Math.max(0, scheduledPlayback.nextAt - Date.now());
+  const delay = Math.min(untilTrigger, SCHEDULED_PLAYBACK_WAKE_INTERVAL_MS);
+  scheduledPlaybackTimer = window.setTimeout(() => {
+    scheduledPlaybackTimer = null;
+    checkScheduledPlayback();
+  }, delay);
+}
+
+function checkScheduledPlayback() {
+  if (!scheduledPlayback || scheduledPlaybackTriggering) return;
+  if (Date.now() < scheduledPlayback.nextAt) {
+    scheduleScheduledPlaybackWake();
+    updateScheduledPlaybackUI();
+    return;
+  }
+  void triggerScheduledPlayback();
+}
+
+async function triggerScheduledPlayback() {
+  if (!scheduledPlayback || scheduledPlaybackTriggering) return;
+  scheduledPlaybackTriggering = true;
+  const triggeredSchedule = {
+    ...scheduledPlayback,
+  };
+
+  if (triggeredSchedule.repeat === SCHEDULED_PLAYBACK_REPEAT_DAILY) {
+    scheduledPlayback = {
+      time: triggeredSchedule.time,
+      repeat: triggeredSchedule.repeat,
+      nextAt: nextScheduledPlaybackTimestamp(triggeredSchedule.time),
+    };
+  } else {
+    scheduledPlayback = null;
+  }
+  persistScheduledPlayback();
+  scheduleScheduledPlaybackWake();
+  updateScheduledPlaybackUI();
+
+  try {
+    if (!ap?.list?.audios?.length) {
+      showToast(
+        "定时播放已到",
+        "播放清单为空。请先选择歌曲，播放器会在下一次定时到点时尝试播放。",
+        "warning",
+        9000,
+      );
+      return;
+    }
+    if (!ap?.audio) {
+      throw new Error("播放器尚未准备好");
+    }
+
+    if (ap.audio.paused) {
+      if (ap.audio.ended) ap.audio.currentTime = 0;
+      resumeVideoGenAudioRouting();
+      const playResult = ap.play();
+      if (playResult && typeof playResult.then === "function") {
+        await playResult;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 600));
+    }
+
+    if (ap.audio.paused) {
+      showToast(
+        "浏览器拦截了自动播放",
+        "定时播放已触发，请手动点击底部播放按钮开始播放。",
+        "warning",
+        10000,
+      );
+      return;
+    }
+    const currentAudio = getCurrentAPlayerAudio();
+    const songLabel = currentAudio?.name
+      ? `《${currentAudio.name}》${currentAudio.artist ? ` - ${currentAudio.artist}` : ""}`
+      : "当前歌曲";
+    showToast(
+      "定时播放已开始",
+      triggeredSchedule.repeat === SCHEDULED_PLAYBACK_REPEAT_DAILY
+        ? `${songLabel}，明天 ${triggeredSchedule.time} 将再次播放。`
+        : songLabel,
+      "success",
+      5000,
+    );
+  } catch (error) {
+    showToast(
+      "定时播放失败",
+      error?.message || "无法启动播放，请手动点击播放按钮。",
+      "error",
+      9000,
+    );
+  } finally {
+    scheduledPlaybackTriggering = false;
+    scheduleScheduledPlaybackWake();
+    updateScheduledPlaybackUI();
+  }
+}
+
+function defaultScheduledPlaybackTime() {
+  const target = new Date(Date.now() + 5 * 60 * 1000);
+  return `${String(target.getHours()).padStart(2, "0")}:${String(
+    target.getMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+function applyScheduledPlaybackPreset(minutes) {
+  const target = new Date(Date.now() + Number(minutes || 0) * 60 * 1000);
+  const input = document.getElementById("scheduled-playback-time");
+  if (!input) return;
+  input.value = `${String(target.getHours()).padStart(2, "0")}:${String(
+    target.getMinutes(),
+  ).padStart(2, "0")}`;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function openScheduledPlaybackModal() {
+  const modal = document.getElementById("scheduledPlaybackModal");
+  const timeInput = document.getElementById("scheduled-playback-time");
+  const repeatSelect = document.getElementById("scheduled-playback-repeat");
+  if (timeInput) {
+    timeInput.value =
+      scheduledPlayback?.time || timeInput.value || defaultScheduledPlaybackTime();
+  }
+  if (repeatSelect) {
+    repeatSelect.value =
+      scheduledPlayback?.repeat || SCHEDULED_PLAYBACK_REPEAT_ONCE;
+  }
+  updateScheduledPlaybackUI();
+  if (modal) modal.style.display = "flex";
+  window.setTimeout(() => timeInput?.focus(), 0);
+}
+
+function closeScheduledPlaybackModal() {
+  const modal = document.getElementById("scheduledPlaybackModal");
+  if (modal) modal.style.display = "none";
+}
+
+function saveScheduledPlayback(event) {
+  event?.preventDefault();
+  const timeValue = document.getElementById("scheduled-playback-time")?.value;
+  const parsed = parseScheduledPlaybackTime(timeValue);
+  if (!parsed) {
+    showToast("时间格式不正确", "请选择有效的播放时间。", "error");
+    return false;
+  }
+  const repeatValue =
+    document.getElementById("scheduled-playback-repeat")?.value;
+  const repeat =
+    repeatValue === SCHEDULED_PLAYBACK_REPEAT_DAILY
+      ? SCHEDULED_PLAYBACK_REPEAT_DAILY
+      : SCHEDULED_PLAYBACK_REPEAT_ONCE;
+  scheduledPlayback = {
+    time: parsed.time,
+    repeat,
+    nextAt: nextScheduledPlaybackTimestamp(parsed.time),
+  };
+  persistScheduledPlayback();
+  scheduleScheduledPlaybackWake();
+  updateScheduledPlaybackUI();
+  closeScheduledPlaybackModal();
+  showToast(
+    "定时播放已设置",
+    `${formatScheduledPlaybackDate(scheduledPlayback.nextAt)}自动开始播放${
+      repeat === SCHEDULED_PLAYBACK_REPEAT_DAILY ? "，每天重复" : ""
+    }。请保持页面运行。`,
+    "success",
+    5000,
+  );
+  return false;
+}
+
+function cancelScheduledPlayback(showFeedback = true) {
+  scheduledPlayback = null;
+  persistScheduledPlayback();
+  scheduleScheduledPlaybackWake();
+  updateScheduledPlaybackUI();
+  if (showFeedback) {
+    showToast("定时播放已取消", "播放器不会再按原计划自动开始播放。", "info", 3500);
+  }
+}
+
+function initializeScheduledPlayback() {
+  scheduledPlayback = readScheduledPlayback();
+  scheduleScheduledPlaybackWake();
+  updateScheduledPlaybackUI();
+  if (!scheduledPlaybackTicker) {
+    scheduledPlaybackTicker = window.setInterval(updateScheduledPlaybackUI, 1000);
+  }
+
+  document
+    .querySelectorAll("[data-scheduled-playback-minutes]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        applyScheduledPlaybackPreset(
+          Number(button.dataset.scheduledPlaybackMinutes),
+        );
+      });
+    });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkScheduledPlayback();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const modal = document.getElementById("scheduledPlaybackModal");
+    if (!modal || window.getComputedStyle(modal).display === "none") return;
+    event.preventDefault();
+    closeScheduledPlaybackModal();
+  });
+  window.addEventListener("focus", checkScheduledPlayback);
+  window.addEventListener("pageshow", checkScheduledPlayback);
+}
+
+window.musicDlScheduledPlayback = {
+  open: openScheduledPlaybackModal,
+  cancel: cancelScheduledPlayback,
+  getState: () => (scheduledPlayback ? { ...scheduledPlayback } : null),
+};
+
+initializeScheduledPlayback();
 
 function resumeVideoGenAudioRouting() {
   const videoGen = window.VideoGen;

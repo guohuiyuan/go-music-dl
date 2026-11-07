@@ -381,6 +381,71 @@
     </div>
 </div>
 
+<div id="scheduledPlaybackModal" class="modal-overlay scheduled-playback-overlay">
+    <div class="modal scheduled-playback-modal" role="dialog" aria-modal="true" aria-labelledby="scheduled-playback-title" aria-describedby="scheduled-playback-description">
+        <div class="modal-header">
+            <div>
+                <h3 id="scheduled-playback-title"><i class="fa-regular fa-clock" aria-hidden="true"></i> 定时播放</h3>
+                <p id="scheduled-playback-description" class="scheduled-playback-subtitle">到指定时间自动开始播放当前清单</p>
+            </div>
+            <button type="button" class="modal-close" onclick="closeScheduledPlaybackModal()" aria-label="关闭定时播放设置">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+        <form id="scheduled-playback-form" class="modal-body scheduled-playback-body" onsubmit="return saveScheduledPlayback(event)">
+            <div class="scheduled-playback-status" aria-live="polite">
+                <span class="scheduled-playback-status-icon"><i class="fa-regular fa-clock" aria-hidden="true"></i></span>
+                <span>
+                    <strong id="scheduled-playback-status-title">尚未安排定时播放</strong>
+                    <small id="scheduled-playback-status-copy">选择时间后，播放器会在到点时自动开始播放当前清单。</small>
+                </span>
+            </div>
+
+            <div class="scheduled-playback-fields">
+                <label for="scheduled-playback-time">
+                    播放时间
+                    <input type="time" id="scheduled-playback-time" step="60" required>
+                </label>
+                <label for="scheduled-playback-repeat">
+                    重复
+                    <select id="scheduled-playback-repeat">
+                        <option value="once">仅一次</option>
+                        <option value="daily">每天</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="scheduled-playback-presets" aria-label="快速设置播放时间">
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="5">5 分钟后</button>
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="15">15 分钟后</button>
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="30">30 分钟后</button>
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="60">1 小时后</button>
+            </div>
+
+            <div id="scheduled-playback-active" class="scheduled-playback-active" hidden>
+                <span>
+                    <strong id="scheduled-playback-active-target"></strong>
+                    <small id="scheduled-playback-active-countdown"></small>
+                </span>
+                <button type="button" class="btn-pill btn-pill-danger" onclick="cancelScheduledPlayback()">
+                    <i class="fa-solid fa-ban" aria-hidden="true"></i> 取消定时
+                </button>
+            </div>
+
+            <p class="setting-hint scheduled-playback-hint">
+                定时任务保存在当前设备，刷新页面后会恢复。网页或桌面端需要保持运行；若浏览器拦截自动播放，请手动点击一次底部播放按钮。
+            </p>
+
+            <div class="scheduled-playback-actions">
+                <button type="button" class="btn-pill" onclick="closeScheduledPlaybackModal()">关闭</button>
+                <button type="submit" class="btn-pill btn-pill-primary">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i> 保存定时
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="appUpdateModal" class="modal-overlay" style="z-index: 1008;">
     <div class="modal app-update-modal">
         <div class="modal-header">

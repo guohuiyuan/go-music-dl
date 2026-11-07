@@ -392,6 +392,21 @@ body.tv-ui .settings-tab {
     font-size: 15px;
 }
 
+body.tv-ui .scheduled-playback-modal {
+    width: min(620px, calc(100vw - 160px));
+}
+
+body.tv-ui .scheduled-playback-fields input[type="time"],
+body.tv-ui .scheduled-playback-fields select {
+    min-height: 50px;
+    font-size: 16px;
+}
+
+body.tv-ui .scheduled-playback-presets .btn-pill,
+body.tv-ui .scheduled-playback-actions .btn-pill {
+    min-height: 44px;
+}
+
 body.tv-ui .modal-close {
     display: inline-flex;
     align-items: center;
@@ -1108,6 +1123,40 @@ body.vg-open .aplayer.aplayer-fixed {
 #auth-float-form.auth-logout button { background: #fff1f2; color: #e11d48; border: 1px solid rgba(225, 29, 72, 0.3); }
 #auth-float-form.auth-login button:hover { background: #10b981; color: white; transform: scale(1.1); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
 #auth-float-form.auth-logout button:hover { background: #e11d48; color: white; transform: scale(1.1); }
+.rt-btn:focus-visible {
+    outline: 2px solid #059669;
+    outline-offset: 2px;
+}
+.rt-btn-scheduled-playback {
+    position: relative;
+    overflow: visible;
+}
+.rt-btn-scheduled-playback.is-scheduled {
+    color: #047857;
+    box-shadow: 0 3px 12px rgba(5, 150, 105, 0.3);
+}
+.rt-scheduled-badge {
+    position: absolute;
+    top: -7px;
+    right: -10px;
+    min-width: 26px;
+    height: 16px;
+    padding: 0 4px;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    background: #047857;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    box-shadow: 0 2px 5px rgba(15, 23, 42, 0.18);
+}
+.rt-scheduled-badge[hidden] { display: none !important; }
 
 .auth-page {
     justify-content: center;
@@ -1212,6 +1261,167 @@ body.vg-open .aplayer.aplayer-fixed {
 .modal-close { cursor: pointer; color: #a0aec0; font-size: 20px; }
 .modal-close:hover { color: var(--error-color); }
 .modal-body { flex: 1; overflow-y: auto; }
+
+.scheduled-playback-overlay { z-index: 10020; padding: 16px; box-sizing: border-box; }
+.scheduled-playback-modal {
+    width: min(460px, 100%);
+    max-height: min(720px, calc(100vh - 32px));
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #dcebe4;
+    border-radius: 18px;
+}
+.scheduled-playback-modal .modal-header {
+    margin: 0;
+    padding: 18px 20px 15px;
+    border-bottom: 1px solid #edf2f7;
+}
+.scheduled-playback-modal .modal-header h3 {
+    font-size: 18px;
+}
+.scheduled-playback-modal .modal-header h3 i {
+    margin-right: 4px;
+    color: #059669;
+}
+.scheduled-playback-modal .modal-close {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.scheduled-playback-modal .modal-close:hover {
+    background: #fff1f2;
+}
+.scheduled-playback-subtitle {
+    margin: 4px 0 0;
+    color: var(--text-sub);
+    font-size: 12px;
+}
+.scheduled-playback-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 20px 18px;
+}
+.scheduled-playback-status {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    border: 1px solid #d1fae5;
+    border-radius: 13px;
+    background: #f0fdf4;
+}
+.scheduled-playback-status-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: #d1fae5;
+    color: #047857;
+}
+.scheduled-playback-status strong,
+.scheduled-playback-active strong,
+.scheduled-playback-status small,
+.scheduled-playback-active small {
+    display: block;
+}
+.scheduled-playback-status strong,
+.scheduled-playback-active strong {
+    color: #065f46;
+    font-size: 13px;
+}
+.scheduled-playback-status small,
+.scheduled-playback-active small {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+}
+.scheduled-playback-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+}
+.scheduled-playback-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+}
+.scheduled-playback-fields input[type="time"],
+.scheduled-playback-fields select {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid #d8e3df;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-main);
+    box-sizing: border-box;
+    font: inherit;
+    font-weight: 600;
+}
+.scheduled-playback-fields input[type="time"]:focus,
+.scheduled-playback-fields select:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.13);
+}
+.scheduled-playback-presets {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+.scheduled-playback-presets .btn-pill {
+    min-height: 34px;
+    padding: 5px 6px;
+    justify-content: center;
+    font-size: 11px;
+    white-space: nowrap;
+}
+.scheduled-playback-active {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 12px;
+    border: 1px solid #a7f3d0;
+    border-radius: 12px;
+    background: #ecfdf5;
+}
+.scheduled-playback-active[hidden] { display: none !important; }
+.scheduled-playback-active .btn-pill {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 11px;
+}
+.scheduled-playback-hint {
+    margin: 0 !important;
+    padding: 0 2px;
+    line-height: 1.55;
+}
+.scheduled-playback-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 2px;
+}
+.scheduled-playback-actions .btn-pill {
+    min-height: 36px;
+    padding: 7px 14px;
+}
 
 .settings-modal-overlay { padding: 20px; box-sizing: border-box; }
 .settings-modal {
@@ -2501,6 +2711,20 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     .auth-page { padding: 24px 14px; }
     .auth-card { padding: 26px 20px; border-radius: 16px; }
     .modal { width: 92%; max-height: 85vh; padding: 20px; }
+    .scheduled-playback-overlay { padding: 12px; }
+    .scheduled-playback-modal {
+        width: 100%;
+        max-height: calc(100vh - 24px);
+        border-radius: 16px;
+    }
+    .scheduled-playback-modal .modal-header { padding: 16px 16px 13px; }
+    .scheduled-playback-body { padding: 14px 16px 16px; }
+    .scheduled-playback-fields { grid-template-columns: 1fr; }
+    .scheduled-playback-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .scheduled-playback-active { align-items: stretch; flex-direction: column; }
+    .scheduled-playback-active .btn-pill { justify-content: center; }
+    .scheduled-playback-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .scheduled-playback-actions .btn-pill { justify-content: center; }
     .local-music-toolbar { align-items: stretch; }
     .local-music-dir { min-width: 0; width: 100%; }
     .local-music-target { width: 100%; }
