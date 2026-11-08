@@ -396,8 +396,7 @@ body.tv-ui .scheduled-playback-modal {
     width: min(620px, calc(100vw - 160px));
 }
 
-body.tv-ui .scheduled-playback-fields input[type="time"],
-body.tv-ui .scheduled-playback-fields select {
+body.tv-ui .scheduled-playback-fields input[type="time"] {
     min-height: 50px;
     font-size: 16px;
 }
@@ -1348,7 +1347,7 @@ body.vg-open .aplayer.aplayer-fixed {
 }
 .scheduled-playback-fields {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
 }
 .scheduled-playback-fields label {
@@ -1359,8 +1358,7 @@ body.vg-open .aplayer.aplayer-fixed {
     font-size: 12px;
     font-weight: 700;
 }
-.scheduled-playback-fields input[type="time"],
-.scheduled-playback-fields select {
+.scheduled-playback-fields input[type="time"] {
     width: 100%;
     min-height: 42px;
     padding: 8px 10px;
@@ -1372,8 +1370,7 @@ body.vg-open .aplayer.aplayer-fixed {
     font: inherit;
     font-weight: 600;
 }
-.scheduled-playback-fields input[type="time"]:focus,
-.scheduled-playback-fields select:focus {
+.scheduled-playback-fields input[type="time"]:focus {
     outline: none;
     border-color: #10b981;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.13);

@@ -74,6 +74,7 @@ func TestInspectResolutionFailureStopsRetryingDefinitiveUnavailableSongs(t *test
 		"download url not found (might be paid song)",
 		"kugou song info unavailable, errcode=0",
 		"kugou songinfo v2 requires cookie t and KugooID",
+		"spotify track unavailable in the current region (HTTP 451)",
 	}
 
 	for _, message := range tests {

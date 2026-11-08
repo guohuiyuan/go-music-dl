@@ -299,7 +299,7 @@ func cookieCaptureHints() map[string]cookieCaptureHint {
 		"spotify": {
 			LoginURL: "https://developer.spotify.com/dashboard",
 			Domain:   "api.spotify.com",
-			Hint:     `Paste JSON: {"client_id":"...","client_secret":"...","refresh_token":"...","market":"US"}. Public catalog only needs client_id and client_secret; personal playlists need OAuth playlist-read-private scope.`,
+			Hint:     `Paste JSON: {"client_id":"...","client_secret":"...","refresh_token":"...","market":"US"}. Public charts and playlist tracks work without credentials; charts automatically use a public chart mirror when Spotify is blocked or region-restricted. Search, browse, and personal playlists still need API credentials.`,
 		},
 		"apple": {
 			LoginURL: "https://music.apple.com",
