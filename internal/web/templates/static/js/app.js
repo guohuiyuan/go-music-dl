@@ -3826,6 +3826,7 @@ async function inspectSong(card, controller = null) {
   const source = card.dataset.source;
   const duration = card.dataset.duration;
   const extra = card.dataset.extra || "";
+  const requestInspectKey = card.dataset.inspectKey || "";
   let retryDelay = 0;
 
   const params = new URLSearchParams({
@@ -3855,6 +3856,7 @@ async function inspectSong(card, controller = null) {
     if (
       (signal && signal.aborted) ||
       !card.isConnected ||
+      card.dataset.inspectKey !== requestInspectKey ||
       !data ||
       typeof data !== "object"
     ) {
@@ -3879,6 +3881,7 @@ async function inspectSong(card, controller = null) {
     if (data.valid) {
       inspectRetryCounts.delete(card);
       delete card.dataset.inspectRetryable;
+      delete card.dataset.autoSwitchRetryable;
       card.dataset.inspectCompleted = "1";
       if (sizeTag) {
         sizeTag.textContent = data.size;
@@ -3907,6 +3910,12 @@ async function inspectSong(card, controller = null) {
       );
       retryDelay = recordInspectSourcePressure(source, suggestedDelay);
       card.dataset.inspectRetryable = "1";
+      const retryReason = String(data.reason || "").toLowerCase();
+      if (retryReason === "rate_limited") {
+        delete card.dataset.autoSwitchRetryable;
+      } else {
+        card.dataset.autoSwitchRetryable = "1";
+      }
       if (sizeTag) {
         sizeTag.textContent = "稍后重试";
         sizeTag.className = "tag tag-loading";
@@ -3921,6 +3930,7 @@ async function inspectSong(card, controller = null) {
     } else {
       inspectRetryCounts.delete(card);
       delete card.dataset.inspectRetryable;
+      delete card.dataset.autoSwitchRetryable;
       card.dataset.inspectCompleted = "1";
       if (sizeTag) {
         sizeTag.textContent = "无效";
@@ -3943,6 +3953,9 @@ async function inspectSong(card, controller = null) {
     ) {
       return;
     }
+    if (card.dataset.inspectKey !== requestInspectKey) {
+      return;
+    }
     retryDelay = recordInspectSourcePressure(
       source,
       parsePositiveInt(error?.retryAfterMs, 0),
@@ -3960,15 +3973,28 @@ async function inspectSong(card, controller = null) {
       const preparedRetryDelay = prepareInspectRetry(card, retryDelay);
       if (preparedRetryDelay > 0) {
         scheduleInspectRetry(card, preparedRetryDelay);
+      } else if (card.dataset.inspectRetryable === "1") {
+        card.dataset.autoSwitchRetryable = "1";
       }
     }
     if (controller) {
       finishInspectSong(controller);
     }
+    const requestIsStale =
+      card.isConnected && card.dataset.inspectKey !== requestInspectKey;
+    if (
+      requestIsStale &&
+      (!signal || !signal.aborted) &&
+      card.dataset.inspectCompleted !== "1"
+    ) {
+      queueInspectSong(card, 0);
+    }
     if (
       card.isConnected &&
       (!signal || !signal.aborted) &&
-      document.querySelector(".tag-fail")
+      card.dataset.inspectKey === requestInspectKey &&
+      (document.querySelector(".tag-fail") ||
+        card.dataset.autoSwitchRetryable === "1")
     ) {
       scheduleAutoSwitchInvalidSources();
     }
@@ -4221,6 +4247,8 @@ function queueInspectSong(card, delay = 0) {
   if (card.dataset.inspectKey !== inspectKey) {
     card.dataset.inspectKey = inspectKey;
     delete card.dataset.inspectCompleted;
+    delete card.dataset.inspectRetryable;
+    delete card.dataset.autoSwitchRetryable;
     inspectRetryCounts.delete(card);
   }
   if (card.dataset.inspectPending === "1") return;
@@ -8652,9 +8680,15 @@ function isAutoSwitchInvalidSourcesEnabled() {
 function getInvalidSongCards(root = document) {
   const seen = new Set();
   const cards = [];
-  root.querySelectorAll(".tag-fail").forEach((tag) => {
-    const card = tag.closest(".song-card");
-    if (!card || seen.has(card) || isLocalMusicSourceValue(card.dataset.source))
+  root.querySelectorAll(".song-card").forEach((card) => {
+    const hasInvalidTag = !!card.querySelector(".tag-fail");
+    const hasRetryableInspection =
+      card.dataset.autoSwitchRetryable === "1";
+    if (
+      (!hasInvalidTag && !hasRetryableInspection) ||
+      seen.has(card) ||
+      isLocalMusicSourceValue(card.dataset.source)
+    )
       return;
     if (card.dataset.autoSwitchInvalidAttempted === "1" && root === document)
       return;
