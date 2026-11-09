@@ -484,6 +484,42 @@ func TestSettingsModalIncludesDownloadDirPresets(t *testing.T) {
 	}
 }
 
+func TestSettingsModalOpensBeforeConfigRequestsFinish(t *testing.T) {
+	appContent, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatalf("ReadFile(app.js): %v", err)
+	}
+	appJS := string(appContent)
+	start := strings.Index(appJS, "async function openSystemConfig(")
+	end := strings.Index(appJS, "function openCookieModal(")
+	if start < 0 || end <= start {
+		t.Fatal("could not isolate openSystemConfig implementation")
+	}
+	body := appJS[start:end]
+	showIndex := strings.Index(body, `if (modal) modal.style.display = "flex";`)
+	requestIndex := strings.Index(body, "await Promise.all(")
+	if showIndex < 0 || requestIndex < 0 || showIndex > requestIndex {
+		t.Fatal("settings modal must be displayed before configuration requests are awaited")
+	}
+	for _, want := range []string{
+		"systemConfigLoadController?.abort()",
+		`saveButton.disabled = loading`,
+		`"正在加载设置..."`,
+	} {
+		if !strings.Contains(appJS, want) {
+			t.Fatalf("openSystemConfig missing responsive loading token %q", want)
+		}
+	}
+
+	modalContent, err := templateFS.ReadFile("templates/partials/modals.html")
+	if err != nil {
+		t.Fatalf("ReadFile(modals.html): %v", err)
+	}
+	if !strings.Contains(string(modalContent), `id="settings-save-button"`) {
+		t.Fatal("settings modal missing stable save button id")
+	}
+}
+
 func TestDownloadLyricsToLocalSettingIsWired(t *testing.T) {
 	content, err := templateFS.ReadFile("templates/static/js/app.js")
 	if err != nil {

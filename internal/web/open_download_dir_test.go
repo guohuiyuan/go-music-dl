@@ -263,9 +263,12 @@ func TestOpenDownloadDirectoryUIEntries(t *testing.T) {
 	appJS := string(appContent)
 	for _, want := range []string{
 		"async function openDownloadDirectory()",
+		"let openDownloadDirectoryInFlight = false",
 		"`${API_ROOT}/open_download_dir`",
 		`method: "POST"`,
 		`"X-Requested-With": "XMLHttpRequest"`,
+		`"正在打开下载目录"`,
+		`button.setAttribute("aria-busy", "true")`,
 		`"已打开下载目录"`,
 	} {
 		if !strings.Contains(appJS, want) {

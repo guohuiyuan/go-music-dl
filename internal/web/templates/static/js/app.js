@@ -5616,7 +5616,19 @@ async function pickDownloadFolder() {
   }
 }
 
+let openDownloadDirectoryInFlight = false;
+
 async function openDownloadDirectory() {
+  if (openDownloadDirectoryInFlight) return;
+  openDownloadDirectoryInFlight = true;
+  const buttons = Array.from(
+    document.querySelectorAll('[onclick="openDownloadDirectory()"]'),
+  );
+  buttons.forEach((button) => {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+  });
+  showToast("正在打开下载目录", "正在请求本机打开下载文件夹", "info", 1800);
   try {
     const response = await fetch(`${API_ROOT}/open_download_dir`, {
       method: "POST",
@@ -5643,6 +5655,12 @@ async function openDownloadDirectory() {
       "error",
       6000,
     );
+  } finally {
+    openDownloadDirectoryInFlight = false;
+    buttons.forEach((button) => {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    });
   }
 }
 
@@ -5736,16 +5754,50 @@ async function openLatestUpdatePage(target = "download") {
   openClientExternalURL(url, popup);
 }
 
+let systemConfigLoadSequence = 0;
+let systemConfigLoadController = null;
+
+function setSystemConfigLoading(loading) {
+  const modal = document.getElementById("cookieModal");
+  const saveButton = document.getElementById("settings-save-button");
+  if (modal) {
+    modal.setAttribute("aria-busy", String(loading));
+  }
+  if (!saveButton) return;
+  saveButton.disabled = loading;
+  saveButton.setAttribute("aria-busy", String(loading));
+  saveButton.textContent = loading ? "正在加载设置..." : "保存设置";
+}
+
 async function openSystemConfig(initialTab = "general") {
   const modal = document.getElementById("cookieModal");
+  const requestSequence = ++systemConfigLoadSequence;
+  systemConfigLoadController?.abort();
+  const controller = new AbortController();
+  systemConfigLoadController = controller;
+
+  // Open from the cached settings immediately. Auto source switching can keep
+  // the same-origin request slots busy, but it must not delay this dialog.
+  if (modal) modal.style.display = "flex";
+  bindSettingsTabs();
+  setSettingsTab(initialTab);
+  setSystemConfigLoading(true);
+
   try {
     const [cookiesResponse, settingsResponse] = await Promise.all([
-      fetch(API_ROOT + "/cookies", { headers: { Accept: "application/json" } }),
-      fetch(API_ROOT + "/settings"),
+      fetch(API_ROOT + "/cookies", {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      }),
+      fetch(API_ROOT + "/settings", { signal: controller.signal }),
     ]);
     const cookies = await cookiesResponse.json().catch(() => null);
     const settings = await settingsResponse.json().catch(() => null);
-    if (handleConfigAuthResponse(cookiesResponse, cookies)) return;
+    if (requestSequence !== systemConfigLoadSequence) return;
+    if (handleConfigAuthResponse(cookiesResponse, cookies)) {
+      if (modal) modal.style.display = "none";
+      return;
+    }
     if (!cookiesResponse.ok || !settingsResponse.ok) {
       throw new Error("加载系统配置失败");
     }
@@ -5757,10 +5809,21 @@ async function openSystemConfig(initialTab = "general") {
     bindSettingsTabs();
     setSettingsTab(initialTab);
     setAuthFloatLoggedIn(true);
-    if (modal) modal.style.display = "flex";
   } catch (error) {
+    if (
+      requestSequence !== systemConfigLoadSequence ||
+      error?.name === "AbortError"
+    ) {
+      return;
+    }
+    if (modal) modal.style.display = "none";
     applyWebSettings(webSettings);
     showToast("系统配置加载失败", error.message || "请稍后重试", "error");
+  } finally {
+    if (requestSequence === systemConfigLoadSequence) {
+      systemConfigLoadController = null;
+      setSystemConfigLoading(false);
+    }
   }
 }
 

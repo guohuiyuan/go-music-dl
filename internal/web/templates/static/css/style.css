@@ -1055,6 +1055,7 @@ body.vg-open .aplayer.aplayer-fixed {
 .rt-btn[hidden] { display: none !important; }
 .rt-btn:hover { color: #10b981; transform: scale(1.1); }
 .rt-btn:active { transform: scale(0.92); }
+.rt-btn:disabled, .rt-btn[aria-busy="true"] { cursor: wait; opacity: 0.65; transform: none; }
 .rt-btn-download-records { position: relative; }
 .rt-download-records-dot {
     position: absolute;
@@ -2032,6 +2033,7 @@ body.vg-open .aplayer.aplayer-fixed {
     to { opacity: 1; transform: translateY(0); }
 }
 .btn-save { width: 100%; padding: 12px; background: var(--primary-gradient); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; font-size: 15px;}
+.btn-save:disabled { cursor: wait; opacity: 0.72; }
 
 .qr-login-modal { max-width: 420px; }
 .qr-login-card {
