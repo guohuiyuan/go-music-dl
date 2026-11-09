@@ -50,7 +50,7 @@ func TestSpotifyFactoriesAndSourceLists(t *testing.T) {
 		}
 	}
 	if containsSource(GetDefaultSourceNames(), "spotify") {
-		t.Fatalf("spotify requires credentials and must not be a default search source: %v", GetDefaultSourceNames())
+		t.Fatalf("spotify should remain an opt-in search source to avoid anonymous endpoint latency: %v", GetDefaultSourceNames())
 	}
 }
 

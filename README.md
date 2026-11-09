@@ -117,6 +117,8 @@ Web 与 TUI 都支持单曲、歌单、专辑三种搜索类型；粘贴歌单�
 
 渠道覆盖网易云、QQ、酷狗、酷我、咪咕、汽水、Apple Music、Spotify、Bilibili、Jamendo、JOOX 和千千等，实际可用来源以界面列表为准。
 
+Spotify 不再强制要求 Cookie 或开发者凭据：歌曲、专辑、歌单搜索以及公开链接、分类、榜单、歌词和试听均可直接使用。配置 Client ID/Secret 后会自动优先官方 API；匿名 Web Player 不可用时会明确提示，不会伪装成“没有搜到”。Spotify 请求支持 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY`；Windows 下未设置这些环境变量时会自动读取当前用户的静态系统代理设置。
+
 ## 歌单分类与我的歌单
 
 * **歌单分类**：支持网易云、QQ、酷狗、酷我、咪咕、千千、JOOX、汽水、Apple Music 和 Spotify；汽水提供每日推荐、流行、华语、欧美、国风等分类。
@@ -367,7 +369,7 @@ TUI 在输入界面按 `w` 直接拉取推荐歌单，然后回车进详情。
 | JOOX        | `joox`     | ✅   | ✅   | ✅   | ✅       | ✅       | ❌       | ✅       | ❌       | ❌          | ✅       | ✅           | ✅       | ✅       | ✅           | 歌单支持 OpenJOOX 接口和网页数据兜底                                                                                                                              |
 | Bilibili    | `bilibili` | ✅   | ✅   | ✅   | ✅       | ✅       | ❌       | ❌       | ❌       | ✅          | ✅       | ✅           | ❌       | ❌       | ❌           | 支持 FLAC 无损                                                                                                                                                    |
 | Apple Music | `apple`    | ✅   | ⚠️ | ✅   | ✅       | ✅       | ❌       | ✅       | ❌       | ❌          | ✅       | ✅           | ✅       | ✅       | ✅           | 下载仅 preview，完整需 gamdl 解密                                                                                                                                 |
-| Spotify     | `spotify`  | ✅   | ⚠️ | ✅   | ✅       | ✅       | ✅       | ✅       | ✅       | ❌          | ✅       | ✅           | ✅       | ✅       | ✅           | 官方 API 仅提供 30 秒 preview；公开榜单和歌单无需凭据，榜单在 Spotify 域名不可用时会自动切换公开榜单镜像；搜索、分类及个人歌单需要 API 凭据或 OAuth |
+| Spotify     | `spotify`  | ✅   | ⚠️ | ✅   | ✅       | ✅       | ✅       | ✅       | ✅       | ❌          | ✅       | ✅           | ✅       | ✅       | ✅           | 官方 API 仅提供 30 秒 preview；歌曲 / 专辑 / 歌单搜索、公开链接解析、分类、榜单和歌词均无需凭据，搜索走匿名 Web Player，配置凭据后优先官方 API；个人歌单仍需 OAuth |
 
 > `⚠️` 表示方法已接入，但平台搜索接口结果不稳定；优先使用已知 ID 或链接解析。
 

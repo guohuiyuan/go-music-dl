@@ -297,9 +297,9 @@ func cookieCaptureHints() map[string]cookieCaptureHint {
 			Hint:     "登录并播放任意视频或音频，筛选该域请求；Cookie 中通常包含 SESSDATA。",
 		},
 		"spotify": {
-			LoginURL: "https://developer.spotify.com/dashboard",
+			LoginURL: "https://open.spotify.com",
 			Domain:   "api.spotify.com",
-			Hint:     `Paste JSON: {"client_id":"...","client_secret":"...","refresh_token":"...","market":"US"}. Public charts and playlist tracks work without credentials; charts automatically use a public chart mirror when Spotify is blocked or region-restricted. Search, browse, and personal playlists still need API credentials.`,
+			Hint:     `No credentials are required for song, album, and playlist search, public link parsing, charts, or lyrics. Searches use Spotify's anonymous Web Player when no credentials are configured. Optional official JSON: {"client_id":"...","client_secret":"...","refresh_token":"...","market":"US"}; personal playlists still require OAuth. Full tracks remain DRM protected and only public previews can be played or downloaded.`,
 		},
 		"apple": {
 			LoginURL: "https://music.apple.com",

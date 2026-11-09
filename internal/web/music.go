@@ -867,6 +867,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		} else {
 			var wg sync.WaitGroup
 			var mu sync.Mutex
+			sourceErrors := make(map[string]string)
 
 			for _, src := range sources {
 				if isLocalMusicSource(src) {
@@ -886,7 +887,15 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 								mu.Lock()
 								allPlaylists = append(allPlaylists, res...)
 								mu.Unlock()
+							} else {
+								mu.Lock()
+								sourceErrors[s] = err.Error()
+								mu.Unlock()
 							}
+						} else {
+							mu.Lock()
+							sourceErrors[s] = "该来源不支持歌单搜索"
+							mu.Unlock()
 						}
 					} else if searchType == "album" {
 						fn := core.GetAlbumSearchFunc(s)
@@ -899,7 +908,15 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 								mu.Lock()
 								allPlaylists = append(allPlaylists, res...)
 								mu.Unlock()
+							} else {
+								mu.Lock()
+								sourceErrors[s] = err.Error()
+								mu.Unlock()
 							}
+						} else {
+							mu.Lock()
+							sourceErrors[s] = "该来源不支持专辑搜索"
+							mu.Unlock()
 						}
 					} else {
 						fn := core.GetSearchFunc(s)
@@ -912,12 +929,21 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 								mu.Lock()
 								allSongs = append(allSongs, res...)
 								mu.Unlock()
+							} else {
+								mu.Lock()
+								sourceErrors[s] = err.Error()
+								mu.Unlock()
 							}
+						} else {
+							mu.Lock()
+							sourceErrors[s] = "该来源不支持歌曲搜索"
+							mu.Unlock()
 						}
 					}
 				}(src)
 			}
 			wg.Wait()
+			errorMsg = formatSearchSourceErrors(sources, sourceErrors)
 
 			if searchType == "song" && containsLocalSource(sources) {
 				localSongs := localMusicSearchSongs(keyword, 200)
@@ -940,7 +966,6 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		if searchType == "song" && exactArtist != "" && len(allSongs) > 0 {
 			allSongs = filterSongsByExactArtist(allSongs, exactArtist)
 		}
-
 		renderIndex(c, allSongs, allPlaylists, keyword, sources, errorMsg, searchType, "", "", "", false, "", importCollection)
 	})
 
@@ -2053,4 +2078,42 @@ func parseSongExtraQuery(raw string) map[string]string {
 		return nil
 	}
 	return extra
+}
+
+func formatSearchSourceErrors(
+	sources []string,
+	errorsBySource map[string]string,
+) string {
+	if len(errorsBySource) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(errorsBySource))
+	seen := make(map[string]struct{}, len(sources))
+	for _, source := range sources {
+		if isLocalMusicSource(source) {
+			continue
+		}
+		if _, exists := seen[source]; exists {
+			continue
+		}
+		seen[source] = struct{}{}
+		message := strings.TrimSpace(errorsBySource[source])
+		if message == "" {
+			continue
+		}
+		messageRunes := []rune(message)
+		if len(messageRunes) > 220 {
+			message = string(messageRunes[:220]) + "…"
+		}
+		label := core.GetSourceDescription(source)
+		parts = append(parts, fmt.Sprintf("%s: %s", label, message))
+	}
+	switch len(parts) {
+	case 0:
+		return ""
+	case 1:
+		return "搜索失败: " + parts[0]
+	default:
+		return "部分平台搜索失败: " + strings.Join(parts, "；")
+	}
 }
