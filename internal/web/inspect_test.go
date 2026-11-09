@@ -68,6 +68,34 @@ func TestInspectResolutionFailureDefaultsUnknownErrorsToRetryable(t *testing.T) 
 	}
 }
 
+func TestInspectSuccessPayloadMarksSpotifyAsPreviewOnly(t *testing.T) {
+	preview := inspectSuccessPayload(
+		"spotify",
+		"https://cdn.example/preview.mp3",
+		"0.3 MB",
+		"13 kbps",
+	)
+	if got := preview["preview_only"]; got != true {
+		t.Fatalf("spotify preview_only = %#v, want true", got)
+	}
+	if got := preview["valid"]; got != true {
+		t.Fatalf("spotify valid = %#v, want true", got)
+	}
+	if got := preview["bitrate"]; got != "-" {
+		t.Fatalf("spotify preview bitrate = %#v, want -", got)
+	}
+
+	full := inspectSuccessPayload(
+		"netease",
+		"https://cdn.example/full.mp3",
+		"8.0 MB",
+		"320 kbps",
+	)
+	if got := full["preview_only"]; got != false {
+		t.Fatalf("netease preview_only = %#v, want false", got)
+	}
+}
+
 func TestInspectResolutionFailureStopsRetryingDefinitiveUnavailableSongs(t *testing.T) {
 	tests := []string{
 		"no valid download url found or vip required",
@@ -75,6 +103,7 @@ func TestInspectResolutionFailureStopsRetryingDefinitiveUnavailableSongs(t *test
 		"kugou song info unavailable, errcode=0",
 		"kugou songinfo v2 requires cookie t and KugooID",
 		"spotify track unavailable in the current region (HTTP 451)",
+		"spotify public embed does not provide a preview URL for this track",
 	}
 
 	for _, message := range tests {

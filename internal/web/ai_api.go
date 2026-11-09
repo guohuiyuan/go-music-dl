@@ -244,7 +244,7 @@ func aiEndpointCatalog(basePath string) []aiEndpoint {
 			Group:       "playback",
 			Method:      http.MethodGet,
 			Path:        basePath + "/inspect",
-			Description: "Existing source-resolution check for a song.",
+			Description: "Existing source-resolution check. A valid result may set preview_only=true; preview samples are playable.",
 			Params: map[string]string{
 				"id":       "required",
 				"source":   "required",
@@ -753,7 +753,7 @@ Playback and downloads:
 - Play a searched or explicit song: POST %[1]s/api/ai/player/play
 - Control current playback: POST %[1]s/api/ai/player/command
 - Source switch: GET %[1]s/switch_source?name=...&artist=...&source=...&target=...
-- Playback resolution check: GET %[1]s/inspect
+- Playback resolution check: GET %[1]s/inspect (preview_only=true is playable)
 - Audio stream: GET %[1]s/download?...&stream=1
 - Lyrics: GET %[1]s/lyric
 - Queue status: GET %[1]s/api/downloads/queue
@@ -770,6 +770,7 @@ Rules:
 - {base} defaults to /music. The runtime index is the source of truth.
 - Existing search, playlist, album, ranking, recommendation, and category routes return the normal rendered page.
 - Preserve a song's extra object because some sources require it for playback or lyrics.
+- Treat preview_only=true as playable; do not switch sources just because it is a preview.
 - Player controls require an open web or desktop player; otherwise the route returns 409 player_not_connected.
 - Every player keeps its own state and last_command. Read it with GET %[1]s/api/ai/player/state?client_id=...; without client_id the default prefers connected, playing, and visible players, then uses stable connection order rather than heartbeat recency.
 - With more than one player connected, send client_id with play/command; an untargeted call returns 409 ambiguous_client and the candidate list. One connected player is targeted automatically.

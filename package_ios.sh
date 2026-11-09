@@ -6,9 +6,10 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_VERSION="1.0.0.1"
 VERSION="${IOS_VERSION:-$DEFAULT_VERSION}"
-COMMIT_COUNT="$(git rev-list --count HEAD 2>/dev/null || true)"
+COMMIT_COUNT="$(git -C "$SCRIPT_DIR" rev-list --count HEAD 2>/dev/null || true)"
 if [[ -n "$COMMIT_COUNT" && "${IOS_VERSION:-}" == "" ]]; then
   VERSION="1.0.0.${COMMIT_COUNT}"
 fi
@@ -27,7 +28,11 @@ echo "iOS app id: $IOS_APP_ID"
 echo "iOS version: $VERSION"
 echo "iOS minimum version: $IOS_MIN_SDK"
 
-go install github.com/lianhong2758/gio-cmd/gogio@latest
+GOGIO_BIN="$TMP_ROOT/gogio"
+(
+  cd "$SCRIPT_DIR/tools/gio-cmd"
+  GOWORK=off go build -trimpath -o "$GOGIO_BIN" ./gogio
+)
 GO_GOPATH="$(go env GOPATH)"
 GO_GOMODCACHE="$(go env GOMODCACHE)"
 GO_GOCACHE="$(go env GOCACHE)"
@@ -141,7 +146,7 @@ write_checksum() {
 }
 
 build_unsigned_package() {
-  local output_abs="$PWD/$IOS_UNSIGNED_OUTPUT"
+  local output_abs="$SCRIPT_DIR/$IOS_UNSIGNED_OUTPUT"
   local empty_home="$TMP_ROOT/empty-home"
   local gogio_log="$TMP_ROOT/gogio-unsigned.log"
   local workdir
@@ -151,9 +156,9 @@ build_unsigned_package() {
   rm -f "$output_abs"
   mkdir -p "$empty_home"
 
-  pushd desktop_app >/dev/null
+  pushd "$SCRIPT_DIR/desktop_app" >/dev/null
   set +e
-  HOME="$empty_home" GOPATH="$GO_GOPATH" GOMODCACHE="$GO_GOMODCACHE" GOCACHE="$GO_GOCACHE" gogio -target ios \
+  HOME="$empty_home" GOPATH="$GO_GOPATH" GOMODCACHE="$GO_GOMODCACHE" GOCACHE="$GO_GOCACHE" "$GOGIO_BIN" -target ios \
     -buildmode exe \
     -work \
     -o "../$IOS_UNSIGNED_OUTPUT" \
@@ -201,7 +206,7 @@ EOF
     exit 1
   fi
 
-  local output_abs="$PWD/$IOS_OUTPUT"
+  local output_abs="$SCRIPT_DIR/$IOS_OUTPUT"
   local ipa_dir="$TMP_ROOT/signed-ipa"
   local app_dir
   local plist
@@ -212,8 +217,8 @@ EOF
   echo "iOS signed output: $IOS_OUTPUT"
   rm -f "$output_abs"
 
-  pushd desktop_app >/dev/null
-  gogio -target ios \
+  pushd "$SCRIPT_DIR/desktop_app" >/dev/null
+  "$GOGIO_BIN" -target ios \
     -buildmode exe \
     -o "../$IOS_OUTPUT" \
     -appid "$IOS_APP_ID" \

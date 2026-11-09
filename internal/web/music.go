@@ -559,6 +559,21 @@ func inspectFailurePayload(retryable bool, reason string, retryAfter time.Durati
 	return payload
 }
 
+func inspectSuccessPayload(source, urlStr, size, bitrate string) gin.H {
+	previewOnly := strings.EqualFold(strings.TrimSpace(source), "spotify")
+	if previewOnly {
+		bitrate = "-"
+	}
+	return gin.H{
+		"valid":        true,
+		"status":       "valid",
+		"url":          urlStr,
+		"size":         size,
+		"bitrate":      bitrate,
+		"preview_only": previewOnly,
+	}
+}
+
 func defaultInspectRetryDelay(statusCode int) time.Duration {
 	switch statusCode {
 	case http.StatusTooManyRequests:
@@ -609,6 +624,7 @@ func isDefinitiveInspectResolutionError(err error) bool {
 		"track unavailable",
 		"song unavailable",
 		"song info unavailable",
+		"does not provide a preview url",
 		"requires cookie",
 		"vip required",
 		"不存在",
@@ -1100,13 +1116,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			}
 		}
 
-		c.JSON(200, gin.H{
-			"valid":   valid,
-			"status":  "valid",
-			"url":     urlStr,
-			"size":    core.FormatSize(size),
-			"bitrate": bitrate,
-		})
+		c.JSON(200, inspectSuccessPayload(src, urlStr, core.FormatSize(size), bitrate))
 	})
 
 	api.GET("/switch_source", func(c *gin.Context) {

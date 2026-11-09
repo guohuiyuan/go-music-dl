@@ -653,6 +653,7 @@ func StartWithOptions(port string, opts StartOptions) {
 		}
 		c.JSON(200, publicWebSettingsPayload())
 	})
+	configAPI.POST("/open_download_dir", openDownloadDirectoryHandler)
 
 	RegisterMusicRoutes(api, configAPI)
 	RegisterQRLoginRoutes(configAPI)

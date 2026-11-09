@@ -19,7 +19,7 @@ jobs:
         include:
           - runner: macos-15-intel
             goarch: amd64
-          - runner: macos-14
+          - runner: macos-15
             goarch: arm64
     steps:
       - name: Checkout
@@ -146,7 +146,7 @@ jobs:
             cgo_enabled: 1
             binary_name: music-dl-desktop-go
             archive_name: music-dl-desktop-go_darwin_amd64.tar.gz
-          - runner: macos-14
+          - runner: macos-15
             goos: darwin
             goarch: arm64
             cgo_enabled: 1
@@ -567,7 +567,7 @@ jobs:
     name: Build iOS App
     needs:
       - goreleaser
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4

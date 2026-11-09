@@ -3879,18 +3879,37 @@ async function inspectSong(card, controller = null) {
       card.querySelector('[id^="bitrate-"]');
 
     if (data.valid) {
+      const previewOnly = data.preview_only === true;
       inspectRetryCounts.delete(card);
       delete card.dataset.inspectRetryable;
       delete card.dataset.autoSwitchRetryable;
       card.dataset.inspectCompleted = "1";
+      if (previewOnly) {
+        card.dataset.previewOnly = "1";
+      } else {
+        delete card.dataset.previewOnly;
+      }
       if (sizeTag) {
-        sizeTag.textContent = data.size;
-        sizeTag.className = "tag tag-success";
-        sizeTag.removeAttribute("title");
+        sizeTag.textContent = previewOnly
+          ? `${data.size || "-"} · 试听`
+          : data.size;
+        sizeTag.className = previewOnly
+          ? "tag tag-success tag-preview"
+          : "tag tag-success";
+        if (previewOnly) {
+          sizeTag.title = "Spotify 仅提供试听片段";
+        } else {
+          sizeTag.removeAttribute("title");
+        }
       }
       if (bitrateTag) {
-        bitrateTag.textContent = data.bitrate;
-        bitrateTag.className = "tag";
+        bitrateTag.textContent = previewOnly ? "试听" : data.bitrate;
+        bitrateTag.className = previewOnly ? "tag tag-preview" : "tag";
+        if (previewOnly) {
+          bitrateTag.title = "试听可用，不会自动换源";
+        } else {
+          bitrateTag.removeAttribute("title");
+        }
       }
       card.dataset.sortSize = String(parseSizeToBytes(data.size));
       card.dataset.sortBitrate = String(parseBitrateToKbps(data.bitrate));
@@ -3904,6 +3923,7 @@ async function inspectSong(card, controller = null) {
       }
       recordInspectSourceSuccess(source);
     } else if (data.retryable === true || data.status === "retryable") {
+      delete card.dataset.previewOnly;
       const suggestedDelay = Math.max(
         parsePositiveInt(data.retry_after_ms, 0),
         parseInspectRetryAfter(response.headers.get("Retry-After")),
@@ -3928,6 +3948,7 @@ async function inspectSong(card, controller = null) {
         bitrateTag.className = "tag";
       }
     } else {
+      delete card.dataset.previewOnly;
       inspectRetryCounts.delete(card);
       delete card.dataset.inspectRetryable;
       delete card.dataset.autoSwitchRetryable;
@@ -3960,6 +3981,7 @@ async function inspectSong(card, controller = null) {
       source,
       parsePositiveInt(error?.retryAfterMs, 0),
     );
+    delete card.dataset.previewOnly;
     const el = card.querySelector('[id^="size-"]');
     if (el) el.textContent = "检测失败";
   } finally {
@@ -5591,6 +5613,36 @@ async function pickDownloadFolder() {
     input.focus();
   } catch (err) {
     showToast("选择目录失败", String(err.message || err), "error");
+  }
+}
+
+async function openDownloadDirectory() {
+  try {
+    const response = await fetch(`${API_ROOT}/open_download_dir`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: "{}",
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "当前环境无法打开下载目录");
+    }
+    showToast(
+      "已打开下载目录",
+      payload.path || webSettings.downloadDir,
+      "success",
+      4000,
+    );
+  } catch (error) {
+    showToast(
+      "无法打开下载目录",
+      String(error?.message || error),
+      "error",
+      6000,
+    );
   }
 }
 
@@ -8313,6 +8365,7 @@ function updateCardWithSong(card, song, options = {}) {
   if (!card || !song) return;
   const oldId = card.dataset.id;
   const shouldInspect = options.inspect !== false;
+  delete card.dataset.previewOnly;
 
   card.dataset.id = song.id;
   card.dataset.source = song.source;
@@ -8687,6 +8740,7 @@ function getInvalidSongCards(root = document) {
     if (
       (!hasInvalidTag && !hasRetryableInspection) ||
       seen.has(card) ||
+      card.dataset.previewOnly === "1" ||
       isLocalMusicSourceValue(card.dataset.source)
     )
       return;

@@ -160,6 +160,8 @@ func TestAILLMSTextPointsToExistingRoutes(t *testing.T) {
 		"GET /music/search",
 		"GET /music/switch_source",
 		"GET /music/toplists",
+		"preview_only=true is playable",
+		"Treat preview_only=true as playable",
 		"POST /music/api/ai/player/play",
 		"POST /music/api/ai/player/command",
 		"409 player_not_connected",

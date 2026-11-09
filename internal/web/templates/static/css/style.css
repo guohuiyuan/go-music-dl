@@ -669,6 +669,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 .tag-loading { color: #d69e2e; } 
 .tag-success { color: #38a169; }
 .tag-fail { color: #e53e3e; }
+.tag-preview { color: #7c3aed; background: #f3e8ff; }
 
 .actions { display: flex; gap: 8px; }
 .mobile-more-actions { display: contents; }

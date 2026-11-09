@@ -210,6 +210,9 @@
                             <button type="button" class="btn-pill" onclick="pickDownloadFolder()" title="选择文件夹" style="white-space:nowrap;font-size:12px;padding:4px 10px;">
                                 <i class="fa-solid fa-folder-open"></i>
                             </button>
+                            <button type="button" class="btn-pill" onclick="openDownloadDirectory()" title="打开已保存的下载目录" style="white-space:nowrap;font-size:12px;padding:4px 10px;">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            </button>
                         </div>
                     </div>
                     <p id="setting-download-dir-hint" class="setting-hint" style="margin-left: 0;">选择预设会自动填入路径，也可以手填相对目录或绝对目录。Docker 部署推荐 <code>/home/appuser/data</code>。</p>
@@ -566,6 +569,9 @@
             <div class="utility-modal-toolbar download-records-toolbar">
                 <span id="download-records-count" class="utility-modal-count download-records-count">加载中...</span>
                 <div class="utility-modal-actions download-records-actions">
+                    <button type="button" class="btn-pill" onclick="openDownloadDirectory()">
+                        <i class="fa-solid fa-folder-open"></i> 打开目录
+                    </button>
                     <button type="button" class="btn-pill" onclick="openLocalMusicPage()">
                         <i class="fa-solid fa-folder-plus"></i> 本地音乐
                     </button>

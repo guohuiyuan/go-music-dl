@@ -27,6 +27,9 @@
     <form id="auth-float-form" class="rt-form" action="{{.Root}}/logout" method="post" title="登录">
         <button id="auth-float-button" type="submit"><i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i></button>
     </form>
+    <button type="button" class="rt-btn" onclick="openDownloadDirectory()" title="打开下载目录" aria-label="打开下载目录">
+        <i class="fa-solid fa-folder-open"></i>
+    </button>
     <div class="rt-btn" onclick="openLocalMusicPage()" title="本地音乐"><i class="fa-solid fa-folder-plus"></i></div>
     <button type="button" id="download-records-button" class="rt-btn rt-btn-download-records" onclick="openDownloadRecordsModal()" title="下载管理" aria-label="下载管理">
         <i class="fa-solid fa-clock-rotate-left"></i>

@@ -27,7 +27,7 @@ Playback and downloads:
 - Play a searched or explicit song: `POST {base}/api/ai/player/play`
 - Control current playback: `POST {base}/api/ai/player/command`
 - Source switch: `GET {base}/switch_source?name=...&artist=...&source=...&target=...`
-- Playback resolution check: `GET {base}/inspect`
+- Playback resolution check: `GET {base}/inspect` (`preview_only=true` is playable)
 - Audio stream: `GET {base}/download?...&stream=1`
 - Lyrics: `GET {base}/lyric`
 - Queue status: `GET {base}/api/downloads/queue`
@@ -41,4 +41,4 @@ Library and health:
 - Collection songs: `GET {base}/collections/{id}/songs`
 - Health: `GET {base}/healthz`
 
-`{base}` defaults to `/music`. The runtime index is the source of truth for parameters. Existing search, playlist, album, ranking, recommendation, and category routes return the normal rendered page. Preserve a song's `extra` object because some platforms require it for playback or lyrics. Player controls require an open web or desktop player; otherwise the route returns `409 player_not_connected`. With multiple players, pass `client_id`. Without it, the default prefers a connected, playing, visible player and uses stable connection order. A full command queue returns `503 player_busy`; disconnected clients expire after 10 minutes. Player writes must send `X-Requested-With: XMLHttpRequest`. Do not expose cookies, login, or configuration routes to an AI client.
+`{base}` defaults to `/music`. The runtime index is the source of truth for parameters. Existing search, playlist, album, ranking, recommendation, and category routes return the normal rendered page. Preserve a song's `extra` object because some platforms require it for playback or lyrics. Treat `preview_only=true` as playable; do not switch sources just because it is a preview. Player controls require an open web or desktop player; otherwise the route returns `409 player_not_connected`. With multiple players, pass `client_id`. Without it, the default prefers a connected, playing, visible player and uses stable connection order. A full command queue returns `503 player_busy`; disconnected clients expire after 10 minutes. Player writes must send `X-Requested-With: XMLHttpRequest`. Do not expose cookies, login, or configuration routes to an AI client.
