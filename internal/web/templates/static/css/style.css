@@ -2054,7 +2054,7 @@ body.vg-open .aplayer.aplayer-fixed {
 .utility-modal-page-status { min-width: 76px; color: #64748b; font-size: 12px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .utility-modal-footer, .download-records-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
 .download-records-modal { max-width: 760px; }
-.download-records-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.download-records-table { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; font-size: 13px; }
 .download-records-table th { position: sticky; top: 0; z-index: 1; padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-align: left; white-space: nowrap; }
 .download-records-table td { padding: 10px 12px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
 .download-records-table tbody tr:last-child td { border-bottom: none; }
@@ -2462,17 +2462,25 @@ body.vg-open .aplayer.aplayer-fixed {
     left: auto;
     right: 0;
     display: block;
-    width: 196px;
-    padding: 10px 12px 9px;
+    width: 260px;
+    max-width: calc(100vw - 32px);
+    padding: 12px 14px 10px;
     border: 1px solid rgba(var(--primary-rgb), 0.35);
     border-radius: 11px;
     background: rgba(255, 255, 255, 0.98);
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
     z-index: 1001;
+    box-sizing: border-box;
 }
 
 .player-speed-menu[hidden] {
     display: none;
+}
+
+.aplayer.aplayer-fixed .player-speed-menu {
+    top: auto;
+    bottom: calc(100% + 6px);
+    box-sizing: border-box;
 }
 
 .player-speed-header,
@@ -2493,21 +2501,111 @@ body.vg-open .aplayer.aplayer-fixed {
 }
 .player-speed-slider,
 .vg-speed-slider {
+    --speed-progress: 20%;
+    -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 22px;
     margin: 0;
     padding: 0;
-    accent-color: var(--primary-color);
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    background:
+        linear-gradient(
+            to right,
+            var(--primary-color) 0 var(--speed-progress),
+            rgba(148, 163, 184, 0.52) var(--speed-progress) 100%
+        )
+        center / 100% 2px no-repeat;
     cursor: pointer;
 }
+
+.player-speed-slider::-webkit-slider-runnable-track,
+.vg-speed-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 2px;
+    border: 0;
+    border-radius: 1px;
+    background: transparent;
+}
+
+.player-speed-slider::-webkit-slider-thumb,
+.vg-speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -5px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: var(--primary-color);
+    box-sizing: border-box;
+    box-shadow: 0 1px 5px rgba(var(--primary-rgb), 0.45);
+    cursor: pointer;
+}
+
+.player-speed-slider::-moz-range-track,
+.vg-speed-slider::-moz-range-track {
+    width: 100%;
+    height: 2px;
+    border: 0;
+    border-radius: 1px;
+    background: transparent;
+}
+
+.player-speed-slider::-moz-range-progress,
+.vg-speed-slider::-moz-range-progress {
+    height: 2px;
+    border-radius: 1px;
+    background: var(--primary-color);
+}
+
+.player-speed-slider::-moz-range-thumb,
+.vg-speed-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: var(--primary-color);
+    box-sizing: border-box;
+    box-shadow: 0 1px 5px rgba(var(--primary-rgb), 0.45);
+    cursor: pointer;
+}
+
+.player-speed-slider:focus-visible,
+.vg-speed-slider:focus-visible {
+    outline: 2px solid var(--primary-deep);
+    outline-offset: 2px;
+}
+
 .player-speed-scale,
 .vg-speed-scale {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 2px;
+    position: relative;
+    height: 13px;
+    margin: 3px 6px 0;
     color: #94a3b8;
-    font-size: 9px;
+    font-size: 10px;
     font-variant-numeric: tabular-nums;
+}
+
+.player-speed-scale > span,
+.vg-speed-scale > span {
+    position: absolute;
+    top: 0;
+    left: var(--speed-position, 0%);
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.player-speed-scale > span:first-child,
+.vg-speed-scale > span:first-child {
+    transform: none;
+}
+
+.player-speed-scale > span:last-child,
+.vg-speed-scale > span:last-child {
+    transform: translateX(-100%);
 }
 
 .player-speed-option {
@@ -3119,16 +3217,19 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
 }
 .appearance-settings-grid select {
     width: 100%;
-    min-height: 38px;
+    height: 40px;
+    min-height: 40px;
     padding: 7px 9px;
     border: 1px solid #dbe3ea;
     border-radius: 9px;
     background: #fff;
     color: var(--text-main);
     font: inherit;
+    box-sizing: border-box;
 }
 .color-setting-row {
-    min-height: 38px;
+    height: 40px;
+    min-height: 40px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -3136,6 +3237,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     border: 1px solid #dbe3ea;
     border-radius: 9px;
     background: #fff;
+    box-sizing: border-box;
 }
 .color-setting-row input[type="color"] {
     width: 30px;
@@ -3193,6 +3295,32 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
 .aplayer-icon-volume-off {
     width: 18px !important;
     min-width: 18px;
+    height: 18px !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center;
+}
+.aplayer .aplayer-time {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    height: 22px;
+    line-height: 1;
+}
+.aplayer .aplayer-time-inner {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+.aplayer .aplayer-time .aplayer-volume-wrap,
+.aplayer .aplayer-time .aplayer-icon-lrc {
+    align-self: center;
+}
+.aplayer .aplayer-time .aplayer-icon-lrc {
+    width: 18px !important;
+    min-width: 18px;
+    height: 18px !important;
     padding: 0 !important;
     display: grid !important;
     place-items: center;
@@ -3290,9 +3418,9 @@ html[data-theme="dark"] .scheduled-playback-fields input[type="time"] {
 .download-records-modal .download-records-list {
     min-height: 90px;
     flex: 1 1 auto;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: auto;
     overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
 /* Mobile toolbar can collapse and remembers a dragged vertical position. */

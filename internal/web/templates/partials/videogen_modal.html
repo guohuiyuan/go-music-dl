@@ -35,7 +35,7 @@
                     <div class="vg-ctrl-icon" onclick="VideoGen.playNext()" title="下一首"><i class="fa-solid fa-forward-step"></i></div>
 
                     <div class="vg-vol-group">
-                        <i class="fa-solid fa-volume-high vg-ctrl-icon" id="vg-vol-icon" onclick="VideoGen.toggleMute()" title="静音/恢复" style="width: auto; height: auto;"></i>
+                        <i class="fa-solid fa-volume-high vg-ctrl-icon" id="vg-vol-icon" onclick="VideoGen.toggleMute()" title="静音/恢复"></i>
                         <input type="range" id="vg-volume-bar" class="vg-seek-bar" value="70" step="1" min="0" max="100">
                         <span id="vg-vol-text" class="vg-vol-text">70%</span>
                     </div>
@@ -43,6 +43,15 @@
                     <div class="vg-speed-group">
                         <button type="button" id="vg-speed-button" class="vg-speed-button" onclick="VideoGen.toggleSpeedMenu(event)" title="播放速度">1x</button>
                         <div id="vg-speed-menu" class="vg-speed-menu" hidden></div>
+                    </div>
+
+                    <div class="vg-track-actions" aria-label="当前歌曲操作">
+                        <button type="button" id="vg-favorite-button" class="vg-track-action" onclick="VideoGen.favoriteCurrent()" title="收藏当前歌曲" aria-label="收藏当前歌曲">
+                            <i class="fa-regular fa-heart" aria-hidden="true"></i>
+                        </button>
+                        <a id="vg-download-button" class="vg-track-action" href="#" target="_blank" rel="noopener" title="下载当前歌曲" aria-label="下载当前歌曲">
+                            <i class="fa-solid fa-download" aria-hidden="true"></i>
+                        </a>
                     </div>
                 </div>
             </div>

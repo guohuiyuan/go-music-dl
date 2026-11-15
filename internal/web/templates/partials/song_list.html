@@ -403,7 +403,7 @@
         </button>
     </div>
     {{ end }}
-{{ else if .Keyword }}
+{{ else if and .Keyword (not .Playlists) }}
     {{ if not .Error }}
     <div class="no-results">
         <i class="fa-solid fa-music" style="font-size: 40px; margin-bottom: 10px; display:block;"></i>

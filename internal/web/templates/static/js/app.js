@@ -148,6 +148,7 @@ let webSettings = {
   lyricHighlightColor: DEFAULT_LYRIC_HIGHLIGHT_COLOR,
 };
 
+let appearancePreviewSettings = null;
 let audioQualityChoices = {};
 let audioQualityOptions = {};
 let audioQualityWarnings = {};
@@ -975,17 +976,23 @@ function resolvedThemeMode() {
   return SYSTEM_THEME_QUERY?.matches ? "dark" : "light";
 }
 
-function applyThemeAppearance() {
+function applyThemeAppearance(appearance = webSettings) {
   const root = document.documentElement;
   const accent = normalizeWebColor(
-    webSettings.accentColor,
+    appearance.accentColor,
     DEFAULT_ACCENT_COLOR,
   );
   const lyricHighlight = normalizeWebColor(
-    webSettings.lyricHighlightColor,
+    appearance.lyricHighlightColor,
     DEFAULT_LYRIC_HIGHLIGHT_COLOR,
   );
-  const theme = resolvedThemeMode();
+  const themeMode = normalizeThemeMode(appearance.themeMode);
+  const theme =
+    themeMode === "system"
+      ? SYSTEM_THEME_QUERY?.matches
+        ? "dark"
+        : "light"
+      : themeMode;
   const rgb = [1, 3, 5].map((offset) =>
     Number.parseInt(accent.slice(offset, offset + 2), 16),
   );
@@ -994,7 +1001,7 @@ function applyThemeAppearance() {
   const lightRGB = rgb.map((channel) => Math.round(channel + (255 - channel) * 0.24));
 
   root.dataset.theme = theme;
-  root.dataset.themeMode = normalizeThemeMode(webSettings.themeMode);
+  root.dataset.themeMode = themeMode;
   root.style.colorScheme = theme;
   root.style.setProperty("--primary-color", accent);
   root.style.setProperty("--primary-rgb", rgb.join(", "));
@@ -1045,7 +1052,7 @@ function applyThemeAppearance() {
   });
 }
 
-function syncAppearanceControls() {
+function syncAppearanceControls(appearance = webSettings) {
   const themeInput = document.getElementById("setting-theme-mode");
   const accentInput = document.getElementById("setting-accent-color");
   const lyricColorInput = document.getElementById(
@@ -1055,13 +1062,13 @@ function syncAppearanceControls() {
   const lyricColorValue = document.getElementById(
     "setting-lyric-highlight-color-value",
   );
-  const themeMode = normalizeThemeMode(webSettings.themeMode);
+  const themeMode = normalizeThemeMode(appearance.themeMode);
   const accent = normalizeWebColor(
-    webSettings.accentColor,
+    appearance.accentColor,
     DEFAULT_ACCENT_COLOR,
   );
   const lyricHighlight = normalizeWebColor(
-    webSettings.lyricHighlightColor,
+    appearance.lyricHighlightColor,
     DEFAULT_LYRIC_HIGHLIGHT_COLOR,
   );
 
@@ -1078,6 +1085,41 @@ function syncAppearanceControls() {
   });
 }
 
+function appearanceSnapshot(settings = webSettings) {
+  return {
+    themeMode: normalizeThemeMode(settings.themeMode),
+    accentColor: normalizeWebColor(
+      settings.accentColor,
+      DEFAULT_ACCENT_COLOR,
+    ),
+    lyricHighlightColor: normalizeWebColor(
+      settings.lyricHighlightColor,
+      DEFAULT_LYRIC_HIGHLIGHT_COLOR,
+    ),
+  };
+}
+
+function beginAppearancePreview(settings = webSettings) {
+  appearancePreviewSettings = appearanceSnapshot(settings);
+  applyThemeAppearance(appearancePreviewSettings);
+  syncAppearanceControls(appearancePreviewSettings);
+}
+
+function updateAppearancePreview(patch) {
+  appearancePreviewSettings = appearanceSnapshot({
+    ...(appearancePreviewSettings || webSettings),
+    ...patch,
+  });
+  applyThemeAppearance(appearancePreviewSettings);
+  syncAppearanceControls(appearancePreviewSettings);
+}
+
+function endAppearancePreview() {
+  appearancePreviewSettings = null;
+  applyThemeAppearance(webSettings);
+  syncAppearanceControls(webSettings);
+}
+
 function bindAppearanceSettingEvents() {
   const themeInput = document.getElementById("setting-theme-mode");
   const accentInput = document.getElementById("setting-accent-color");
@@ -1088,30 +1130,31 @@ function bindAppearanceSettingEvents() {
   if (themeInput && themeInput.dataset.bound !== "1") {
     themeInput.dataset.bound = "1";
     themeInput.addEventListener("change", () => {
-      webSettings.themeMode = normalizeThemeMode(themeInput.value);
-      applyThemeAppearance();
+      updateAppearancePreview({
+        themeMode: normalizeThemeMode(themeInput.value),
+      });
     });
   }
   if (accentInput && accentInput.dataset.bound !== "1") {
     accentInput.dataset.bound = "1";
     accentInput.addEventListener("input", () => {
-      webSettings.accentColor = normalizeWebColor(
-        accentInput.value,
-        DEFAULT_ACCENT_COLOR,
-      );
-      applyThemeAppearance();
-      syncAppearanceControls();
+      updateAppearancePreview({
+        accentColor: normalizeWebColor(
+          accentInput.value,
+          DEFAULT_ACCENT_COLOR,
+        ),
+      });
     });
   }
   if (lyricColorInput && lyricColorInput.dataset.bound !== "1") {
     lyricColorInput.dataset.bound = "1";
     lyricColorInput.addEventListener("input", () => {
-      webSettings.lyricHighlightColor = normalizeWebColor(
-        lyricColorInput.value,
-        DEFAULT_LYRIC_HIGHLIGHT_COLOR,
-      );
-      applyThemeAppearance();
-      syncAppearanceControls();
+      updateAppearancePreview({
+        lyricHighlightColor: normalizeWebColor(
+          lyricColorInput.value,
+          DEFAULT_LYRIC_HIGHLIGHT_COLOR,
+        ),
+      });
     });
   }
   document.querySelectorAll("[data-accent-preset]").forEach((button) => {
@@ -1123,16 +1166,15 @@ function bindAppearanceSettingEvents() {
         DEFAULT_ACCENT_COLOR,
       );
       if (accentInput) accentInput.value = accent;
-      webSettings.accentColor = accent;
-      applyThemeAppearance();
-      syncAppearanceControls();
+      updateAppearancePreview({ accentColor: accent });
     });
   });
   if (!document.documentElement.dataset.systemThemeBound && SYSTEM_THEME_QUERY) {
     document.documentElement.dataset.systemThemeBound = "1";
     const handleSystemThemeChange = () => {
-      if (normalizeThemeMode(webSettings.themeMode) === "system") {
-        applyThemeAppearance();
+      const appearance = appearancePreviewSettings || webSettings;
+      if (normalizeThemeMode(appearance.themeMode) === "system") {
+        applyThemeAppearance(appearance);
       }
     };
     if (typeof SYSTEM_THEME_QUERY.addEventListener === "function") {
@@ -1327,6 +1369,7 @@ function applyWebSettings(settings) {
     isAutoSwitchInvalidSourcesEnabled();
   applyAudioQualityRuntimeOptions(settings);
   webSettings = normalizeWebSettings(settings);
+  appearancePreviewSettings = null;
   persistWebSettingsCache();
 
   const embedToggle = document.getElementById("setting-embed-download");
@@ -6095,11 +6138,11 @@ async function loadDownloadRecordsPage(page = 1) {
       const errHint = r.Error ? ` title="${escapeHtml(r.Error)}"` : "";
       const time = r.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "";
       html += `<tr${errHint}>
-        <td><div class="download-record-name">${escapeHtml(r.Name || "")}</div></td>
-        <td><div class="download-record-artist">${escapeHtml(r.Artist || "")}</div></td>
-        <td><span class="download-record-source">${escapeHtml(r.Source || "")}</span></td>
+        <td><div class="download-record-name" title="${escapeHtml(r.Name || "")}">${escapeHtml(r.Name || "")}</div></td>
+        <td><div class="download-record-artist" title="${escapeHtml(r.Artist || "")}">${escapeHtml(r.Artist || "")}</div></td>
+        <td><span class="download-record-source" title="${escapeHtml(r.Source || "")}">${escapeHtml(r.Source || "")}</span></td>
         <td><span class="download-record-status ${status.className}"><i class="fa-solid ${status.icon}"></i>${status.label}</span></td>
-        <td class="download-record-time">${escapeHtml(time)}</td>
+        <td class="download-record-time" title="${escapeHtml(time)}">${escapeHtml(time)}</td>
       </tr>`;
     }
 
@@ -6509,6 +6552,16 @@ function setSystemConfigLoading(loading) {
   saveButton.textContent = loading ? "正在加载设置..." : "保存设置";
 }
 
+function closeSystemConfig() {
+  systemConfigLoadController?.abort();
+  systemConfigLoadController = null;
+  systemConfigLoadSequence++;
+  endAppearancePreview();
+  const modal = document.getElementById("cookieModal");
+  if (modal) modal.style.display = "none";
+  setSystemConfigLoading(false);
+}
+
 async function openSystemConfig(initialTab = "general") {
   const modal = document.getElementById("cookieModal");
   const requestSequence = ++systemConfigLoadSequence;
@@ -6519,6 +6572,7 @@ async function openSystemConfig(initialTab = "general") {
   // Open from the cached settings immediately. Auto source switching can keep
   // the same-origin request slots busy, but it must not delay this dialog.
   if (modal) modal.style.display = "flex";
+  beginAppearancePreview(webSettings);
   bindSettingsTabs();
   setSettingsTab(initialTab);
   setSystemConfigLoading(true);
@@ -6535,13 +6589,14 @@ async function openSystemConfig(initialTab = "general") {
     const settings = await settingsResponse.json().catch(() => null);
     if (requestSequence !== systemConfigLoadSequence) return;
     if (handleConfigAuthResponse(cookiesResponse, cookies)) {
-      if (modal) modal.style.display = "none";
+      closeSystemConfig();
       return;
     }
     if (!cookiesResponse.ok || !settingsResponse.ok) {
       throw new Error("加载系统配置失败");
     }
     applyWebSettings(settings);
+    beginAppearancePreview(webSettings);
     for (const [k, v] of Object.entries(cookies || {})) {
       const el = document.getElementById(`cookie-${k}`);
       if (el) el.value = v;
@@ -6556,8 +6611,7 @@ async function openSystemConfig(initialTab = "general") {
     ) {
       return;
     }
-    if (modal) modal.style.display = "none";
-    applyWebSettings(webSettings);
+    closeSystemConfig();
     showToast("系统配置加载失败", error.message || "请稍后重试", "error");
   } finally {
     if (requestSequence === systemConfigLoadSequence) {
@@ -6748,7 +6802,7 @@ async function saveCookies() {
     }
     setAuthFloatLoggedIn(true);
     alert("保存成功");
-    document.getElementById("cookieModal").style.display = "none";
+    closeSystemConfig();
   } catch (error) {
     alert(error.message || "保存失败，请稍后重试");
   }
@@ -8819,33 +8873,63 @@ syncTaskbarPlaybackState();
 const PLAYER_SPEEDS = Object.freeze([
   0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3,
 ]);
+const PLAYER_SPEED_MARKS = Object.freeze([0.5, 1, 1.5, 2, 2.5, 3]);
 let playerSpeed = (() => {
   const saved = Number(localStorage.getItem("musicdl:playbackRate"));
   return PLAYER_SPEEDS.includes(saved) ? saved : 1;
 })();
 
 window.PLAYER_SPEEDS = PLAYER_SPEEDS;
+window.PLAYER_SPEED_MARKS = PLAYER_SPEED_MARKS;
 window.playerSpeed = playerSpeed;
 window.getPlayerPlaybackRate = () => playerSpeed;
 
+function playerSpeedProgress(rate) {
+  const index = PLAYER_SPEEDS.indexOf(Number(rate));
+  if (index < 0 || PLAYER_SPEEDS.length < 2) return 0;
+  return (index / (PLAYER_SPEEDS.length - 1)) * 100;
+}
+
+function playerSpeedScaleMarkup(className) {
+  const min = PLAYER_SPEEDS[0];
+  const max = PLAYER_SPEEDS[PLAYER_SPEEDS.length - 1];
+  const range = max - min;
+  return (
+    `<div class="${className}" aria-hidden="true">` +
+    PLAYER_SPEED_MARKS.map((rate) => {
+      const position = range > 0 ? ((rate - min) / range) * 100 : 0;
+      return `<span style="--speed-position:${position}%">${rate}x</span>`;
+    }).join("") +
+    "</div>"
+  );
+}
+
+window.playerSpeedScaleMarkup = playerSpeedScaleMarkup;
+
 function applyPlayerPlaybackRate(rate) {
-  if (!ap?.audio) return;
   const normalized = Number(rate) || 1;
-  ap.audio.playbackRate = normalized;
+  if (ap?.audio) {
+    ap.audio.playbackRate = normalized;
+  }
   if (window.VideoGen?.isLocalAudio && window.VideoGen?.localAudio) {
     window.VideoGen.localAudio.playbackRate = normalized;
   }
   const btn = document.querySelector(".player-speed-btn");
   if (btn) btn.textContent = `${normalized}x`;
   const speedIndex = Math.max(0, PLAYER_SPEEDS.indexOf(normalized));
+  const speedProgress = playerSpeedProgress(normalized);
   document
     .querySelectorAll(".player-speed-slider, #vg-speed-slider")
     .forEach((slider) => {
       slider.value = String(speedIndex);
+      slider.style.setProperty("--speed-progress", `${speedProgress}%`);
+      slider.setAttribute("aria-valuetext", `${normalized}x`);
     });
-  document.querySelectorAll(".player-speed-value").forEach((output) => {
-    output.textContent = `${normalized}x`;
-  });
+  document
+    .querySelectorAll(".player-speed-value, #vg-speed-value")
+    .forEach((output) => {
+      output.textContent = `${normalized}x`;
+    });
   document.querySelectorAll(".player-speed-option").forEach((option) => {
     option.classList.toggle(
       "active",
@@ -8862,7 +8946,9 @@ function applyPlayerPlaybackRate(rate) {
       );
     },
   );
-  syncMediaSession();
+  if (ap?.audio) {
+    syncMediaSession();
+  }
 }
 
 function setPlayerPlaybackRate(rate) {
@@ -8919,7 +9005,7 @@ window.applyPlayerPlaybackRate = applyPlayerPlaybackRate;
       '" step="1" value="' +
       Math.max(0, PLAYER_SPEEDS.indexOf(playerSpeed)) +
       '" aria-label="播放速度">' +
-      '<div class="player-speed-scale"><span>0.5x</span><span>1x</span><span>3x</span></div>';
+      playerSpeedScaleMarkup("player-speed-scale");
 
     button.addEventListener("click", (event) => {
       event.stopPropagation();

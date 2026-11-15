@@ -1039,13 +1039,16 @@
 
       // === 新增：音量控制相关方法 ===
       setVolume: function(vol) {
+          const normalized = Math.min(1, Math.max(0, Number(vol) || 0));
           if (this.isLocalAudio && this.localAudio) {
-              this.localAudio.volume = vol;
+              this.localAudio.volume = normalized;
           } else if (window.ap) {
-              window.ap.volume && window.ap.volume(vol, true);
+              window.ap.volume && window.ap.volume(normalized, true);
           }
-          const vt = document.getElementById('vg-vol-text'); if (vt) vt.textContent = Math.round(vol * 100) + '%';
-          this.updateVolIcon(vol);
+          const bar = document.getElementById('vg-volume-bar');
+          if (bar) bar.style.setProperty('--vg-volume-progress', `${normalized * 100}%`);
+          const vt = document.getElementById('vg-vol-text'); if (vt) vt.textContent = Math.round(normalized * 100) + '%';
+          this.updateVolIcon(normalized);
       },
 
       updateVolIcon: function(vol) {
@@ -1068,6 +1071,55 @@
               let targetVol = this._lastVol || 0.7;
               vb.value = targetVol * 100;
               this.setVolume(targetVol);
+          }
+      },
+
+      favoriteCurrent: function() {
+          const song = this.data;
+          if (song && typeof window.openAddToCollectionForSong === 'function') {
+              window.openAddToCollectionForSong(song);
+          }
+      },
+
+      syncTrackActions: function(songData) {
+          const song = songData || this.data;
+          const favorite = document.getElementById('vg-favorite-button');
+          const download = document.getElementById('vg-download-button');
+          if (favorite) {
+              favorite.disabled = !song;
+              favorite.setAttribute('aria-disabled', String(!song));
+              favorite.title = song ? '收藏当前歌曲' : '当前没有可收藏的歌曲';
+              favorite.setAttribute('aria-label', favorite.title);
+          }
+          if (!download) return;
+          const canDownload = Boolean(
+              song &&
+              typeof window.buildDownloadURL === 'function' &&
+              typeof isLocalMusicSourceValue === 'function' &&
+              !isLocalMusicSourceValue(song.source)
+          );
+          if (canDownload) {
+              download.href = window.buildDownloadURL(
+                  song.id,
+                  song.source,
+                  song.name,
+                  song.artist,
+                  song.album,
+                  song.cover,
+                  typeof serializeSongExtra === 'function'
+                      ? serializeSongExtra(song.extra)
+                      : ''
+              );
+              download.title = '下载当前歌曲';
+              download.setAttribute('aria-label', download.title);
+              download.setAttribute('aria-disabled', 'false');
+              download.removeAttribute('tabindex');
+          } else {
+              download.removeAttribute('href');
+              download.title = song ? '本地歌曲无需下载' : '当前没有可下载的歌曲';
+              download.setAttribute('aria-label', download.title);
+              download.setAttribute('aria-disabled', 'true');
+              download.setAttribute('tabindex', '-1');
           }
       },
 
@@ -1103,7 +1155,15 @@
           const button = document.getElementById('vg-speed-button');
           if (button) button.textContent = `${this.playbackRate}x`;
           const slider = document.getElementById('vg-speed-slider');
-          if (slider) slider.value = String(Math.max(0, allowed.indexOf(this.playbackRate)));
+          if (slider) {
+              const speedIndex = Math.max(0, allowed.indexOf(this.playbackRate));
+              const speedProgress = allowed.length > 1
+                  ? (speedIndex / (allowed.length - 1)) * 100
+                  : 0;
+              slider.value = String(speedIndex);
+              slider.style.setProperty('--speed-progress', `${speedProgress}%`);
+              slider.setAttribute('aria-valuetext', `${this.playbackRate}x`);
+          }
           const output = document.getElementById('vg-speed-value');
           if (output) output.textContent = `${this.playbackRate}x`;
           document.querySelectorAll('#vg-speed-menu .vg-speed-option').forEach((option) => {
@@ -1120,6 +1180,19 @@
               : [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3];
           const current = Number(this.getCurrentPlaybackRate());
           this.playbackRate = allowed.includes(current) ? current : 1;
+          const minSpeed = allowed[0];
+          const maxSpeed = allowed[allowed.length - 1];
+          const speedRange = maxSpeed - minSpeed;
+          const scaleMarkup = typeof window.playerSpeedScaleMarkup === 'function'
+              ? window.playerSpeedScaleMarkup('vg-speed-scale')
+              : '<div class="vg-speed-scale" aria-hidden="true">' +
+                [0.5, 1, 1.5, 2, 2.5, 3].map((rate) => {
+                    const position = speedRange > 0
+                        ? ((rate - minSpeed) / speedRange) * 100
+                        : 0;
+                    return `<span style="--speed-position:${position}%">${rate}x</span>`;
+                }).join('') +
+                '</div>';
           menu.innerHTML =
               '<div class="vg-speed-header"><span>播放速度</span><output id="vg-speed-value">' +
               this.playbackRate +
@@ -1129,7 +1202,7 @@
               '" step="1" value="' +
               Math.max(0, allowed.indexOf(this.playbackRate)) +
               '" aria-label="播放速度">' +
-              '<div class="vg-speed-scale"><span>0.5x</span><span>1x</span><span>3x</span></div>';
+              scaleMarkup;
           menu.addEventListener('click', (event) => {
               event.stopPropagation();
           });
@@ -1241,6 +1314,7 @@
       open: async function (songData) {
         this.data = songData; this.customVisual = null;
         this.initSpeedControl();
+        this.syncTrackActions(songData);
         this.isLocalAudio = false; this._currentLocalAudioFile = null;
         if(this.localAudio) { this.localAudio.pause(); this.localAudio.removeAttribute('src'); this.localAudio.load(); }
 
@@ -1306,6 +1380,7 @@
             vb.value = initialVol * 100;
             const vt = document.getElementById('vg-vol-text'); if (vt) vt.textContent = Math.round(initialVol * 100) + '%';
             this.updateVolIcon(initialVol);
+            vb.style.setProperty('--vg-volume-progress', `${initialVol * 100}%`);
             vb.oninput = (e) => { this.setVolume(e.target.value / 100); };
         }
 
