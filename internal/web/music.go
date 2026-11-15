@@ -1059,7 +1059,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		id := c.Query("id")
 		src := c.Query("source")
 		durStr := c.Query("duration")
-		extra := parseSongExtraQuery(c.Query("extra"))
+		extra := applySongQualityOverride(parseSongExtraQuery(c.Query("extra")), c.Query("quality"))
 
 		if isLocalMusicSource(src) {
 			payload, _ := inspectLocalMusicFile(id, durStr)
@@ -1071,9 +1071,8 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		var err error
 
 		if src == "soda" {
-			cookie := core.CM.Get("soda")
-			sodaInst := core.NewSodaClient(cookie)
-			info, sErr := sodaInst.GetDownloadInfo(&model.Song{ID: id, Source: src})
+			tempSong := &model.Song{ID: id, Source: src, Extra: extra}
+			info, sErr := core.ResolveSodaDownloadInfo(tempSong, "")
 			if sErr != nil {
 				c.JSON(200, inspectResolutionFailure(sErr))
 				return
@@ -1193,7 +1192,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		if wantsSaveLocal(c) && !allowSaveLocalRequest(c) {
 			return
 		}
-		extra := parseSongExtraQuery(c.Query("extra"))
+		extra := applySongQualityOverride(parseSongExtraQuery(c.Query("extra")), c.Query("quality"))
 		if album == "" && extra != nil {
 			album = strings.TrimSpace(extra["album"])
 		}
@@ -1285,9 +1284,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		}
 
 		if source == "soda" {
-			cookie := core.CM.Get("soda")
-			sodaInst := core.NewSodaClient(cookie)
-			info, err := sodaInst.GetDownloadInfo(tempSong)
+			info, err := core.ResolveSodaDownloadInfo(tempSong, "")
 			if err != nil {
 				c.String(502, "Soda info error")
 				return
@@ -2077,6 +2074,18 @@ func parseSongExtraQuery(raw string) map[string]string {
 	if len(extra) == 0 {
 		return nil
 	}
+	return extra
+}
+
+func applySongQualityOverride(extra map[string]string, quality string) map[string]string {
+	quality = strings.TrimSpace(quality)
+	if quality == "" {
+		return extra
+	}
+	if extra == nil {
+		extra = make(map[string]string)
+	}
+	extra["quality"] = quality
 	return extra
 }
 

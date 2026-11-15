@@ -284,11 +284,26 @@ func sanitizeDownloadPathSegment(value string) string {
 	return strings.Trim(utils.SanitizeFilename(value), " .")
 }
 
-// FetchDecryptedSodaAudio 下载并解密 soda（汽水）加密音频流，返回明文音频字节。
-func FetchDecryptedSodaAudio(song *model.Song) ([]byte, error) {
+// ResolveSodaDownloadInfo applies the configured or requested quality and
+// falls back through lower Soda tiers when the requested stream is missing.
+func ResolveSodaDownloadInfo(song *model.Song, requestedQuality string) (*soda.DownloadInfo, error) {
 	cookie := CM.Get("soda")
 	sodaInst := NewSodaClient(cookie)
-	info, err := sodaInst.GetDownloadInfo(song)
+	return resolveWithAudioQualityFallback(
+		song,
+		requestedQuality,
+		func(quality string) (*soda.DownloadInfo, error) {
+			return sodaInst.GetDownloadInfoWithQuality(song, quality)
+		},
+		func(info *soda.DownloadInfo) bool {
+			return info != nil && strings.TrimSpace(info.URL) != ""
+		},
+	)
+}
+
+// FetchDecryptedSodaAudio 下载并解密 soda（汽水）加密音频流，返回明文音频字节。
+func FetchDecryptedSodaAudio(song *model.Song) ([]byte, error) {
+	info, err := ResolveSodaDownloadInfo(song, "")
 	if err != nil {
 		return nil, err
 	}
@@ -305,10 +320,25 @@ func FetchDecryptedSodaAudio(song *model.Song) ([]byte, error) {
 	return soda.DecryptAudio(encryptedData, info.PlayAuth)
 }
 
+// ResolveMiguDownloadInfo applies the configured or requested quality and
+// falls back through lower Migu tiers when the requested stream is missing.
+func ResolveMiguDownloadInfo(song *model.Song, requestedQuality string) (*migu.DownloadInfo, error) {
+	miguInst := migu.New(CM.Get("migu"))
+	return resolveWithAudioQualityFallback(
+		song,
+		requestedQuality,
+		func(quality string) (*migu.DownloadInfo, error) {
+			return miguInst.GetDownloadInfoWithQuality(song, quality)
+		},
+		func(info *migu.DownloadInfo) bool {
+			return info != nil && strings.TrimSpace(info.URL) != ""
+		},
+	)
+}
+
 // FetchDecryptedMiguAudio downloads a Migu stream and decrypts Z3D output.
 func FetchDecryptedMiguAudio(song *model.Song) ([]byte, error) {
-	miguInst := migu.New(CM.Get("migu"))
-	info, err := miguInst.GetDownloadInfo(song)
+	info, err := ResolveMiguDownloadInfo(song, "")
 	if err != nil {
 		return nil, err
 	}

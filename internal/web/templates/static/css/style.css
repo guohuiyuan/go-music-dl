@@ -1769,6 +1769,131 @@ body.vg-open .aplayer.aplayer-fixed {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.audio-quality-source-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.audio-quality-source-row {
+    display: grid;
+    grid-template-columns: minmax(96px, 0.22fr) minmax(0, 1fr);
+    gap: 8px 14px;
+    align-items: start;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border-soft, rgba(148, 163, 184, 0.18));
+}
+
+.audio-quality-source-row:last-child {
+    border-bottom: 0;
+}
+
+.audio-quality-source-label {
+    padding-top: 7px;
+    color: var(--text-main);
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.audio-quality-choice-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.audio-quality-choice {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+    user-select: none;
+}
+
+.audio-quality-choice input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.audio-quality-choice span {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.34));
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    color: var(--text-main);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.25;
+    transition:
+        border-color 160ms ease,
+        background-color 160ms ease,
+        color 160ms ease,
+        box-shadow 160ms ease,
+        transform 160ms ease;
+}
+
+.audio-quality-choice:hover span {
+    border-color: var(--primary-border);
+    background: var(--primary-faint);
+    color: var(--primary-deep);
+}
+
+.audio-quality-choice input:focus-visible + span {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.audio-quality-choice input:checked + span {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: #fff;
+    box-shadow: 0 5px 14px rgba(var(--primary-rgb), 0.22);
+}
+
+.audio-quality-choice:active:not(.is-disabled) span {
+    transform: translateY(1px);
+}
+
+.audio-quality-choice.is-disabled {
+    cursor: not-allowed;
+}
+
+.audio-quality-choice.is-disabled span {
+    border-color: var(--border-soft, rgba(148, 163, 184, 0.18));
+    background: var(--surface-muted, rgba(148, 163, 184, 0.08));
+    color: var(--text-sub);
+    opacity: 0.56;
+    box-shadow: none;
+}
+
+.audio-quality-source-empty {
+    grid-column: 2;
+    color: var(--text-sub);
+    font-size: 12px;
+}
+
+@media (max-width: 640px) {
+    .audio-quality-source-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    .audio-quality-source-label {
+        padding-top: 0;
+    }
+    .audio-quality-source-empty {
+        grid-column: 1;
+    }
+    .audio-quality-choice span {
+        min-height: 30px;
+        padding: 5px 9px;
+    }
+}
+
 .shortcut-settings-list {
     display: grid;
     gap: 8px;

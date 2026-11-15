@@ -99,6 +99,9 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if defaults.DownloadFilenameTemplate != DefaultDownloadFilenameTemplate {
 		t.Fatalf("default DownloadFilenameTemplate mismatch: got %q want %q", defaults.DownloadFilenameTemplate, DefaultDownloadFilenameTemplate)
 	}
+	if defaults.DefaultAudioQuality != DefaultAudioQuality {
+		t.Fatalf("default DefaultAudioQuality mismatch: got %q want %q", defaults.DefaultAudioQuality, DefaultAudioQuality)
+	}
 	if defaults.WebDAVEnabled {
 		t.Fatalf("default WebDAVEnabled should be false")
 	}
@@ -197,6 +200,7 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		CliPageSize:              120,
 		DownloadConcurrency:      5,
 		DownloadTipDuration:      15,
+		DefaultAudioQuality:      "MASTER",
 		AutoCheckUpdate:          false,
 		AutoSwitchInvalidSources: false,
 		AutoCacheOnPlay:          true,
@@ -239,6 +243,8 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		CliPageSize:              120,
 		DownloadConcurrency:      5,
 		DownloadTipDuration:      15,
+		DefaultAudioQuality:      "master",
+		AudioQualityDefaults:     defaultAudioQualityDefaults(),
 		AutoCheckUpdate:          false,
 		AutoSwitchInvalidSources: false,
 		AutoCacheOnPlay:          true,
@@ -298,6 +304,9 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	}
 	if got.DownloadConcurrency != DefaultWebConcurrency {
 		t.Fatalf("custom save should fallback DownloadConcurrency to default: got %d want %d", got.DownloadConcurrency, DefaultWebConcurrency)
+	}
+	if got.DefaultAudioQuality != DefaultAudioQuality {
+		t.Fatalf("custom save should fallback DefaultAudioQuality to default: got %q want %q", got.DefaultAudioQuality, DefaultAudioQuality)
 	}
 	if got.DownloadTipDuration != DefaultDownloadTipDuration {
 		t.Fatalf("custom save should fallback DownloadTipDuration to default: got %d want %d", got.DownloadTipDuration, DefaultDownloadTipDuration)
@@ -386,6 +395,27 @@ func TestWebSettingsLegacyPayloadUsesCurrentSwitchDefaults(t *testing.T) {
 	}
 	if got.ThemeMode != DefaultThemeMode || got.AccentColor != DefaultAccentColor || got.LyricHighlightColor != DefaultLyricHighlightColor {
 		t.Fatalf("legacy settings should receive appearance defaults: %#v", got)
+	}
+	if got.DefaultAudioQuality != DefaultAudioQuality {
+		t.Fatalf("legacy settings should receive audio quality default: %#v", got)
+	}
+}
+
+func TestDefaultAudioQualityNormalization(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "", want: DefaultAudioQuality},
+		{input: "320k", want: "high"},
+		{input: "FLAC", want: "lossless"},
+		{input: "auto", want: "auto"},
+		{input: "invalid", want: DefaultAudioQuality},
+	}
+	for _, test := range tests {
+		if got := normalizeDefaultAudioQuality(test.input); got != test.want {
+			t.Fatalf("normalizeDefaultAudioQuality(%q) = %q, want %q", test.input, got, test.want)
+		}
 	}
 }
 

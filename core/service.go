@@ -501,20 +501,21 @@ func GetRecommendSourceNames() []string {
 }
 
 func GetDownloadFunc(source string) func(*model.Song) (string, error) {
+	return GetDownloadFuncWithQuality(source, "")
+}
+
+// GetDownloadFuncWithQuality returns a download resolver that applies an
+// explicit quality when provided, a per-song quality override when present, or
+// the configured default quality. If that tier is unavailable for the song,
+// playback falls back through lower tiers in the source's declared order.
+func GetDownloadFuncWithQuality(source, requestedQuality string) func(*model.Song) (string, error) {
 	c := CM.Get(source)
+	if provider, ok := audioQualityProviderForSource(source, c); ok {
+		return func(song *model.Song) (string, error) {
+			return downloadURLWithQualityFallback(provider, song, requestedQuality)
+		}
+	}
 	switch source {
-	case "netease":
-		return netease.New(c).GetDownloadURL
-	case "qq":
-		return qq.New(c).GetDownloadURL
-	case "kugou":
-		return kugou.New(c).GetDownloadURL
-	case "kuwo":
-		return kuwo.New(c).GetDownloadURL
-	case "migu":
-		return migu.New(c).GetDownloadURL
-	case "soda":
-		return NewSodaClient(c).GetDownloadURL
 	case "bilibili":
 		return bilibili.New(c).GetDownloadURL
 	case "fivesing":
@@ -523,12 +524,6 @@ func GetDownloadFunc(source string) func(*model.Song) (string, error) {
 		return jamendo.New(c).GetDownloadURL
 	case "joox":
 		return joox.New(c).GetDownloadURL
-	case "qianqian":
-		return qianqian.New(c).GetDownloadURL
-	case "apple":
-		return apple.New(c).GetDownloadURL
-	case "spotify":
-		return spotify.New(c).GetDownloadURL
 	default:
 		return nil
 	}

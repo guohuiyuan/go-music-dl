@@ -28,6 +28,43 @@ const DOWNLOAD_DIR_PRESETS = new Set(DOWNLOAD_DIR_PRESET_VALUES);
 const DEFAULT_UPDATE_REPO_URL = "https://github.com/guohuiyuan/go-music-dl";
 const DEFAULT_GITHUB_PROXY_URL = "https://edgeone.gh-proxy.com";
 const DEFAULT_DOWNLOAD_TIP_DURATION = 8;
+const DEFAULT_AUDIO_QUALITY = "high";
+const DEFAULT_AUDIO_QUALITY_OPTIONS = Object.freeze([
+  { value: "master", label: "臻品母带", format: "flac", bitrate: 0, vip: true },
+  { value: "atmos_51", label: "全景声 5.1", format: "flac", bitrate: 0, vip: true },
+  { value: "atmos", label: "全景声 2.0", format: "flac", bitrate: 0, vip: true },
+  { value: "spatial", label: "空间音频", format: "m4a", bitrate: 0, vip: true },
+  { value: "hires", label: "Hi-Res 无损", format: "flac", bitrate: 0, vip: true },
+  { value: "lossless", label: "无损音质", format: "flac", bitrate: 0, vip: true },
+  { value: "ultra", label: "超高品质", format: "ogg", bitrate: 640, vip: true },
+  { value: "high", label: "高品质", format: "mp3", bitrate: 320, vip: false },
+  { value: "higher", label: "较高品质", format: "mp3", bitrate: 192, vip: false },
+  { value: "standard", label: "标准音质", format: "mp3", bitrate: 128, vip: false },
+  { value: "low", label: "低品质", format: "mp3", bitrate: 64, vip: false },
+  { value: "preview", label: "试听片段", format: "m4a", bitrate: 0, vip: false },
+]);
+const AUDIO_QUALITY_SOURCES = Object.freeze([
+  "qq",
+  "netease",
+  "kugou",
+  "kuwo",
+  "migu",
+  "soda",
+  "qianqian",
+  "apple",
+  "spotify",
+]);
+const AUDIO_QUALITY_SOURCE_LABELS = Object.freeze({
+  qq: "QQ 音乐",
+  netease: "网易云音乐",
+  kugou: "酷狗音乐",
+  kuwo: "酷我音乐",
+  migu: "咪咕音乐",
+  soda: "汽水音乐",
+  qianqian: "千千音乐",
+  apple: "Apple Music",
+  spotify: "Spotify",
+});
 const OPEN_CONFIG_QUERY = "open_config";
 const SCHEDULED_PLAYBACK_STORAGE_KEY = "musicdl:scheduledStop";
 const SCHEDULED_PLAYBACK_LEGACY_STORAGE_KEY = "musicdl:scheduledPlayback";
@@ -71,6 +108,8 @@ let webSettings = {
   downloadDir: "data/downloads",
   downloadFilenameTemplate: "{name} - {artist}",
   downloadTipDuration: DEFAULT_DOWNLOAD_TIP_DURATION,
+  defaultAudioQuality: DEFAULT_AUDIO_QUALITY,
+  audioQualityDefaults: {},
   webdavEnabled: false,
   webdavUrl: "",
   webdavUsername: "",
@@ -109,6 +148,10 @@ let webSettings = {
   lyricHighlightColor: DEFAULT_LYRIC_HIGHLIGHT_COLOR,
 };
 
+let audioQualityChoices = {};
+let audioQualityOptions = {};
+let audioQualityWarnings = {};
+
 function normalizeWebSettings(raw) {
   const next = {
     embedDownload: true,
@@ -117,6 +160,8 @@ function normalizeWebSettings(raw) {
     downloadDir: "data/downloads",
     downloadFilenameTemplate: "{name} - {artist}",
     downloadTipDuration: DEFAULT_DOWNLOAD_TIP_DURATION,
+    defaultAudioQuality: DEFAULT_AUDIO_QUALITY,
+    audioQualityDefaults: {},
     webdavEnabled: false,
     webdavUrl: "",
     webdavUsername: "",
@@ -179,6 +224,18 @@ function normalizeWebSettings(raw) {
     raw.downloadTipDuration > 0
   ) {
     next.downloadTipDuration = Math.min(raw.downloadTipDuration, 60);
+  }
+  if (typeof raw.defaultAudioQuality === "string") {
+    next.defaultAudioQuality = normalizeAudioQuality(raw.defaultAudioQuality);
+  }
+  if (
+    raw.audioQualityDefaults &&
+    typeof raw.audioQualityDefaults === "object" &&
+    !Array.isArray(raw.audioQualityDefaults)
+  ) {
+    next.audioQualityDefaults = normalizeAudioQualityDefaults(
+      raw.audioQualityDefaults,
+    );
   }
   if (typeof raw.webdavEnabled === "boolean") {
     next.webdavEnabled = raw.webdavEnabled;
@@ -301,6 +358,300 @@ function normalizeWebSettings(raw) {
     DEFAULT_LYRIC_HIGHLIGHT_COLOR,
   );
   return next;
+}
+
+function canonicalAudioQuality(value) {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "":
+      return "";
+    case "auto":
+      return "auto";
+    case "preview":
+    case "sample":
+    case "trial":
+    case "try":
+      return "preview";
+    case "low":
+    case "64":
+    case "64k":
+    case "lq":
+      return "low";
+    case "standard":
+    case "128":
+    case "128k":
+    case "m500":
+      return "standard";
+    case "higher":
+    case "192":
+    case "192k":
+    case "medium":
+      return "higher";
+    case "high":
+    case "320":
+    case "320k":
+    case "m800":
+      return "high";
+    case "hires":
+    case "hi_res":
+    case "hi-res":
+    case "24bit":
+    case "sq":
+    case "zq":
+    case "zq24":
+      return "hires";
+    case "lossless":
+    case "flac":
+    case "f000":
+      return "lossless";
+    case "ultra":
+    case "640":
+    case "640k":
+    case "ogg":
+    case "o801":
+      return "ultra";
+    case "atmos":
+    case "q000":
+      return "atmos";
+    case "spatial":
+      return "spatial";
+    case "atmos_51":
+    case "spatial_51":
+    case "5.1":
+    case "q001":
+      return "atmos_51";
+    case "master":
+    case "ai00":
+      return "master";
+    default:
+      return "";
+  }
+}
+
+function normalizeAudioQuality(value) {
+  return canonicalAudioQuality(value) || DEFAULT_AUDIO_QUALITY;
+}
+
+function normalizeAudioQualityDefaults(raw) {
+  const defaults = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return defaults;
+  for (const [source, value] of Object.entries(raw)) {
+    const sourceKey = String(source || "")
+      .trim()
+      .toLowerCase();
+    const quality = canonicalAudioQuality(value);
+    if (sourceKey && quality) defaults[sourceKey] = quality;
+  }
+  return defaults;
+}
+
+function normalizeAudioQualityOptions(raw) {
+  if (!Array.isArray(raw)) return null;
+  const allowed = new Set([
+    "auto",
+    "preview",
+    "low",
+    "standard",
+    "higher",
+    "high",
+    "lossless",
+    "hires",
+    "ultra",
+    "spatial",
+    "atmos",
+    "atmos_51",
+    "master",
+  ]);
+  const options = [];
+  const seen = new Set();
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const value = String(item.value || "").trim().toLowerCase();
+    if (!allowed.has(value) || seen.has(value)) continue;
+    seen.add(value);
+    options.push({
+      value,
+      label: String(item.label || value),
+      format: String(item.format || ""),
+      bitrate: Number.isFinite(item.bitrate) ? item.bitrate : 0,
+      vip: item.vip === true,
+    });
+  }
+  return options;
+}
+
+function applyAudioQualityRuntimeOptions(payload) {
+  if (!payload || typeof payload !== "object") return;
+  if (
+    payload.audioQualityChoices &&
+    typeof payload.audioQualityChoices === "object"
+  ) {
+    const nextChoices = {};
+    for (const [rawSource, rawOptions] of Object.entries(
+      payload.audioQualityChoices,
+    )) {
+      const source = String(rawSource || "")
+        .trim()
+        .toLowerCase();
+      const options = normalizeAudioQualityOptions(rawOptions);
+      if (source && options) {
+        nextChoices[source] = options;
+      }
+    }
+    audioQualityChoices = nextChoices;
+  }
+  if (
+    payload.audioQualityOptions &&
+    typeof payload.audioQualityOptions === "object"
+  ) {
+    const nextOptions = {};
+    for (const [source, rawOptions] of Object.entries(
+      payload.audioQualityOptions,
+    )) {
+      const sourceKey = String(source || "")
+        .trim()
+        .toLowerCase();
+      const options = normalizeAudioQualityOptions(rawOptions);
+      if (sourceKey && options) {
+        nextOptions[sourceKey] = options;
+      }
+    }
+    audioQualityOptions = nextOptions;
+  }
+  audioQualityWarnings =
+    payload.audioQualityWarnings &&
+    typeof payload.audioQualityWarnings === "object"
+      ? {...payload.audioQualityWarnings}
+      : {};
+}
+
+function audioQualityOptionText(option) {
+  const labelHasBitrate =
+    option.bitrate > 0 &&
+    new RegExp(`(^|\\D)${option.bitrate}\\s*k`, "i").test(option.label);
+  return (
+    option.label +
+    (option.format ? ` · ${option.format.toUpperCase()}` : "") +
+    (option.bitrate && !labelHasBitrate ? ` · ${option.bitrate} kbps` : "")
+  );
+}
+
+function populateAudioQualityDefaults(preferred) {
+  const container = document.getElementById("setting-audio-quality-sources");
+  const preferredDefaults = normalizeAudioQualityDefaults(preferred);
+  const currentDefaults = normalizeAudioQualityDefaults(
+    webSettings.audioQualityDefaults,
+  );
+  const extraSources = [
+    ...new Set([
+      ...Object.keys(audioQualityChoices),
+      ...Object.keys(audioQualityOptions),
+    ]),
+  ].filter((source) => !AUDIO_QUALITY_SOURCES.includes(source));
+  const result = {};
+  if (!container) return {...currentDefaults, ...preferredDefaults};
+
+  container.replaceChildren();
+  for (const source of [...AUDIO_QUALITY_SOURCES, ...extraSources]) {
+    const hasRuntimeChoices = Object.prototype.hasOwnProperty.call(
+      audioQualityChoices,
+      source,
+    );
+    const hasRuntimeOptions = Object.prototype.hasOwnProperty.call(
+      audioQualityOptions,
+      source,
+    );
+    const availableOptions = hasRuntimeOptions
+      ? audioQualityOptions[source] || []
+      : [];
+    let choices = hasRuntimeChoices ? audioQualityChoices[source] || [] : [];
+    if (!choices.length && availableOptions.length) {
+      choices = availableOptions;
+    }
+    if (!choices.length && !hasRuntimeChoices) {
+      choices = DEFAULT_AUDIO_QUALITY_OPTIONS.filter(
+        (option) =>
+          option.value === "high" || option.value === "standard",
+      );
+    }
+
+    const row = document.createElement("div");
+    row.className = "audio-quality-source-row";
+    const label = document.createElement("strong");
+    label.className = "audio-quality-source-label";
+    label.textContent = AUDIO_QUALITY_SOURCE_LABELS[source] || source;
+    row.appendChild(label);
+
+    const group = document.createElement("div");
+    group.id = `setting-audio-quality-${source}`;
+    group.className = "audio-quality-choice-group";
+    group.setAttribute("role", "radiogroup");
+    group.setAttribute(
+      "aria-label",
+      `${AUDIO_QUALITY_SOURCE_LABELS[source] || source}默认音质`,
+    );
+    group.setAttribute(
+      "aria-describedby",
+      "setting-default-audio-quality-hint",
+    );
+    const availableValues = new Set(
+      availableOptions.map((option) => option.value),
+    );
+    const requested = normalizeAudioQuality(
+      preferredDefaults[source] ||
+        currentDefaults[source] ||
+        webSettings.defaultAudioQuality ||
+        DEFAULT_AUDIO_QUALITY,
+    );
+    const selectedValue = availableValues.has(requested)
+      ? requested
+      : availableValues.has(DEFAULT_AUDIO_QUALITY)
+        ? DEFAULT_AUDIO_QUALITY
+        : availableOptions[0]?.value || "";
+    if (selectedValue) result[source] = selectedValue;
+
+    for (const option of choices) {
+      const available = availableValues.has(option.value);
+      const choice = document.createElement("label");
+      choice.className = "audio-quality-choice";
+      choice.classList.toggle("is-disabled", !available);
+      choice.title = available
+        ? audioQualityOptionText(option)
+        : `${audioQualityOptionText(option)}（当前 Cookie 不可用）`;
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = `setting-audio-quality-${source}`;
+      input.value = option.value;
+      input.dataset.audioQualitySource = source;
+      input.dataset.audioQualityValue = option.value;
+      input.checked = available && option.value === selectedValue;
+      input.disabled = !available;
+
+      const text = document.createElement("span");
+      text.textContent = audioQualityOptionText(option);
+      choice.append(input, text);
+      group.appendChild(choice);
+    }
+    row.appendChild(group);
+    if (!availableOptions.length) {
+      const empty = document.createElement("span");
+      empty.className = "audio-quality-source-empty";
+      empty.textContent = "当前 Cookie 无可播放音质";
+      row.appendChild(empty);
+    }
+    container.appendChild(row);
+  }
+  const hint = document.getElementById("setting-default-audio-quality-hint");
+  if (hint) {
+    const warnings = Object.entries(audioQualityWarnings).map(
+      ([source, warning]) =>
+        `${AUDIO_QUALITY_SOURCE_LABELS[source] || source}：${warning}`,
+    );
+    hint.textContent = warnings.length
+      ? `部分平台暂时无法刷新：${warnings.join("；")}`
+      : "全部音质档位始终显示；灰色档位表示当前 Cookie 不可用。单曲缺少所选档位时会自动向下回退到可播放档位。";
+  }
+  return result;
 }
 
 function loadWebSettingsFromCache() {
@@ -955,9 +1306,26 @@ function readPlaybackShortcutSettingsFromForm() {
   return settings;
 }
 
+function readAudioQualityDefaultsFromForm() {
+  const defaults = {};
+  document
+    .querySelectorAll(
+      'input[type="radio"][data-audio-quality-source]:checked:not(:disabled)',
+    )
+    .forEach((input) => {
+      const source = String(input.dataset.audioQualitySource || "")
+        .trim()
+        .toLowerCase();
+      const quality = canonicalAudioQuality(input.value);
+      if (source && quality) defaults[source] = quality;
+    });
+  return defaults;
+}
+
 function applyWebSettings(settings) {
   const wasAutoSwitchInvalidSourcesEnabled =
     isAutoSwitchInvalidSourcesEnabled();
+  applyAudioQualityRuntimeOptions(settings);
   webSettings = normalizeWebSettings(settings);
   persistWebSettingsCache();
 
@@ -971,6 +1339,9 @@ function applyWebSettings(settings) {
   if (downloadLyricsToggle) {
     downloadLyricsToggle.checked = webSettings.downloadLyricsToLocal;
   }
+  webSettings.audioQualityDefaults = populateAudioQualityDefaults(
+    webSettings.audioQualityDefaults,
+  );
 
   const webdavEnabledToggle = document.getElementById(
     "setting-webdav-enabled",
@@ -6225,6 +6596,8 @@ async function saveCookies() {
         document.getElementById("setting-download-tip-duration")?.value,
         DEFAULT_DOWNLOAD_TIP_DURATION,
       ),
+      defaultAudioQuality: normalizeAudioQuality(webSettings.defaultAudioQuality),
+      audioQualityDefaults: readAudioQualityDefaultsFromForm(),
       webdavEnabled: !!document.getElementById("setting-webdav-enabled")
         ?.checked,
       webdavUrl: document.getElementById("setting-webdav-url")?.value || "",
@@ -6310,24 +6683,46 @@ async function saveCookies() {
   });
 
   try {
-    const [cookiesResponse, settingsResponse] = await Promise.all([
-      fetch(API_ROOT + "/cookies", {
+    const [cookiesResponse, settingsResponse] = await (async () => {
+      const cookiesResponse = await fetch(API_ROOT + "/cookies", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
         body: JSON.stringify(data),
-      }),
-      fetch(API_ROOT + "/settings", {
+      });
+      const cookiesPayload = await cookiesResponse.json().catch(() => null);
+      if (handleConfigAuthResponse(cookiesResponse, cookiesPayload)) {
+        return [cookiesResponse, null];
+      }
+      if (!cookiesResponse.ok) {
+        throw new Error(cookiesPayload?.error || "保存 Cookie 失败，请稍后重试");
+      }
+
+      const qualityResponse = await fetch(API_ROOT + "/settings", {
+        headers: {Accept: "application/json"},
+      });
+      const qualityPayload = await qualityResponse.json().catch(() => null);
+      if (!qualityResponse.ok) {
+        throw new Error(qualityPayload?.error || "读取可用音质失败");
+      }
+      applyAudioQualityRuntimeOptions(qualityPayload);
+      nextSettings.audioQualityDefaults = populateAudioQualityDefaults(
+        nextSettings.audioQualityDefaults,
+      );
+      nextSettings = normalizeWebSettings(nextSettings);
+
+      const settingsResponse = await fetch(API_ROOT + "/settings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
         body: JSON.stringify(nextSettings),
-      }),
-    ]);
+      });
+      return [cookiesResponse, settingsResponse];
+    })();
     const cookiesPayload = await cookiesResponse.json().catch(() => null);
     const savedSettings = await settingsResponse.json().catch(() => null);
     if (

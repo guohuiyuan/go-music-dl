@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 )
 
@@ -94,7 +93,7 @@ func PreparePlaybackSource(song *model.Song) (playURL string, tempFile string, e
 	}
 
 	if song.Source == "migu" {
-		info, infoErr := migu.New(CM.Get("migu")).GetDownloadInfo(song)
+		info, infoErr := ResolveMiguDownloadInfo(song, "")
 		if infoErr != nil {
 			return "", "", infoErr
 		}

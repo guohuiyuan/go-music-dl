@@ -118,14 +118,23 @@ func publicWebSettings() core.WebSettings {
 // webSettingsPayload 在公开设置上追加运行时状态（不落库）：本机签名器是否可用。
 type webSettingsPayload struct {
 	core.WebSettings
-	SodaLocalSignerAvailable bool `json:"sodaLocalSignerAvailable"`
+	SodaLocalSignerAvailable bool                                  `json:"sodaLocalSignerAvailable"`
+	AudioQualityChoices      map[string][]model.AudioQualityOption `json:"audioQualityChoices"`
+	AudioQualityOptions      map[string][]model.AudioQualityOption `json:"audioQualityOptions"`
+	AudioQualityWarnings     map[string]string                     `json:"audioQualityWarnings,omitempty"`
 }
 
 func publicWebSettingsPayload() webSettingsPayload {
-	return webSettingsPayload{
+	qualityChoices := core.GetAllAudioQualityChoices()
+	qualityOptions, qualityWarnings := core.GetAllAudioQualityOptions()
+	payload := webSettingsPayload{
 		WebSettings:              publicWebSettings(),
 		SodaLocalSignerAvailable: core.LocalSodaSignerAvailable(),
+		AudioQualityChoices:      qualityChoices,
+		AudioQualityOptions:      qualityOptions,
+		AudioQualityWarnings:     qualityWarnings,
 	}
+	return payload
 }
 
 func asciiDownloadFilenameFallback(filename string) string {
