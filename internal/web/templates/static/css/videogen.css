@@ -140,29 +140,31 @@
 #vg-seek-bar {
     background: linear-gradient(
         to right,
-        #10b981 var(--vg-progress, 0%),
+        var(--primary-color) var(--vg-progress, 0%),
         rgba(255,255,255,0.2) var(--vg-progress, 0%)
     );
 }
 .vg-seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
-    background: #fff; border: 2px solid #10b981; cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    background: #fff; border: 2px solid var(--primary-color); cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 .vg-seek-bar::-moz-range-thumb {
     width: 10px; height: 10px; border-radius: 50%;
-    background: #fff; border: 2px solid #10b981; cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    background: #fff; border: 2px solid var(--primary-color); cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 
 .vg-controls { display: flex; gap: 15px; align-items: center; z-index: 2; justify-content: center; }
 
 .vg-speed-group { position: relative; margin-left: 6px; }
-.vg-speed-button { flex: 0 0 48px; width: 48px; height: 30px; padding: 0 6px; border: 1px solid rgba(52,211,153,.75); border-radius: 8px; background: rgba(16,185,129,.22); color: rgba(255,255,255,.95); cursor: pointer; font-size: 12px; font-weight: 700; text-align: center; box-sizing: border-box; transition: background .2s, border-color .2s; }
-.vg-speed-button:hover { background: rgba(16,185,129,.4); border-color: #6ee7b7; }
-.vg-speed-button:focus-visible { outline: 2px solid #a7f3d0; outline-offset: 2px; }
-.vg-speed-menu { position: absolute; right: 0; top: calc(100% + 8px); display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; width: max-content; max-width: min(160px, calc(100vw - 40px)); padding: 4px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); z-index: 30; }
+.vg-speed-button { flex: 0 0 48px; width: 48px; height: 30px; padding: 0 6px; border: 1px solid rgba(var(--primary-light-rgb), .75); border-radius: 8px; background: rgba(var(--primary-rgb), .22); color: rgba(255,255,255,.95); cursor: pointer; font-size: 12px; font-weight: 700; text-align: center; box-sizing: border-box; transition: background .2s, border-color .2s; }
+.vg-speed-button:hover { background: rgba(var(--primary-rgb), .4); border-color: var(--primary-light); }
+.vg-speed-button:focus-visible { outline: 2px solid var(--primary-border); outline-offset: 2px; }
+.vg-speed-menu { position: absolute; right: 0; top: calc(100% + 8px); display: block; width: 196px; max-width: calc(100vw - 40px); padding: 10px 12px 9px; border: 1px solid rgba(255,255,255,.3); border-radius: 11px; background: rgba(0,0,0,.72); backdrop-filter: blur(8px); z-index: 30; }
 .vg-speed-menu[hidden] { display: none; }
-.vg-speed-option { flex: 0 0 auto; min-width: 40px; border: 0; padding: 6px 8px; background: transparent; color: #fff; cursor: pointer; border-radius: 5px; text-align: center; }
-.vg-speed-option:hover, .vg-speed-option.active { background: rgba(72,187,120,.75); }
+.vg-speed-menu .vg-speed-header { color: rgba(255,255,255,.78); }
+.vg-speed-menu .vg-speed-header output { color: var(--primary-light); }
+.vg-speed-menu .vg-speed-scale { color: rgba(255,255,255,.55); }
+.vg-speed-menu .vg-speed-slider { accent-color: var(--primary-light); }
 
 .vg-btn-icon {
     width: 50px; height: 50px; border-radius: 50%; 
@@ -246,10 +248,10 @@
     font-weight: 800;
     color: #ffffff;
     text-shadow:
-        -1px -1px 0 #10b981, 1px -1px 0 #10b981,
-        -1px  1px 0 #10b981, 1px  1px 0 #10b981,
-         0px -1px 0 #10b981, 0px  1px 0 #10b981,
-        -1px  0px 0 #10b981, 1px  0px 0 #10b981;
+        -1px -1px 0 var(--primary-color), 1px -1px 0 var(--primary-color),
+        -1px  1px 0 var(--primary-color), 1px  1px 0 var(--primary-color),
+         0px -1px 0 var(--primary-color), 0px  1px 0 var(--primary-color),
+        -1px  0px 0 var(--primary-color), 1px  0px 0 var(--primary-color);
 }
 
 .vg-word {
@@ -276,20 +278,20 @@
     color: #ffffff;
     -webkit-text-stroke: 0;
     text-shadow:
-        -2px -2px 0 #10b981,  0px -2px 0 #10b981,  2px -2px 0 #10b981,
-         2px  0px 0 #10b981,  2px  2px 0 #10b981,  0px  2px 0 #10b981,
-        -2px  2px 0 #10b981, -2px  0px 0 #10b981,
-        -1px -1px 0 #10b981,  1px -1px 0 #10b981,
-        -1px  1px 0 #10b981,  1px  1px 0 #10b981,
-         0px  3px 0 #10b981,  0px -3px 0 #10b981,
-         3px  0px 0 #10b981, -3px  0px 0 #10b981;
+        -2px -2px 0 var(--primary-color),  0px -2px 0 var(--primary-color),  2px -2px 0 var(--primary-color),
+         2px  0px 0 var(--primary-color),  2px  2px 0 var(--primary-color),  0px  2px 0 var(--primary-color),
+        -2px  2px 0 var(--primary-color), -2px  0px 0 var(--primary-color),
+        -1px -1px 0 var(--primary-color),  1px -1px 0 var(--primary-color),
+        -1px  1px 0 var(--primary-color),  1px  1px 0 var(--primary-color),
+         0px  3px 0 var(--primary-color),  0px -3px 0 var(--primary-color),
+         3px  0px 0 var(--primary-color), -3px  0px 0 var(--primary-color);
 }
 
 /* 播放后：绿字白底圆润边 */
 .vg-word-fill {
     position: absolute;
     top: 0; left: 0; width: 100%;
-    color: #10b981;
+    color: var(--primary-color);
     -webkit-text-stroke: 0;
     text-shadow:
         -2px -2px 0 #ffffff,  0px -2px 0 #ffffff,  2px -2px 0 #ffffff,
@@ -319,10 +321,10 @@
     font-size: 0.58em;
     line-height: 1.4;
     text-shadow:
-        -1px -1px 0 #10b981, 1px -1px 0 #10b981,
-        -1px  1px 0 #10b981, 1px  1px 0 #10b981,
-         0px -1px 0 #10b981, 0px  1px 0 #10b981,
-        -1px  0px 0 #10b981, 1px  0px 0 #10b981;
+        -1px -1px 0 var(--primary-color), 1px -1px 0 var(--primary-color),
+        -1px  1px 0 var(--primary-color), 1px  1px 0 var(--primary-color),
+         0px -1px 0 var(--primary-color), 0px  1px 0 var(--primary-color),
+        -1px  0px 0 var(--primary-color), 1px  0px 0 var(--primary-color);
 }
 
 .vg-line-roma {
@@ -333,10 +335,10 @@
     font-size: 0.46em;
     line-height: 1.35;
     text-shadow:
-        -1px -1px 0 #10b981, 1px -1px 0 #10b981,
-        -1px  1px 0 #10b981, 1px  1px 0 #10b981,
-         0px -1px 0 #10b981, 0px  1px 0 #10b981,
-        -1px  0px 0 #10b981, 1px  0px 0 #10b981;
+        -1px -1px 0 var(--primary-color), 1px -1px 0 var(--primary-color),
+        -1px  1px 0 var(--primary-color), 1px  1px 0 var(--primary-color),
+         0px -1px 0 var(--primary-color), 0px  1px 0 var(--primary-color),
+        -1px  0px 0 var(--primary-color), 1px  0px 0 var(--primary-color);
 }
 
 .vg-line-trans {

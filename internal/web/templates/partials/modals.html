@@ -30,6 +30,46 @@
                     </label>
                     <p class="setting-hint">关闭后，播放音乐时不显示底部悬浮歌词。</p>
                 </div>
+                <div class="cookie-item setting-item appearance-settings">
+                    <div class="settings-section-heading">
+                        <span class="settings-section-icon"><i class="fa-solid fa-palette"></i></span>
+                        <span>
+                            <strong>外观</strong>
+                            <small>主题与颜色即时预览，保存后应用到所有页面</small>
+                        </span>
+                    </div>
+                    <div class="appearance-settings-grid">
+                        <label for="setting-theme-mode">
+                            主题模式
+                            <select id="setting-theme-mode">
+                                <option value="light">浅色</option>
+                                <option value="dark">深色</option>
+                                <option value="system">跟随系统</option>
+                            </select>
+                        </label>
+                        <label for="setting-accent-color">
+                            主色
+                            <span class="color-setting-row">
+                                <input type="color" id="setting-accent-color" value="#10b981" aria-label="自定义主色">
+                                <span class="color-setting-value" id="setting-accent-color-value">#10b981</span>
+                            </span>
+                        </label>
+                        <label for="setting-lyric-highlight-color">
+                            歌词高亮色
+                            <span class="color-setting-row">
+                                <input type="color" id="setting-lyric-highlight-color" value="#10b981" aria-label="自定义歌词高亮色">
+                                <span class="color-setting-value" id="setting-lyric-highlight-color-value">#10b981</span>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="accent-presets" aria-label="主色预设">
+                        <button type="button" class="accent-preset" data-accent-preset="#10b981" aria-label="翡翠绿" aria-pressed="true" style="--swatch:#10b981"></button>
+                        <button type="button" class="accent-preset" data-accent-preset="#3b82f6" aria-label="海蓝" aria-pressed="false" style="--swatch:#3b82f6"></button>
+                        <button type="button" class="accent-preset" data-accent-preset="#8b5cf6" aria-label="紫罗兰" aria-pressed="false" style="--swatch:#8b5cf6"></button>
+                        <button type="button" class="accent-preset" data-accent-preset="#f97316" aria-label="暖橙" aria-pressed="false" style="--swatch:#f97316"></button>
+                        <button type="button" class="accent-preset" data-accent-preset="#ec4899" aria-label="玫红" aria-pressed="false" style="--swatch:#ec4899"></button>
+                    </div>
+                </div>
                 <div class="cookie-item setting-item lyric-appearance-settings">
                     <div class="settings-section-heading">
                         <span class="settings-section-icon"><i class="fa-solid fa-font"></i></span>
@@ -412,10 +452,10 @@
             </div>
 
             <div class="scheduled-playback-presets" aria-label="快速设置停止时间">
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="5">5 分钟后</button>
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="15">15 分钟后</button>
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="30">30 分钟后</button>
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="60">1 小时后</button>
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="5" aria-pressed="false">5 分钟后</button>
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="15" aria-pressed="false">15 分钟后</button>
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="30" aria-pressed="false">30 分钟后</button>
+                <button type="button" class="btn-pill" data-scheduled-playback-minutes="60" aria-pressed="false">1 小时后</button>
             </div>
 
             <div id="scheduled-playback-active" class="scheduled-playback-active" hidden>

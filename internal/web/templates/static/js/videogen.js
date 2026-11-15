@@ -355,6 +355,12 @@
 
                 const karaokeTextColor = "#ffffff";
                 const karaokeAccentColor = "#12bd85";
+                const resolvedKaraokeAccentColor = () => {
+                    const cssColor = getComputedStyle(document.documentElement)
+                        .getPropertyValue("--lyric-highlight-color")
+                        .trim();
+                    return /^#[0-9a-f]{6}$/i.test(cssColor) ? cssColor : karaokeAccentColor;
+                };
                 const karaokeStrokeText = (text, x, y, lineHeight, fillColor, strokeColor, alpha) => {
                     ctx.save();
                     ctx.globalAlpha = alpha;
@@ -376,7 +382,7 @@
                     let cursorX = x;
                     
                     // 第1层：先画一整句的【底层绿边】
-                    ctx.strokeStyle = karaokeAccentColor;
+                    ctx.strokeStyle = resolvedKaraokeAccentColor();
                     words.forEach((word) => {
                         const text = String(word?.text || '');
                         if (text) { ctx.strokeText(text, cursorX, y); cursorX += ctx.measureText(text).width; }
@@ -497,7 +503,7 @@
                 };
 
                 const drawKaraokeLyrics = (timeMs, lx, baseLy, maxWidth) => {
-                    const karaokeFillColor = karaokeAccentColor;
+                    const karaokeFillColor = resolvedKaraokeAccentColor();
                     const createLineLayout = (line, font, lineHeight, useWordProgress) => {
                         if (!line?.text) {
                             return { useWordProgress: false, wordLines: [], textLines: [], lineHeight, height: 0 };
@@ -534,7 +540,7 @@
                         } else {
                             layout.textLines.forEach((lineText, lineIndex) => {
                                 const y = startY + (lineIndex * layout.lineHeight) + layout.lineHeight / 2;
-                                karaokeStrokeText(lineText, x, y, layout.lineHeight, baseColor, karaokeAccentColor, alpha);
+                                karaokeStrokeText(lineText, x, y, layout.lineHeight, baseColor, resolvedKaraokeAccentColor(), alpha);
                             });
                         }
                         return startY + layout.height;
@@ -1079,7 +1085,7 @@
           if (!menu) return;
           menu.hidden = !menu.hidden;
       },
-      setPlaybackRate: function(rate) {
+      setPlaybackRate: function(rate, options = {}) {
           const allowed = Array.isArray(window.PLAYER_SPEEDS) && window.PLAYER_SPEEDS.length
               ? window.PLAYER_SPEEDS
               : [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3];
@@ -1096,11 +1102,15 @@
           if (audio) audio.playbackRate = normalized;
           const button = document.getElementById('vg-speed-button');
           if (button) button.textContent = `${this.playbackRate}x`;
+          const slider = document.getElementById('vg-speed-slider');
+          if (slider) slider.value = String(Math.max(0, allowed.indexOf(this.playbackRate)));
+          const output = document.getElementById('vg-speed-value');
+          if (output) output.textContent = `${this.playbackRate}x`;
           document.querySelectorAll('#vg-speed-menu .vg-speed-option').forEach((option) => {
               option.classList.toggle('active', Number(option.dataset.rate) === this.playbackRate);
           });
           const menu = document.getElementById('vg-speed-menu');
-          if (menu) menu.hidden = true;
+          if (menu && options.keepOpen !== true) menu.hidden = true;
       },
       initSpeedControl: function() {
           const menu = document.getElementById('vg-speed-menu');
@@ -1110,16 +1120,26 @@
               : [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3];
           const current = Number(this.getCurrentPlaybackRate());
           this.playbackRate = allowed.includes(current) ? current : 1;
-          menu.innerHTML = allowed.map((rate) =>
-              `<button type="button" class="vg-speed-option" data-rate="${rate}">${rate}x</button>`
-          ).join('');
+          menu.innerHTML =
+              '<div class="vg-speed-header"><span>播放速度</span><output id="vg-speed-value">' +
+              this.playbackRate +
+              'x</output></div>' +
+              '<input id="vg-speed-slider" class="vg-speed-slider" type="range" min="0" max="' +
+              (allowed.length - 1) +
+              '" step="1" value="' +
+              Math.max(0, allowed.indexOf(this.playbackRate)) +
+              '" aria-label="播放速度">' +
+              '<div class="vg-speed-scale"><span>0.5x</span><span>1x</span><span>3x</span></div>';
           menu.addEventListener('click', (event) => {
-              const option = event.target.closest('.vg-speed-option');
-              if (option) this.setPlaybackRate(option.dataset.rate);
+              event.stopPropagation();
+          });
+          document.getElementById('vg-speed-slider')?.addEventListener('input', (event) => {
+              const rate = allowed[Number(event.target.value)];
+              if (rate) this.setPlaybackRate(rate, { keepOpen: true });
           });
           document.addEventListener('click', () => { menu.hidden = true; });
           menu.dataset.initialized = '1';
-          this.setPlaybackRate(this.playbackRate);
+          this.setPlaybackRate(this.playbackRate, { keepOpen: true });
       },
 
       handleFileSelect: function (input) {

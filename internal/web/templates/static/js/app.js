@@ -41,10 +41,16 @@ const GITHUB_PROXY_PRESETS = [
 const DEFAULT_SHORTCUT_PLAY_PAUSE = "Space";
 const DEFAULT_LYRIC_FONT_FAMILY = "system";
 const DEFAULT_LYRIC_FONT_SIZE = 24;
+const DEFAULT_THEME_MODE = "light";
+const DEFAULT_ACCENT_COLOR = "#10b981";
+const DEFAULT_LYRIC_HIGHLIGHT_COLOR = "#10b981";
+const SYSTEM_THEME_QUERY = window.matchMedia
+  ? window.matchMedia("(prefers-color-scheme: dark)")
+  : null;
 const LYRIC_FONT_FAMILIES = Object.freeze({
   system:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif',
-  sans: '"Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif',
+    '"Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", -apple-system, BlinkMacSystemFont, sans-serif',
+  sans: '"Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", sans-serif',
   serif: '"Songti SC", SimSun, "Noto Serif CJK SC", serif',
   yahei: '"Microsoft YaHei", "PingFang SC", sans-serif',
   pingfang: '"PingFang SC", "Microsoft YaHei", sans-serif',
@@ -98,6 +104,9 @@ let webSettings = {
   shortcutSeekForward: "",
   lyricFontFamily: DEFAULT_LYRIC_FONT_FAMILY,
   lyricFontSize: DEFAULT_LYRIC_FONT_SIZE,
+  themeMode: DEFAULT_THEME_MODE,
+  accentColor: DEFAULT_ACCENT_COLOR,
+  lyricHighlightColor: DEFAULT_LYRIC_HIGHLIGHT_COLOR,
 };
 
 function normalizeWebSettings(raw) {
@@ -141,6 +150,9 @@ function normalizeWebSettings(raw) {
     shortcutSeekForward: "",
     lyricFontFamily: DEFAULT_LYRIC_FONT_FAMILY,
     lyricFontSize: DEFAULT_LYRIC_FONT_SIZE,
+    themeMode: DEFAULT_THEME_MODE,
+    accentColor: DEFAULT_ACCENT_COLOR,
+    lyricHighlightColor: DEFAULT_LYRIC_HIGHLIGHT_COLOR,
   };
 
   if (!raw || typeof raw !== "object") {
@@ -279,6 +291,15 @@ function normalizeWebSettings(raw) {
   if (Number.isInteger(raw.lyricFontSize)) {
     next.lyricFontSize = Math.max(14, Math.min(48, raw.lyricFontSize));
   }
+  next.themeMode = normalizeThemeMode(raw.themeMode);
+  next.accentColor = normalizeWebColor(
+    raw.accentColor,
+    DEFAULT_ACCENT_COLOR,
+  );
+  next.lyricHighlightColor = normalizeWebColor(
+    raw.lyricHighlightColor,
+    DEFAULT_LYRIC_HIGHLIGHT_COLOR,
+  );
   return next;
 }
 
@@ -585,6 +606,192 @@ function normalizeLyricFontSize(value) {
   return Math.max(14, Math.min(48, size));
 }
 
+function normalizeThemeMode(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["light", "dark", "system"].includes(normalized)
+    ? normalized
+    : DEFAULT_THEME_MODE;
+}
+
+function normalizeWebColor(value, fallback) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : fallback;
+}
+
+function resolvedThemeMode() {
+  const mode = normalizeThemeMode(webSettings.themeMode);
+  if (mode !== "system") return mode;
+  return SYSTEM_THEME_QUERY?.matches ? "dark" : "light";
+}
+
+function applyThemeAppearance() {
+  const root = document.documentElement;
+  const accent = normalizeWebColor(
+    webSettings.accentColor,
+    DEFAULT_ACCENT_COLOR,
+  );
+  const lyricHighlight = normalizeWebColor(
+    webSettings.lyricHighlightColor,
+    DEFAULT_LYRIC_HIGHLIGHT_COLOR,
+  );
+  const theme = resolvedThemeMode();
+  const rgb = [1, 3, 5].map((offset) =>
+    Number.parseInt(accent.slice(offset, offset + 2), 16),
+  );
+  const strongRGB = rgb.map((channel) => Math.round(channel * 0.82));
+  const deepRGB = rgb.map((channel) => Math.round(channel * 0.7));
+  const lightRGB = rgb.map((channel) => Math.round(channel + (255 - channel) * 0.24));
+
+  root.dataset.theme = theme;
+  root.dataset.themeMode = normalizeThemeMode(webSettings.themeMode);
+  root.style.colorScheme = theme;
+  root.style.setProperty("--primary-color", accent);
+  root.style.setProperty("--primary-rgb", rgb.join(", "));
+  root.style.setProperty("--primary-strong-rgb", strongRGB.join(", "));
+  root.style.setProperty("--primary-deep-rgb", deepRGB.join(", "));
+  root.style.setProperty("--primary-light-rgb", lightRGB.join(", "));
+  root.style.setProperty(
+    "--primary-strong",
+    `color-mix(in srgb, ${accent} 82%, #000)`,
+  );
+  root.style.setProperty(
+    "--primary-deep",
+    `color-mix(in srgb, ${accent} 70%, #000)`,
+  );
+  root.style.setProperty(
+    "--primary-light",
+    `color-mix(in srgb, ${accent} 76%, #fff)`,
+  );
+  root.style.setProperty(
+    "--primary-soft",
+    `color-mix(in srgb, ${accent} 18%, #fff)`,
+  );
+  root.style.setProperty(
+    "--primary-faint",
+    `color-mix(in srgb, ${accent} 8%, #fff)`,
+  );
+  root.style.setProperty(
+    "--primary-border",
+    `color-mix(in srgb, ${accent} 34%, #fff)`,
+  );
+  root.style.setProperty(
+    "--primary-gradient",
+    `linear-gradient(135deg, color-mix(in srgb, ${accent} 72%, #fff) 0%, color-mix(in srgb, ${accent} 88%, #000) 100%)`,
+  );
+  root.style.setProperty("--lyric-highlight-color", lyricHighlight);
+
+  document
+    .querySelectorAll(
+      ".aplayer-played, .aplayer-thumb, .aplayer-volume, .aplayer-list-cur",
+    )
+    .forEach((element) => {
+      element.style.background = accent;
+    });
+  document.querySelectorAll(".aplayer-pic").forEach((element) => {
+    if (!element.style.backgroundImage || element.style.backgroundImage === "none") {
+      element.style.backgroundColor = accent;
+    }
+  });
+}
+
+function syncAppearanceControls() {
+  const themeInput = document.getElementById("setting-theme-mode");
+  const accentInput = document.getElementById("setting-accent-color");
+  const lyricColorInput = document.getElementById(
+    "setting-lyric-highlight-color",
+  );
+  const accentValue = document.getElementById("setting-accent-color-value");
+  const lyricColorValue = document.getElementById(
+    "setting-lyric-highlight-color-value",
+  );
+  const themeMode = normalizeThemeMode(webSettings.themeMode);
+  const accent = normalizeWebColor(
+    webSettings.accentColor,
+    DEFAULT_ACCENT_COLOR,
+  );
+  const lyricHighlight = normalizeWebColor(
+    webSettings.lyricHighlightColor,
+    DEFAULT_LYRIC_HIGHLIGHT_COLOR,
+  );
+
+  if (themeInput) themeInput.value = themeMode;
+  if (accentInput) accentInput.value = accent;
+  if (lyricColorInput) lyricColorInput.value = lyricHighlight;
+  if (accentValue) accentValue.textContent = accent;
+  if (lyricColorValue) lyricColorValue.textContent = lyricHighlight;
+  document.querySelectorAll("[data-accent-preset]").forEach((button) => {
+    const selected =
+      normalizeWebColor(button.dataset.accentPreset, "") === accent;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
+function bindAppearanceSettingEvents() {
+  const themeInput = document.getElementById("setting-theme-mode");
+  const accentInput = document.getElementById("setting-accent-color");
+  const lyricColorInput = document.getElementById(
+    "setting-lyric-highlight-color",
+  );
+
+  if (themeInput && themeInput.dataset.bound !== "1") {
+    themeInput.dataset.bound = "1";
+    themeInput.addEventListener("change", () => {
+      webSettings.themeMode = normalizeThemeMode(themeInput.value);
+      applyThemeAppearance();
+    });
+  }
+  if (accentInput && accentInput.dataset.bound !== "1") {
+    accentInput.dataset.bound = "1";
+    accentInput.addEventListener("input", () => {
+      webSettings.accentColor = normalizeWebColor(
+        accentInput.value,
+        DEFAULT_ACCENT_COLOR,
+      );
+      applyThemeAppearance();
+      syncAppearanceControls();
+    });
+  }
+  if (lyricColorInput && lyricColorInput.dataset.bound !== "1") {
+    lyricColorInput.dataset.bound = "1";
+    lyricColorInput.addEventListener("input", () => {
+      webSettings.lyricHighlightColor = normalizeWebColor(
+        lyricColorInput.value,
+        DEFAULT_LYRIC_HIGHLIGHT_COLOR,
+      );
+      applyThemeAppearance();
+      syncAppearanceControls();
+    });
+  }
+  document.querySelectorAll("[data-accent-preset]").forEach((button) => {
+    if (button.dataset.bound === "1") return;
+    button.dataset.bound = "1";
+    button.addEventListener("click", () => {
+      const accent = normalizeWebColor(
+        button.dataset.accentPreset,
+        DEFAULT_ACCENT_COLOR,
+      );
+      if (accentInput) accentInput.value = accent;
+      webSettings.accentColor = accent;
+      applyThemeAppearance();
+      syncAppearanceControls();
+    });
+  });
+  if (!document.documentElement.dataset.systemThemeBound && SYSTEM_THEME_QUERY) {
+    document.documentElement.dataset.systemThemeBound = "1";
+    const handleSystemThemeChange = () => {
+      if (normalizeThemeMode(webSettings.themeMode) === "system") {
+        applyThemeAppearance();
+      }
+    };
+    if (typeof SYSTEM_THEME_QUERY.addEventListener === "function") {
+      SYSTEM_THEME_QUERY.addEventListener("change", handleSystemThemeChange);
+    } else if (typeof SYSTEM_THEME_QUERY.addListener === "function") {
+      SYSTEM_THEME_QUERY.addListener(handleSystemThemeChange);
+    }
+  }
+}
+
 function lyricFontCSSValue(family) {
   return (
     LYRIC_FONT_FAMILIES[normalizeLyricFontFamily(family)] ||
@@ -597,6 +804,7 @@ function applyLyricAppearance() {
   const size = normalizeLyricFontSize(webSettings.lyricFontSize);
   document.documentElement.style.setProperty("--lyric-font-family", family);
   document.documentElement.style.setProperty("--lyric-font-size", `${size}px`);
+  applyThemeAppearance();
 }
 
 function updateLyricFontPreview(family, size) {
@@ -844,6 +1052,9 @@ function applyWebSettings(settings) {
   }
   bindLyricFontSettingEvents();
   syncLyricAppearanceControls();
+  bindAppearanceSettingEvents();
+  syncAppearanceControls();
+  applyThemeAppearance();
   bindPlaybackShortcutSettingEvents();
   syncPlaybackShortcutControls();
 
@@ -1622,7 +1833,10 @@ function ensureSongActionFold(card) {
   }
 
   Array.from(actions.children).forEach((action) => {
-    if (action.classList.contains("btn-dl")) {
+    if (
+      action.classList.contains("btn-dl") &&
+      !action.classList.contains("btn-primary-download")
+    ) {
       moreActions.appendChild(action);
     }
   });
@@ -1965,8 +2179,162 @@ function syncRightToolbar(nextDoc, currentContainer) {
   } else if (currentContainer) {
     currentContainer.before(nextToolbar.cloneNode(true));
   }
+  initializeRightToolbar();
   bindAuthFloat();
   refreshAuthFloat();
+}
+
+const RIGHT_TOOLBAR_STORAGE_KEY = "musicdl:rightToolbar";
+const rightToolbarMobileMedia = window.matchMedia("(max-width: 768px)");
+
+function readRightToolbarPreference() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(RIGHT_TOOLBAR_STORAGE_KEY) || "null",
+    );
+    return saved && typeof saved === "object" ? saved : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function persistRightToolbarPreference(toolbar, patch = {}) {
+  const previous = readRightToolbarPreference();
+  const next = {
+    ...previous,
+    collapsed: toolbar.classList.contains("is-collapsed"),
+    top: Number.parseFloat(toolbar.style.getPropertyValue("--rt-mobile-top")) || null,
+    ...patch,
+  };
+  try {
+    localStorage.setItem(RIGHT_TOOLBAR_STORAGE_KEY, JSON.stringify(next));
+  } catch (_) {}
+}
+
+function setRightToolbarCollapsed(toolbar, collapsed) {
+  if (!toolbar) return;
+  toolbar.classList.toggle("is-collapsed", Boolean(collapsed));
+  const toggle = toolbar.querySelector(".right-toolbar-toggle");
+  if (!toggle) return;
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  const label = collapsed
+    ? "展开侧边工具栏（可拖动调整位置）"
+    : "折叠侧边工具栏（可拖动调整位置）";
+  toggle.title = label;
+  toggle.setAttribute("aria-label", label);
+  const icon = toggle.querySelector("i");
+  if (icon) {
+    icon.classList.toggle("fa-chevron-left", Boolean(collapsed));
+    icon.classList.toggle("fa-chevron-right", !collapsed);
+  }
+}
+
+function clampRightToolbarTop(value) {
+  const min = 84;
+  const max = Math.max(min, window.innerHeight - 84);
+  return Math.min(max, Math.max(min, Number(value) || window.innerHeight / 2));
+}
+
+function initializeRightToolbar() {
+  const toolbar = document.querySelector(".right-toolbar");
+  const toggle = toolbar?.querySelector(".right-toolbar-toggle");
+  if (!toolbar || !toggle) return;
+
+  const saved = readRightToolbarPreference();
+  if (Number.isFinite(Number(saved.top))) {
+    toolbar.style.setProperty(
+      "--rt-mobile-top",
+      String(clampRightToolbarTop(saved.top)) + "px",
+    );
+  }
+  const collapsed = rightToolbarMobileMedia.matches
+    ? typeof saved.collapsed === "boolean"
+      ? saved.collapsed
+      : true
+    : false;
+  setRightToolbarCollapsed(toolbar, collapsed);
+  if (toggle.dataset.toolbarBound === "1") return;
+  toggle.dataset.toolbarBound = "1";
+
+  let drag = null;
+  let suppressToggleClickUntil = 0;
+  toggle.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const rect = toolbar.getBoundingClientRect();
+    drag = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startedTop: rect.top + rect.height / 2,
+      moved: false,
+    };
+    toggle.setPointerCapture?.(event.pointerId);
+    event.stopPropagation();
+  });
+
+  toggle.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const delta = event.clientY - drag.startY;
+    if (!drag.moved && Math.abs(delta) < 5) return;
+    drag.moved = true;
+    event.preventDefault();
+    toolbar.classList.add("is-dragging");
+    toolbar.style.setProperty(
+      "--rt-mobile-top",
+      String(clampRightToolbarTop(drag.startedTop + delta)) + "px",
+    );
+  });
+
+  const finishDrag = (event, cancelled = false) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const wasMoved = drag.moved;
+    drag = null;
+    toolbar.classList.remove("is-dragging");
+    if (toggle.hasPointerCapture?.(event.pointerId)) {
+      toggle.releasePointerCapture(event.pointerId);
+    }
+    if (!cancelled && wasMoved) {
+      // Do not change layout during pointerup. On touch devices the browser can
+      // retarget the compatibility click after the toolbar recenters, which
+      // makes a collapse gesture activate whichever page button moves under it.
+      suppressToggleClickUntil = performance.now() + 500;
+    }
+    persistRightToolbarPreference(toolbar);
+  };
+
+  toggle.addEventListener("pointerup", (event) => finishDrag(event));
+  toggle.addEventListener("pointercancel", (event) =>
+    finishDrag(event, true),
+  );
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (performance.now() < suppressToggleClickUntil) return;
+    setRightToolbarCollapsed(
+      toolbar,
+      !toolbar.classList.contains("is-collapsed"),
+    );
+    persistRightToolbarPreference(toolbar);
+  });
+}
+
+const handleRightToolbarViewportChange = () => {
+  const toolbar = document.querySelector(".right-toolbar");
+  if (!toolbar) return;
+  if (!rightToolbarMobileMedia.matches) {
+    setRightToolbarCollapsed(toolbar, false);
+    return;
+  }
+  const saved = readRightToolbarPreference();
+  setRightToolbarCollapsed(toolbar, saved.collapsed !== false);
+};
+
+if (typeof rightToolbarMobileMedia.addEventListener === "function") {
+  rightToolbarMobileMedia.addEventListener(
+    "change",
+    handleRightToolbarViewportChange,
+  );
+} else {
+  rightToolbarMobileMedia.addListener(handleRightToolbarViewportChange);
 }
 
 // 结果区顶部至少要有这么多像素可见，才认为用户已经能看到搜索结果。
@@ -2852,6 +3220,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initializeTVMode();
   loadWebSettingsFromCache();
   applyWebSettings(webSettings);
+  initializeRightToolbar();
   bindSettingsTabs();
   bindAuthFloat();
   refreshAuthFloat();
@@ -3711,7 +4080,7 @@ function showDuplicateModal(groups, loading, pagination = {}) {
               url: buildStreamURL(s.id, "local", s.name, s.artist, "", "", ""),
               cover: "",
               lrc: "",
-              theme: "#10b981",
+              theme: webSettings.accentColor,
               custom_id: s.id,
               source: "local",
               duration: s.duration || 0,
@@ -5576,7 +5945,7 @@ function playPlaybackHistoryItem(index) {
     cover: song.cover,
     lrc: lyricURLs.line,
     raw_lrc: lyricURLs.auto,
-    theme: "#10b981",
+    theme: normalizeWebColor(webSettings.accentColor, DEFAULT_ACCENT_COLOR),
     custom_id: song.id,
     source: song.source,
     duration: song.duration,
@@ -5917,6 +6286,17 @@ async function saveCookies() {
       lyricFontSize: normalizeLyricFontSize(
         document.getElementById("setting-lyric-font-size")?.value,
       ),
+      themeMode: normalizeThemeMode(
+        document.getElementById("setting-theme-mode")?.value,
+      ),
+      accentColor: normalizeWebColor(
+        document.getElementById("setting-accent-color")?.value,
+        DEFAULT_ACCENT_COLOR,
+      ),
+      lyricHighlightColor: normalizeWebColor(
+        document.getElementById("setting-lyric-highlight-color")?.value,
+        DEFAULT_LYRIC_HIGHLIGHT_COLOR,
+      ),
     });
   } catch (error) {
     setShortcutCaptureStatus(error.message, true);
@@ -6119,8 +6499,8 @@ function floatPageNumClick() {
   input.style.textAlign = "center";
   input.style.fontSize = "13px";
   input.style.fontWeight = "700";
-  input.style.color = "#10b981";
-  input.style.border = "2px solid #10b981";
+  input.style.color = webSettings.accentColor;
+  input.style.border = `2px solid ${webSettings.accentColor}`;
   input.style.borderRadius = "6px";
   input.style.outline = "none";
   input.style.background = "white";
@@ -6175,6 +6555,35 @@ function getCurrentAPlayerAudio() {
   const index = ap.list.index;
   if (typeof index !== "number" || index < 0) return null;
   return ap.list.audios[index] || null;
+}
+
+function syncCurrentMediaDuration() {
+  const playerAudio = getCurrentAPlayerAudio();
+  const duration = Number(ap?.audio?.duration);
+  if (
+    !playerAudio ||
+    !Number.isFinite(duration) ||
+    duration <= 0 ||
+    duration > 24 * 60 * 60
+  ) {
+    return;
+  }
+
+  playerAudio.duration = duration;
+  const card = findSongCardById(getPlaybackCardID(playerAudio));
+  if (card) {
+    card.dataset.duration = String(duration);
+    card.dataset.sortDuration = String(Math.round(duration));
+    const tag = card.querySelector(".tag-duration");
+    if (tag) tag.textContent = formatDuration(duration);
+  }
+  if (
+    window.VideoGen?.data &&
+    window.VideoGen.data.id ===
+      String(playerAudio.custom_id || playerAudio.original_id || "")
+  ) {
+    window.VideoGen.data.duration = duration;
+  }
 }
 
 function getPlaybackCardID(audio) {
@@ -7007,7 +7416,7 @@ try {
     container: document.getElementById("aplayer"),
     fixed: true,
     autoplay: false,
-    theme: "#10b981",
+    theme: webSettings.accentColor,
     loop: "all",
     order: "list",
     preload: "metadata",
@@ -7027,6 +7436,10 @@ let scheduledPlaybackTimer = null;
 let scheduledPlaybackTicker = null;
 let scheduledPlaybackTriggering = false;
 let scheduledPlaybackPresetNextAt = 0;
+let scheduledPlaybackEditingPresetMinutes = 0;
+let scheduledPlaybackWaitingForTrackEnd = false;
+let scheduledPlaybackWaitingEndedHandler = null;
+let scheduledPlaybackWaitingTargetAt = 0;
 
 function parseScheduledPlaybackTime(value) {
   const match = String(value || "")
@@ -7059,7 +7472,12 @@ function normalizeScheduledPlayback(raw, now = Date.now()) {
   if (!parsed) return null;
   const nextAt = Number(raw.nextAt);
   if (!Number.isFinite(nextAt) || nextAt <= now) return null;
-  return { time: parsed.time, nextAt };
+  const presetMinutes = Number(raw.presetMinutes);
+  return {
+    time: parsed.time,
+    nextAt,
+    ...([5, 15, 30, 60].includes(presetMinutes) ? { presetMinutes } : {}),
+  };
 }
 
 function readScheduledPlayback() {
@@ -7137,10 +7555,27 @@ function formatScheduledPlaybackBadge(timestamp) {
   return `${totalSeconds}s`;
 }
 
+function syncScheduledPlaybackPresetButtons() {
+  const presetMinutes = Number(
+    scheduledPlaybackEditingPresetMinutes ||
+      scheduledPlayback?.presetMinutes ||
+      0,
+  );
+  document
+    .querySelectorAll("[data-scheduled-playback-minutes]")
+    .forEach((button) => {
+      const selected =
+        Number(button.dataset.scheduledPlaybackMinutes) === presetMinutes;
+      button.setAttribute("aria-pressed", String(selected));
+    });
+}
+
 function updateScheduledPlaybackUI() {
-  const active = Boolean(scheduledPlayback);
+  const waiting = scheduledPlaybackWaitingForTrackEnd;
+  const active = Boolean(scheduledPlayback) || waiting;
   const button = document.getElementById("scheduled-playback-toolbar-button");
   const badge = document.getElementById("scheduled-playback-toolbar-badge");
+  const status = document.querySelector(".scheduled-playback-status");
   const statusTitle = document.getElementById("scheduled-playback-status-title");
   const statusCopy = document.getElementById("scheduled-playback-status-copy");
   const activePanel = document.getElementById("scheduled-playback-active");
@@ -7151,35 +7586,60 @@ function updateScheduledPlaybackUI() {
 
   if (button) {
     button.classList.toggle("is-scheduled", active);
-    const label = active
-      ? `定时停止：${formatScheduledPlaybackDate(
-          scheduledPlayback.nextAt,
-        )}，还有 ${formatScheduledPlaybackCountdown(scheduledPlayback.nextAt)}`
-      : "定时停止";
+    button.classList.toggle("is-waiting", waiting);
+    button.setAttribute("aria-pressed", String(active));
+    const label = waiting
+      ? "定时停止：等待当前歌曲播放结束后暂停"
+      : active
+        ? "定时停止：" +
+          formatScheduledPlaybackDate(scheduledPlayback.nextAt) +
+          "，还有 " +
+          formatScheduledPlaybackCountdown(scheduledPlayback.nextAt)
+        : "定时停止";
     button.title = label;
     button.setAttribute("aria-label", label);
   }
   if (badge) {
     badge.hidden = !active;
-    badge.textContent = active
-      ? formatScheduledPlaybackBadge(scheduledPlayback.nextAt)
-      : "";
+    badge.textContent = waiting
+      ? "等待"
+      : active
+        ? formatScheduledPlaybackBadge(scheduledPlayback.nextAt)
+        : "";
   }
+  status?.classList.toggle("is-waiting", waiting);
   if (statusTitle && statusCopy) {
-    statusTitle.textContent = active ? "已设置定时停止" : "尚未设置定时停止";
-    statusCopy.textContent = active
-      ? `${formatScheduledPlaybackDate(scheduledPlayback.nextAt)}自动暂停播放`
-      : "选择时间后，播放器会在到点时自动暂停，播放清单会保留。";
+    statusTitle.textContent = waiting
+      ? "等待当前歌曲结束"
+      : active
+        ? "已设置定时停止"
+        : "尚未设置定时停止";
+    statusCopy.textContent = waiting
+      ? "定时时间已到；当前歌曲自然播放结束后将自动暂停。"
+      : active
+        ? formatScheduledPlaybackDate(scheduledPlayback.nextAt) +
+          "到达后，当前歌曲播放完毕再暂停"
+        : "选择时间后，到点时会等当前歌曲播放完毕再暂停，播放清单会保留。";
   }
   if (activePanel) activePanel.hidden = !active;
   if (activeTarget && activeCountdown && active) {
-    activeTarget.textContent = formatScheduledPlaybackDate(
-      scheduledPlayback.nextAt,
-    );
-    activeCountdown.textContent = `还有 ${formatScheduledPlaybackCountdown(
-      scheduledPlayback.nextAt,
-    )}`;
+    if (waiting) {
+      activeTarget.textContent = "等待当前歌曲播放结束";
+      activeCountdown.textContent = scheduledPlaybackWaitingTargetAt
+        ? "定时时间 " +
+          formatScheduledPlaybackDate(scheduledPlaybackWaitingTargetAt) +
+          " 已到"
+        : "播放停止后，定时任务结束";
+    } else {
+      activeTarget.textContent = formatScheduledPlaybackDate(
+        scheduledPlayback.nextAt,
+      );
+      activeCountdown.textContent =
+        "还有 " +
+        formatScheduledPlaybackCountdown(scheduledPlayback.nextAt);
+    }
   }
+  syncScheduledPlaybackPresetButtons();
 }
 
 function scheduleScheduledPlaybackWake() {
@@ -7206,9 +7666,23 @@ function checkScheduledPlayback() {
   void triggerScheduledPlayback();
 }
 
+function clearScheduledPlaybackWait() {
+  if (scheduledPlaybackWaitingEndedHandler && ap?.audio) {
+    ap.audio.removeEventListener(
+      "ended",
+      scheduledPlaybackWaitingEndedHandler,
+      true,
+    );
+  }
+  scheduledPlaybackWaitingEndedHandler = null;
+  scheduledPlaybackWaitingForTrackEnd = false;
+  scheduledPlaybackWaitingTargetAt = 0;
+}
+
 function triggerScheduledPlayback() {
   if (!scheduledPlayback || scheduledPlaybackTriggering) return;
   scheduledPlaybackTriggering = true;
+  const scheduledTargetAt = scheduledPlayback.nextAt;
   scheduledPlayback = null;
   persistScheduledPlayback();
   scheduleScheduledPlaybackWake();
@@ -7219,14 +7693,58 @@ function triggerScheduledPlayback() {
       throw new Error("播放器尚未准备好");
     }
     const wasPlaying = !ap.audio.paused && !ap.audio.ended;
-    ap.pause();
-    showToast(
-      wasPlaying ? "定时停止已执行" : "定时停止已触发",
-      wasPlaying ? "播放器已暂停，播放清单会保留。" : "播放器当前已经处于暂停状态。",
-      wasPlaying ? "success" : "info",
-      5000,
-    );
+    if (wasPlaying) {
+      clearScheduledPlaybackWait();
+      scheduledPlaybackWaitingForTrackEnd = true;
+      scheduledPlaybackWaitingTargetAt = scheduledTargetAt;
+      const audio = ap.audio;
+      const handleEnded = (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        audio.removeEventListener("ended", handleEnded, true);
+        scheduledPlaybackWaitingEndedHandler = null;
+        scheduledPlaybackWaitingForTrackEnd = false;
+        scheduledPlaybackWaitingTargetAt = 0;
+        try {
+          ap.pause();
+        } catch (_) {}
+        currentPlayingId = null;
+        window.currentPlayingId = null;
+        highlightCard(null);
+        syncAllPlayButtons();
+        syncTaskbarPlaybackState();
+        scheduleMediaSessionSync(getCurrentAPlayerAudio(), 180);
+        KaraokeLyrics.hide();
+        updateScheduledPlaybackUI();
+        showToast(
+          "定时停止已执行",
+          "当前歌曲已经播放完毕，播放器已暂停，播放清单会保留。",
+          "success",
+          5000,
+        );
+      };
+      scheduledPlaybackWaitingEndedHandler = handleEnded;
+      audio.addEventListener("ended", handleEnded, {
+        capture: true,
+        once: true,
+      });
+      showToast(
+        "等待当前歌曲结束",
+        "定时时间已到；当前歌曲播放结束后会自动暂停。",
+        "info",
+        5000,
+      );
+    } else {
+      ap.pause();
+      showToast(
+        "定时停止已触发",
+        "播放器当前已经处于暂停状态。",
+        "info",
+        5000,
+      );
+    }
   } catch (error) {
+    clearScheduledPlaybackWait();
     showToast(
       "定时停止失败",
       error?.message || "无法暂停播放器，请手动点击暂停按钮。",
@@ -7256,15 +7774,25 @@ function applyScheduledPlaybackPreset(minutes) {
   const input = document.getElementById("scheduled-playback-time");
   if (!input) return;
   scheduledPlaybackPresetNextAt = target.getTime();
+  scheduledPlaybackEditingPresetMinutes = duration;
   input.value = `${String(target.getHours()).padStart(2, "0")}:${String(
     target.getMinutes(),
   ).padStart(2, "0")}`;
+  document
+    .querySelectorAll("[data-scheduled-playback-minutes]")
+    .forEach((button) => {
+      button.setAttribute(
+        "aria-pressed",
+        String(Number(button.dataset.scheduledPlaybackMinutes) === duration),
+      );
+    });
 }
 
 function openScheduledPlaybackModal() {
   const modal = document.getElementById("scheduledPlaybackModal");
   const timeInput = document.getElementById("scheduled-playback-time");
   scheduledPlaybackPresetNextAt = 0;
+  scheduledPlaybackEditingPresetMinutes = 0;
   if (timeInput) {
     timeInput.value =
       scheduledPlayback?.time || timeInput.value || defaultScheduledPlaybackTime();
@@ -7291,18 +7819,28 @@ function saveScheduledPlayback(event) {
     scheduledPlaybackPresetNextAt > Date.now()
       ? scheduledPlaybackPresetNextAt
       : nextScheduledPlaybackTimestamp(parsed.time);
+  const selectedPreset = Array.from(
+    document.querySelectorAll("[data-scheduled-playback-minutes]"),
+  ).find((button) => button.getAttribute("aria-pressed") === "true");
+  const presetMinutes =
+    scheduledPlaybackPresetNextAt > Date.now() && selectedPreset
+      ? Number(selectedPreset.dataset.scheduledPlaybackMinutes)
+      : 0;
   scheduledPlayback = {
     time: parsed.time,
     nextAt,
+    ...(presetMinutes > 0 ? { presetMinutes } : {}),
   };
   scheduledPlaybackPresetNextAt = 0;
+  scheduledPlaybackEditingPresetMinutes = 0;
   persistScheduledPlayback();
   scheduleScheduledPlaybackWake();
   updateScheduledPlaybackUI();
   closeScheduledPlaybackModal();
   showToast(
     "定时停止已设置",
-    `${formatScheduledPlaybackDate(scheduledPlayback.nextAt)}自动暂停播放。请保持页面运行。`,
+    formatScheduledPlaybackDate(scheduledPlayback.nextAt) +
+      "到达后，当前歌曲播放完毕再暂停。请保持页面运行。",
     "success",
     5000,
   );
@@ -7310,8 +7848,10 @@ function saveScheduledPlayback(event) {
 }
 
 function cancelScheduledPlayback(showFeedback = true) {
+  clearScheduledPlaybackWait();
   scheduledPlayback = null;
   scheduledPlaybackPresetNextAt = 0;
+  scheduledPlaybackEditingPresetMinutes = 0;
   persistScheduledPlayback();
   scheduleScheduledPlaybackWake();
   updateScheduledPlaybackUI();
@@ -7344,10 +7884,14 @@ function initializeScheduledPlayback() {
     });
 
   document
-    .getElementById("scheduled-playback-time")
-    ?.addEventListener("input", () => {
-      scheduledPlaybackPresetNextAt = 0;
-    });
+      .getElementById("scheduled-playback-time")
+      ?.addEventListener("input", () => {
+        scheduledPlaybackPresetNextAt = 0;
+        scheduledPlaybackEditingPresetMinutes = 0;
+        document
+          .querySelectorAll("[data-scheduled-playback-minutes]")
+          .forEach((button) => button.setAttribute("aria-pressed", "false"));
+      });
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) checkScheduledPlayback();
@@ -7366,7 +7910,10 @@ function initializeScheduledPlayback() {
 window.musicDlScheduledStop = {
   open: openScheduledPlaybackModal,
   cancel: cancelScheduledPlayback,
-  getState: () => (scheduledPlayback ? { ...scheduledPlayback } : null),
+  getState: () => ({
+    schedule: scheduledPlayback ? { ...scheduledPlayback } : null,
+    waitingForTrackEnd: scheduledPlaybackWaitingForTrackEnd,
+  }),
 };
 
 initializeScheduledPlayback();
@@ -7492,11 +8039,64 @@ function syncPlayerTrackActions(player) {
   }
 }
 
+function ensureAplayerVolumeTooltip(player) {
+  const volumeWrap = player?.querySelector(".aplayer-volume-wrap");
+  const barWrap = volumeWrap?.querySelector(".aplayer-volume-bar-wrap");
+  const bar = barWrap?.querySelector(".aplayer-volume-bar");
+  if (!volumeWrap || !barWrap || !bar) return;
+
+  let tooltip = barWrap.querySelector(".aplayer-volume-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("span");
+    tooltip.className = "aplayer-volume-tooltip";
+    tooltip.setAttribute("aria-hidden", "true");
+    tooltip.textContent = Math.round((Number(ap?.audio?.volume) || 0) * 100) + "%";
+    barWrap.appendChild(tooltip);
+  }
+  if (barWrap.dataset.volumeTooltipBound === "1") return;
+  barWrap.dataset.volumeTooltipBound = "1";
+
+  let pointerId = null;
+  const updateTooltip = (event) => {
+    const rect = bar.getBoundingClientRect();
+    if (!rect.height) return;
+    const ratio = Math.min(
+      1,
+      Math.max(0, 1 - (event.clientY - rect.top) / rect.height),
+    );
+    tooltip.textContent = Math.round(ratio * 100) + "%";
+  };
+  const finishVolumeDrag = (event) => {
+    if (pointerId !== null && event.pointerId !== pointerId) return;
+    if (barWrap.hasPointerCapture?.(event.pointerId)) {
+      barWrap.releasePointerCapture(event.pointerId);
+    }
+    pointerId = null;
+    volumeWrap.classList.remove("is-adjusting");
+  };
+
+  barWrap.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    pointerId = event.pointerId;
+    volumeWrap.classList.add("is-adjusting");
+    barWrap.setPointerCapture?.(event.pointerId);
+    updateTooltip(event);
+  });
+  barWrap.addEventListener("pointermove", (event) => {
+    if (pointerId === null || event.pointerId !== pointerId) return;
+    updateTooltip(event);
+  });
+  barWrap.addEventListener("pointerup", finishVolumeDrag);
+  barWrap.addEventListener("pointercancel", finishVolumeDrag);
+  barWrap.addEventListener("lostpointercapture", finishVolumeDrag);
+}
+
 function syncPlayerTrackControls() {
   const player = document.querySelector(".aplayer.aplayer-fixed");
   const hasTracks = Boolean(ap?.list?.audios?.length);
   player?.classList.toggle("is-empty", !hasTracks);
   if (!player) return;
+  ensureAplayerVolumeTooltip(player);
   syncPlayerTrackActions(player);
   syncPlaybackQueueControls(player);
 
@@ -7842,6 +8442,15 @@ function applyPlayerPlaybackRate(rate) {
   }
   const btn = document.querySelector(".player-speed-btn");
   if (btn) btn.textContent = `${normalized}x`;
+  const speedIndex = Math.max(0, PLAYER_SPEEDS.indexOf(normalized));
+  document
+    .querySelectorAll(".player-speed-slider, #vg-speed-slider")
+    .forEach((slider) => {
+      slider.value = String(speedIndex);
+    });
+  document.querySelectorAll(".player-speed-value").forEach((output) => {
+    output.textContent = `${normalized}x`;
+  });
   document.querySelectorAll(".player-speed-option").forEach((option) => {
     option.classList.toggle(
       "active",
@@ -7905,12 +8514,17 @@ window.applyPlayerPlaybackRate = applyPlayerPlaybackRate;
     const menu = document.createElement("div");
     menu.className = "player-speed-menu";
     menu.hidden = true;
-    menu.innerHTML = PLAYER_SPEEDS.map(
-      (rate) =>
-        `<button type="button" class="player-speed-option${
-          rate === playerSpeed ? " active" : ""
-        }" data-rate="${rate}">${rate}x</button>`,
-    ).join("");
+    menu.innerHTML =
+      '<div class="player-speed-header"><span>播放速度</span>' +
+      '<output class="player-speed-value">' +
+      playerSpeed +
+      'x</output></div>' +
+      '<input class="player-speed-slider" type="range" min="0" max="' +
+      (PLAYER_SPEEDS.length - 1) +
+      '" step="1" value="' +
+      Math.max(0, PLAYER_SPEEDS.indexOf(playerSpeed)) +
+      '" aria-label="播放速度">' +
+      '<div class="player-speed-scale"><span>0.5x</span><span>1x</span><span>3x</span></div>';
 
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -7921,11 +8535,11 @@ window.applyPlayerPlaybackRate = applyPlayerPlaybackRate;
 
     menu.addEventListener("click", (event) => {
       event.stopPropagation();
-      const option = event.target.closest(".player-speed-option");
-      if (!option) return;
-      setPlayerPlaybackRate(Number(option.dataset.rate));
-      menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
+    });
+    const slider = menu.querySelector(".player-speed-slider");
+    slider?.addEventListener("input", () => {
+      const rate = PLAYER_SPEEDS[Number(slider.value)];
+      if (rate) setPlayerPlaybackRate(rate);
     });
 
     document.addEventListener("click", (event) => {
@@ -7958,9 +8572,11 @@ if (ap?.audio) {
   ap.audio.addEventListener("timeupdate", () => KaraokeLyrics.update());
   ap.audio.addEventListener("seeked", () => KaraokeLyrics.update());
   ap.audio.addEventListener("loadedmetadata", () => {
+    syncCurrentMediaDuration();
     KaraokeLyrics.load(getCurrentAPlayerAudio());
     applyPlayerPlaybackRate(playerSpeed);
   });
+  ap.audio.addEventListener("durationchange", syncCurrentMediaDuration);
   ap.audio.addEventListener("emptied", () => {
     applyPlayerPlaybackRate(playerSpeed);
   });
@@ -8656,7 +9272,7 @@ function playbackEntryFromSong(song) {
   return {
     name:playback.name, artist:playback.artist, album:playback.album || "",
     url:buildStreamURL(playback.id, playback.source, playback.name, playback.artist, playback.album || "", playback.cover || "", playback.extra || ""),
-    cover:song.cover || "", lrc:lyrics.line, raw_lrc:lyrics.auto, theme:"#10b981",
+    cover:song.cover || "", lrc:lyrics.line, raw_lrc:lyrics.auto, theme:webSettings.accentColor,
     custom_id:playback.id, original_id:song.id, original_source:song.source,
     source:playback.source, duration:playback.duration || 0, extra:playback.extra || "",
   };
@@ -9064,7 +9680,7 @@ function getSelectedSongs() {
         cover: song.cover,
         lrc: lyricURLs.line,
         raw_lrc: lyricURLs.auto,
-        theme: "#10b981",
+        theme: webSettings.accentColor,
       });
     }
   });

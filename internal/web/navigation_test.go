@@ -291,6 +291,41 @@ func TestAjaxNavigationRefreshesRightToolbarMarkup(t *testing.T) {
 	}
 }
 
+func TestMobileRightToolbarCollapseWaitsForClick(t *testing.T) {
+	content, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatalf("ReadFile(app.js): %v", err)
+	}
+
+	js := string(content)
+	start := strings.Index(js, "function initializeRightToolbar()")
+	end := strings.Index(js, "const handleRightToolbarViewportChange")
+	if start < 0 || end <= start {
+		t.Fatal("app.js missing right toolbar initialization")
+	}
+	toolbarJS := js[start:end]
+	for _, want := range []string{
+		"let suppressToggleClickUntil = 0;",
+		"if (!cancelled && wasMoved) {",
+		"suppressToggleClickUntil = performance.now() + 500;",
+		`toggle.addEventListener("click", (event) => {`,
+		"if (performance.now() < suppressToggleClickUntil) return;",
+	} {
+		if !strings.Contains(toolbarJS, want) {
+			t.Fatalf("right toolbar handler missing click-safe token %q", want)
+		}
+	}
+	for _, unwanted := range []string{
+		"if (!cancelled && !wasMoved) {",
+		"toggle.dataset.suppressClick",
+		"window.setTimeout(() => delete toggle.dataset.suppressClick, 0);",
+	} {
+		if strings.Contains(toolbarJS, unwanted) {
+			t.Fatalf("right toolbar must not change layout during pointerup: %q", unwanted)
+		}
+	}
+}
+
 func TestAppJSPlaybackURLIgnoresEmbedDownloadSetting(t *testing.T) {
 	content, err := templateFS.ReadFile("templates/static/js/app.js")
 	if err != nil {

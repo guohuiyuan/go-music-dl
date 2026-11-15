@@ -65,7 +65,9 @@ func TestVideogenKaraokeColorsMatchPlaybackLyrics(t *testing.T) {
 	for _, want := range []string{
 		`const karaokeTextColor = "#ffffff"`,
 		`const karaokeAccentColor = "#12bd85"`,
-		`karaokeStrokeText(lineText, x, y, layout.lineHeight, baseColor, karaokeAccentColor, alpha)`,
+		`resolvedKaraokeAccentColor`,
+		`--lyric-highlight-color`,
+		`karaokeStrokeText(lineText, x, y, layout.lineHeight, baseColor, resolvedKaraokeAccentColor(), alpha)`,
 		`const blockAlpha = isCurrent ? 1 : 0.72`,
 		`karaokeTextColor`,
 	} {
@@ -81,7 +83,7 @@ func TestVideogenKaraokeColorsMatchPlaybackLyrics(t *testing.T) {
 		".vg-line-trans",
 		"--karaoke-base-color: #ffffff",
 		"color: #ffffff",
-		"-1px -1px 0 #10b981",
+		"-1px -1px 0 var(--primary-color)",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("videogen.css missing playback-matched karaoke color %q", want)

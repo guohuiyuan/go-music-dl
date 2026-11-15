@@ -27,6 +27,9 @@ const (
 	DefaultShortcutPlayPause        = "Space"
 	DefaultLyricFontFamily          = "system"
 	DefaultLyricFontSize            = 24
+	DefaultThemeMode                = "light"
+	DefaultAccentColor              = "#10b981"
+	DefaultLyricHighlightColor      = "#10b981"
 	DefaultUpdateRepoURL            = "https://github.com/guohuiyuan/go-music-dl"
 	DefaultGithubProxyURL           = "https://edgeone.gh-proxy.com"
 	webSettingsKey                  = "web_settings"
@@ -87,6 +90,9 @@ type WebSettings struct {
 	ShortcutSeekForward      string `json:"shortcutSeekForward"`
 	LyricFontFamily          string `json:"lyricFontFamily"`
 	LyricFontSize            int    `json:"lyricFontSize"`
+	ThemeMode                string `json:"themeMode"`
+	AccentColor              string `json:"accentColor"`
+	LyricHighlightColor      string `json:"lyricHighlightColor"`
 }
 
 type WebAuthSettings struct {
@@ -230,6 +236,9 @@ func defaultWebSettings() WebSettings {
 		ShortcutPlayPause:        DefaultShortcutPlayPause,
 		LyricFontFamily:          DefaultLyricFontFamily,
 		LyricFontSize:            DefaultLyricFontSize,
+		ThemeMode:                DefaultThemeMode,
+		AccentColor:              DefaultAccentColor,
+		LyricHighlightColor:      DefaultLyricHighlightColor,
 		// 默认不配远程签名服务：soda 包会优先用本机官方客户端的 bdms.node 签名。
 		SodaSignerURL:   "",
 		SodaSignerToken: "",
@@ -311,6 +320,9 @@ func normalizeWebSettings(settings WebSettings) WebSettings {
 	if settings.LyricFontSize > 48 {
 		settings.LyricFontSize = 48
 	}
+	settings.ThemeMode = normalizeThemeMode(settings.ThemeMode)
+	settings.AccentColor = normalizeWebColor(settings.AccentColor, DefaultAccentColor)
+	settings.LyricHighlightColor = normalizeWebColor(settings.LyricHighlightColor, DefaultLyricHighlightColor)
 	settings.DownloadDir = normalizeWebDownloadDir(settings.DownloadDir)
 	return settings
 }
@@ -323,6 +335,32 @@ func normalizeLyricFontFamily(value string) string {
 	default:
 		return DefaultLyricFontFamily
 	}
+}
+
+func normalizeThemeMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "light", "dark", "system":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return DefaultThemeMode
+	}
+}
+
+func normalizeWebColor(value, fallback string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) == 7 && value[0] == '#' {
+		valid := true
+		for _, char := range value[1:] {
+			if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+				valid = false
+				break
+			}
+		}
+		if valid {
+			return value
+		}
+	}
+	return fallback
 }
 
 func normalizeShortcutBinding(binding string) string {

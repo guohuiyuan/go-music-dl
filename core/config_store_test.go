@@ -260,6 +260,9 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		ShortcutSeekForward:      "Ctrl+Shift+ArrowRight",
 		LyricFontFamily:          "pingfang",
 		LyricFontSize:            28,
+		ThemeMode:                DefaultThemeMode,
+		AccentColor:              DefaultAccentColor,
+		LyricHighlightColor:      DefaultLyricHighlightColor,
 		// 未配置远程签名器时保持为空 = 使用本机签名器；空 Token 保存时保留已保存的值。
 		SodaSignerToken: "",
 	}
@@ -380,6 +383,43 @@ func TestWebSettingsLegacyPayloadUsesCurrentSwitchDefaults(t *testing.T) {
 	}
 	if got.ShortcutPlayPause != DefaultShortcutPlayPause || got.LyricFontFamily != DefaultLyricFontFamily || got.LyricFontSize != DefaultLyricFontSize {
 		t.Fatalf("legacy settings should receive playback setting defaults: %#v", got)
+	}
+	if got.ThemeMode != DefaultThemeMode || got.AccentColor != DefaultAccentColor || got.LyricHighlightColor != DefaultLyricHighlightColor {
+		t.Fatalf("legacy settings should receive appearance defaults: %#v", got)
+	}
+}
+
+func TestWebSettingsAppearanceNormalizationAndPersist(t *testing.T) {
+	baseDir := t.TempDir()
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(baseDir, "data", "settings.db"))
+	t.Setenv("MUSIC_DL_COOKIE_FILE", filepath.Join(baseDir, "data", "cookies.json"))
+	resetConfigStateForTest()
+	t.Cleanup(resetConfigStateForTest)
+
+	normalized := normalizeWebSettings(WebSettings{
+		ThemeMode:           "SYSTEM",
+		AccentColor:         " #AABBCC ",
+		LyricHighlightColor: "#12ef09",
+	})
+	if normalized.ThemeMode != "system" || normalized.AccentColor != "#aabbcc" || normalized.LyricHighlightColor != "#12ef09" {
+		t.Fatalf("appearance normalization mismatch: %#v", normalized)
+	}
+
+	invalid := normalizeWebSettings(WebSettings{
+		ThemeMode:           "sepia",
+		AccentColor:         "red;display:none",
+		LyricHighlightColor: "#fff",
+	})
+	if invalid.ThemeMode != DefaultThemeMode || invalid.AccentColor != DefaultAccentColor || invalid.LyricHighlightColor != DefaultLyricHighlightColor {
+		t.Fatalf("invalid appearance should fall back to defaults: %#v", invalid)
+	}
+
+	if err := SaveWebSettings(normalized); err != nil {
+		t.Fatalf("save appearance settings: %v", err)
+	}
+	got := GetWebSettings()
+	if got.ThemeMode != "system" || got.AccentColor != "#aabbcc" || got.LyricHighlightColor != "#12ef09" {
+		t.Fatalf("saved appearance mismatch: %#v", got)
 	}
 }
 

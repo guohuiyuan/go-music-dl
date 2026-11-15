@@ -11,7 +11,7 @@
     <div class="list-header">
         <div>
             {{ if .ColID }}
-            <span class="result-count" style="font-size: 16px;"><i class="fa-solid fa-folder-open"></i> 正在查看: <span style="color:#10b981; margin-left: 5px;">{{ .ColName }}</span>（共 {{ .TotalCount }} 首）</span>
+            <span class="result-count" style="font-size: 16px;"><i class="fa-solid fa-folder-open"></i> 正在查看: <span style="color:var(--primary-color, #10b981); margin-left: 5px;">{{ .ColName }}</span>（共 {{ .TotalCount }} 首）</span>
             {{ else if eq .SearchType "local_music" }}
             <span class="result-count"><i class="fa-solid fa-music"></i> 本地音乐（共 <span class="count" id="localMusicPageTotal">{{ .TotalCount }}</span> 首）</span>
             {{ else }}
@@ -128,7 +128,7 @@
         <div class="batch-info">
             <div>
                 <label><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this)"> 全选</label>
-                <span style="margin-left: 5px; color: #718096; font-size:12px;">已选 <span id="selected-count" style="color: #10b981; font-weight: bold;">0</span></span>
+                <span style="margin-left: 5px; color: #718096; font-size:12px;">已选 <span id="selected-count" style="color: var(--primary-color, #10b981); font-weight: bold;">0</span></span>
             </div>
             {{ if not $isLocalMusicPage }}
             <button class="btn-pill btn-pill-warn" onclick="selectInvalidSongs()">
@@ -255,6 +255,13 @@
                     <i class="fa-solid fa-play"></i>
                 </button>
 
+                {{ if not $isLocalSong }}
+                <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
+                   id="dl-{{.ID}}" class="btn-circle btn-dl btn-download btn-primary-download" title="保存到本地目录" target="_blank" rel="noopener">
+                    <i class="fa-solid fa-download"></i>
+                </a>
+                {{ end }}
+
                 {{ if $isLocalMusicPage }}
                 <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单"
                         onclick="openAddToCollectionModal(this)">
@@ -325,12 +332,6 @@
                         <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
                     </button>
                     <div class="action-more-menu" role="menu" hidden>
-                        {{ if not $isLocalSong }}
-                        <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
-                           id="dl-{{.ID}}" class="btn-circle btn-dl btn-download" title="保存到本地目录" target="_blank" rel="noopener">
-                            <i class="fa-solid fa-download"></i>
-                        </a>
-                        {{ end }}
                         {{ if not $isLocalSong }}
                         <a href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&album={{urlquery .Album}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
                            id="browser-dl-{{.ID}}" class="btn-circle btn-dl btn-browser-download" title="浏览器下载" target="_blank" rel="noopener">
@@ -406,7 +407,7 @@
     {{ if not .Error }}
     <div class="no-results">
         <i class="fa-solid fa-music" style="font-size: 40px; margin-bottom: 10px; display:block;"></i>
-        <p>未找到符合条件的资源</p>
+        <p>{{ if .PlaylistCategoryCurrent }}“{{ with .PlaylistCategoryCurrent }}{{ .SourceName }} · {{ .CategoryName }}{{ end }}”下暂无歌单{{ else }}未找到符合条件的资源{{ end }}</p>
     </div>
     {{ end }}
 {{ end }}

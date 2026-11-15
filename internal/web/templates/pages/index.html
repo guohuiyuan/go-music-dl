@@ -18,6 +18,9 @@
 
 <!-- 右侧工具栏：设置、历史和本地音乐在所有页面均可使用 -->
 <div class="right-toolbar">
+    <button type="button" id="right-toolbar-toggle" class="right-toolbar-toggle" title="折叠侧边工具栏（可拖动调整位置）" aria-label="折叠侧边工具栏" aria-expanded="true">
+        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+    </button>
     <!-- 功能按钮组 -->
     <div class="rt-btn" onclick="openSystemConfig()" title="系统配置"><i class="fa-solid fa-gear"></i></div>
     <button type="button" id="scheduled-playback-toolbar-button" class="rt-btn rt-btn-scheduled-playback" onclick="openScheduledPlaybackModal()" title="定时停止" aria-label="定时停止" aria-haspopup="dialog" aria-controls="scheduledPlaybackModal">
