@@ -6761,7 +6761,6 @@ async function openSystemConfig(initialTab = "general") {
     beginAppearancePreview(webSettings);
     syncSavedCookieBaselines(cookies || {});
     bindSettingsTabs();
-    setSettingsTab(initialTab);
     setAuthFloatLoggedIn(true);
   } catch (error) {
     if (

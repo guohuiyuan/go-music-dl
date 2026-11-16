@@ -536,6 +536,12 @@ func TestSettingsModalOpensBeforeConfigRequestsFinish(t *testing.T) {
 	if showIndex < 0 || requestIndex < 0 || showIndex > requestIndex {
 		t.Fatal("settings modal must be displayed before configuration requests are awaited")
 	}
+	if strings.Count(body, "setSettingsTab(initialTab)") != 1 {
+		t.Fatal("configuration loading must not reset the user's selected settings tab")
+	}
+	if tabIndex := strings.Index(body, "setSettingsTab(initialTab)"); tabIndex > requestIndex {
+		t.Fatal("initial settings tab must be selected before configuration requests are awaited")
+	}
 	for _, want := range []string{
 		"systemConfigLoadController?.abort()",
 		`saveButton.disabled = loading`,
