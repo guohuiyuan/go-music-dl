@@ -53,6 +53,10 @@ const AUDIO_QUALITY_SOURCES = Object.freeze([
   "qianqian",
   "apple",
   "spotify",
+  "fivesing",
+  "jamendo",
+  "joox",
+  "bilibili",
 ]);
 const AUDIO_QUALITY_SOURCE_LABELS = Object.freeze({
   qq: "QQ 音乐",
@@ -64,6 +68,10 @@ const AUDIO_QUALITY_SOURCE_LABELS = Object.freeze({
   qianqian: "千千音乐",
   apple: "Apple Music",
   spotify: "Spotify",
+  fivesing: "5sing",
+  jamendo: "Jamendo",
+  joox: "JOOX",
+  bilibili: "Bilibili",
 });
 const OPEN_CONFIG_QUERY = "open_config";
 const SCHEDULED_PLAYBACK_STORAGE_KEY = "musicdl:scheduledStop";
@@ -412,9 +420,14 @@ function canonicalAudioQuality(value) {
       return "ultra";
     case "atmos":
     case "q000":
+    case "dolby":
       return "atmos";
     case "spatial":
+    case "sky":
+    case "jyeffect":
       return "spatial";
+    case "vivid":
+      return "vivid";
     case "atmos_51":
     case "spatial_51":
     case "5.1":
@@ -422,6 +435,7 @@ function canonicalAudioQuality(value) {
       return "atmos_51";
     case "master":
     case "ai00":
+    case "jymaster":
       return "master";
     default:
       return "";
@@ -458,6 +472,7 @@ function normalizeAudioQualityOptions(raw) {
     "hires",
     "ultra",
     "spatial",
+    "vivid",
     "atmos",
     "atmos_51",
     "master",
@@ -651,6 +666,20 @@ function populateAudioQualityDefaults(preferred) {
     hint.textContent = warnings.length
       ? `部分平台暂时无法刷新：${warnings.join("；")}`
       : "全部音质档位始终显示；灰色档位表示当前 Cookie 不可用。单曲缺少所选档位时会自动向下回退到可播放档位。";
+  }
+  return result;
+}
+
+function applyHighestAvailableAudioQualityDefaults(preferred, sources) {
+  const result = normalizeAudioQualityDefaults(preferred);
+  for (const rawSource of sources || []) {
+    const source = String(rawSource || "")
+      .trim()
+      .toLowerCase();
+    const highest = canonicalAudioQuality(
+      audioQualityOptions[source]?.[0]?.value,
+    );
+    if (source && highest) result[source] = highest;
   }
   return result;
 }
@@ -6540,7 +6569,7 @@ async function openLatestUpdatePage(target = "download") {
 let systemConfigLoadSequence = 0;
 let systemConfigLoadController = null;
 
-function setSystemConfigLoading(loading) {
+function setSystemConfigLoading(loading, loadingText = "正在加载设置...") {
   const modal = document.getElementById("cookieModal");
   const saveButton = document.getElementById("settings-save-button");
   if (modal) {
@@ -6549,7 +6578,34 @@ function setSystemConfigLoading(loading) {
   if (!saveButton) return;
   saveButton.disabled = loading;
   saveButton.setAttribute("aria-busy", String(loading));
-  saveButton.textContent = loading ? "正在加载设置..." : "保存设置";
+  saveButton.textContent = loading ? loadingText : "保存设置";
+}
+
+function syncSavedCookieBaselines(cookies = {}) {
+  document.querySelectorAll('input[id^="cookie-"]').forEach((input) => {
+    const source = String(input.id || "").replace(/^cookie-/, "");
+    const value = Object.prototype.hasOwnProperty.call(cookies, source)
+      ? String(cookies[source] ?? "")
+      : "";
+    input.value = value;
+    input.dataset.savedCookie = value;
+  });
+}
+
+function changedCookieAudioQualitySources(cookies = {}) {
+  const changed = new Set();
+  document.querySelectorAll('input[id^="cookie-"]').forEach((input) => {
+    const source = String(input.id || "")
+      .replace(/^cookie-/, "")
+      .trim()
+      .toLowerCase();
+    const value = String(cookies[source] ?? "");
+    const savedValue = String(input.dataset.savedCookie ?? "");
+    if (source && value.trim() && value !== savedValue) {
+      changed.add(source);
+    }
+  });
+  return [...changed];
 }
 
 function closeSystemConfig() {
@@ -6597,10 +6653,7 @@ async function openSystemConfig(initialTab = "general") {
     }
     applyWebSettings(settings);
     beginAppearancePreview(webSettings);
-    for (const [k, v] of Object.entries(cookies || {})) {
-      const el = document.getElementById(`cookie-${k}`);
-      if (el) el.value = v;
-    }
+    syncSavedCookieBaselines(cookies || {});
     bindSettingsTabs();
     setSettingsTab(initialTab);
     setAuthFloatLoggedIn(true);
@@ -6735,7 +6788,9 @@ async function saveCookies() {
   document.querySelectorAll('input[id^="cookie-"]').forEach((input) => {
     data[input.id.replace("cookie-", "")] = input.value;
   });
+  const changedCookieSources = changedCookieAudioQualitySources(data);
 
+  setSystemConfigLoading(true, "正在探测可用音质...");
   try {
     const [cookiesResponse, settingsResponse] = await (async () => {
       const cookiesResponse = await fetch(API_ROOT + "/cookies", {
@@ -6762,6 +6817,11 @@ async function saveCookies() {
         throw new Error(qualityPayload?.error || "读取可用音质失败");
       }
       applyAudioQualityRuntimeOptions(qualityPayload);
+      nextSettings.audioQualityDefaults =
+        applyHighestAvailableAudioQualityDefaults(
+          nextSettings.audioQualityDefaults,
+          changedCookieSources,
+        );
       nextSettings.audioQualityDefaults = populateAudioQualityDefaults(
         nextSettings.audioQualityDefaults,
       );
@@ -6801,10 +6861,31 @@ async function saveCookies() {
       await refreshCurrentPageContent({ scroll: false });
     }
     setAuthFloatLoggedIn(true);
-    alert("保存成功");
-    closeSystemConfig();
+    syncSavedCookieBaselines(data);
+    const upgradedSourceLabels = changedCookieSources
+      .filter(
+        (source) =>
+          Object.prototype.hasOwnProperty.call(audioQualityOptions, source) &&
+          audioQualityOptions[source]?.length,
+      )
+      .map((source) => AUDIO_QUALITY_SOURCE_LABELS[source] || source);
+    showToast(
+      "设置已保存",
+      upgradedSourceLabels.length
+        ? `已将 ${upgradedSourceLabels.join("、")} 的默认音质切换为当前可用最高档位。`
+        : "Cookie 与设置已保存。",
+      "success",
+      5000,
+    );
   } catch (error) {
-    alert(error.message || "保存失败，请稍后重试");
+    showToast(
+      "保存失败",
+      error.message || "保存失败，请稍后重试",
+      "error",
+      6000,
+    );
+  } finally {
+    setSystemConfigLoading(false);
   }
 }
 

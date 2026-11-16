@@ -7,6 +7,10 @@ import (
 	"sync"
 
 	"github.com/guohuiyuan/music-lib/apple"
+	"github.com/guohuiyuan/music-lib/bilibili"
+	"github.com/guohuiyuan/music-lib/fivesing"
+	"github.com/guohuiyuan/music-lib/jamendo"
+	"github.com/guohuiyuan/music-lib/joox"
 	"github.com/guohuiyuan/music-lib/kugou"
 	"github.com/guohuiyuan/music-lib/kuwo"
 	"github.com/guohuiyuan/music-lib/migu"
@@ -57,6 +61,10 @@ var audioQualitySourceNames = []string{
 	"qianqian",
 	"apple",
 	"spotify",
+	"fivesing",
+	"jamendo",
+	"joox",
+	"bilibili",
 }
 
 var audioQualitySources = map[string]audioQualitySourceDefinition{
@@ -95,6 +103,22 @@ var audioQualitySources = map[string]audioQualitySourceDefinition{
 	"spotify": {
 		choices:  spotify.ListQualityOptions,
 		provider: func(cookie string) accountAudioQualityProvider { return spotify.New(cookie) },
+	},
+	"fivesing": {
+		choices:  fivesing.ListQualityOptions,
+		provider: func(cookie string) accountAudioQualityProvider { return fivesing.New(cookie) },
+	},
+	"jamendo": {
+		choices:  jamendo.ListQualityOptions,
+		provider: func(cookie string) accountAudioQualityProvider { return jamendo.New(cookie) },
+	},
+	"joox": {
+		choices:  joox.ListQualityOptions,
+		provider: func(cookie string) accountAudioQualityProvider { return joox.New(cookie) },
+	},
+	"bilibili": {
+		choices:  bilibili.ListQualityOptions,
+		provider: func(cookie string) accountAudioQualityProvider { return bilibili.New(cookie) },
 	},
 }
 

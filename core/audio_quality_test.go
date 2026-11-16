@@ -76,11 +76,32 @@ func TestGetAllAudioQualityChoicesCoversEverySupportedSource(t *testing.T) {
 	if !containsAudioQuality(choices["qq"], model.AudioQualityMaster) {
 		t.Fatalf("QQ choices = %#v, want master", choices["qq"])
 	}
+	if !containsAudioQuality(choices["netease"], model.AudioQualityMaster) ||
+		!containsAudioQuality(choices["netease"], model.AudioQualitySpatial) ||
+		!containsAudioQuality(choices["netease"], model.AudioQualityVivid) ||
+		!containsAudioQuality(choices["netease"], model.AudioQualityAtmos) {
+		t.Fatalf("NetEase choices = %#v, want master, spatial, vivid, and atmos", choices["netease"])
+	}
+	if !containsAudioQuality(choices["migu"], model.AudioQualityLossless) {
+		t.Fatalf("Migu choices = %#v, want lossless", choices["migu"])
+	}
 	if !containsAudioQuality(choices["apple"], model.AudioQualityPreview) {
 		t.Fatalf("Apple choices = %#v, want preview", choices["apple"])
 	}
 	if !containsAudioQuality(choices["spotify"], model.AudioQualityPreview) {
 		t.Fatalf("Spotify choices = %#v, want preview", choices["spotify"])
+	}
+	if !containsAudioQuality(choices["fivesing"], model.AudioQualityHigh) {
+		t.Fatalf("5sing choices = %#v, want high", choices["fivesing"])
+	}
+	if !containsAudioQuality(choices["jamendo"], model.AudioQualityLossless) {
+		t.Fatalf("Jamendo choices = %#v, want lossless", choices["jamendo"])
+	}
+	if !containsAudioQuality(choices["joox"], model.AudioQualityLossless) {
+		t.Fatalf("JOOX choices = %#v, want lossless", choices["joox"])
+	}
+	if !containsAudioQuality(choices["bilibili"], model.AudioQualityHiRes) {
+		t.Fatalf("Bilibili choices = %#v, want Hi-Res", choices["bilibili"])
 	}
 }
 

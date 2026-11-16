@@ -541,6 +541,10 @@ func defaultAudioQualityDefaults() map[string]string {
 		"qianqian": DefaultAudioQuality,
 		"apple":    string(model.AudioQualityPreview),
 		"spotify":  string(model.AudioQualityPreview),
+		"fivesing": DefaultAudioQuality,
+		"jamendo":  DefaultAudioQuality,
+		"joox":     DefaultAudioQuality,
+		"bilibili": DefaultAudioQuality,
 	}
 }
 

@@ -419,6 +419,15 @@ func TestDefaultAudioQualityNormalization(t *testing.T) {
 	}
 }
 
+func TestDefaultAudioQualityIncludesEveryQualitySource(t *testing.T) {
+	defaults := defaultAudioQualityDefaults()
+	for _, source := range audioQualitySourceNames {
+		if _, ok := defaults[source]; !ok {
+			t.Fatalf("default audio quality is missing source %q", source)
+		}
+	}
+}
+
 func TestWebSettingsAppearanceNormalizationAndPersist(t *testing.T) {
 	baseDir := t.TempDir()
 	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(baseDir, "data", "settings.db"))
