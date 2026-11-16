@@ -6018,7 +6018,8 @@ async function loadDownloadQueue(page = downloadQueuePage) {
       const labels = {waiting:"等待下载", downloading:"正在下载", success:"下载成功", skipped:"已下载，跳过", failed:"下载失败", canceled:"已取消"};
       list.innerHTML = (data.tasks || []).map(task => {
         const action = task.Status === "waiting" ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'cancel')">取消</button>` : ["failed","canceled"].includes(task.Status) ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'retry')">重试</button>` : "";
-        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${escapeHtml(task.Error || task.Warning || task.Path || task.Directory || "")}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(task.Status)}">${labels[task.Status] || "未知状态"}</span><div class="queue-task-buttons">${action}<button type="button" class="queue-delete-button" onclick="removeDownloadQueueTask(${task.ID})" title="删除任务" aria-label="删除任务：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></div></div></article>`;
+        const reveal = ["success","skipped"].includes(task.Status) ? `<button type="button" class="btn-pill queue-reveal-button" data-reveal-download-queue="${task.ID}" onclick="revealDownloadFile('queue',${task.ID})" title="打开文件目录" aria-label="打开文件目录：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span class="download-action-label">打开文件目录</span></button>` : "";
+        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${escapeHtml(task.Error || task.Warning || task.Path || task.Directory || "")}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(task.Status)}">${labels[task.Status] || "未知状态"}</span><div class="queue-task-buttons">${reveal}${action}<button type="button" class="queue-delete-button" onclick="removeDownloadQueueTask(${task.ID})" title="删除任务" aria-label="删除任务：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></div></div></article>`;
       }).join("") || '<div class="download-records-empty">暂无任务。选择歌曲后点击“批量下载”即可加入队列。</div>';
     }
     const pagination = document.getElementById("download-queue-pagination");
@@ -6042,6 +6043,51 @@ async function downloadQueueAction(id, action) {
     if (!response.ok || data.error) throw new Error(data.error || "操作失败");
     await loadDownloadQueue();
   } catch (error) { showToast("队列操作失败", error.message, "error", downloadNoticeDuration()); }
+}
+
+async function revealDownloadFile(kind, id) {
+  const numericID = Number(id);
+  if (!Number.isInteger(numericID) || numericID <= 0) return;
+  const endpoints = {
+    queue: `${API_ROOT}/api/downloads/queue/${numericID}/reveal`,
+    record: `${API_ROOT}/api/downloads/records/${numericID}/reveal`,
+  };
+  const url = endpoints[kind];
+  if (!url) return;
+
+  const button = document.querySelector(`[data-reveal-download-${kind}="${numericID}"]`);
+  if (button?.disabled) return;
+  if (button) {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+  }
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: "{}",
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.error) {
+      throw new Error(payload.error || "当前环境无法定位下载文件");
+    }
+    showToast("已在文件管理器中定位", payload.path || "下载文件", "success", 3500);
+  } catch (error) {
+    showToast(
+      "无法打开文件目录",
+      String(error?.message || error),
+      "error",
+      6000,
+    );
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    }
+  }
 }
 
 async function removeDownloadQueueTask(id) {
@@ -6145,7 +6191,7 @@ async function loadDownloadRecordsPage(page = 1) {
     }
 
     if (records.length === 0) {
-      if (listEl) listEl.innerHTML = '<div class="download-records-empty"><div><i class="fa-regular fa-clock"></i><br>暂无下载记录</div></div>';
+      if (listEl) listEl.innerHTML = '<div class="download-records-empty"><div><i class="fa-solid fa-download"></i><br>暂无下载记录</div></div>';
       return;
     }
 
@@ -6156,6 +6202,7 @@ async function loadDownloadRecordsPage(page = 1) {
         <th>来源</th>
         <th>状态</th>
         <th>时间</th>
+        <th class="download-record-actions-col">操作</th>
       </tr></thead><tbody>`;
 
     for (const r of records) {
@@ -6166,12 +6213,16 @@ async function loadDownloadRecordsPage(page = 1) {
           : { className: "is-failed", icon: "fa-xmark", label: "失败" };
       const errHint = r.Error ? ` title="${escapeHtml(r.Error)}"` : "";
       const time = r.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "";
+      const reveal = ["success","skipped"].includes(r.Status)
+        ? `<button type="button" class="download-record-reveal" data-reveal-download-record="${r.ID}" onclick="revealDownloadFile('record',${r.ID})" title="打开文件目录" aria-label="打开文件目录：${escapeHtml(r.Name || "")}"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span class="download-action-label">打开文件目录</span></button>`
+        : '<span class="download-record-unavailable" title="没有可定位的下载文件">-</span>';
       html += `<tr${errHint}>
         <td><div class="download-record-name" title="${escapeHtml(r.Name || "")}">${escapeHtml(r.Name || "")}</div></td>
         <td><div class="download-record-artist" title="${escapeHtml(r.Artist || "")}">${escapeHtml(r.Artist || "")}</div></td>
         <td><span class="download-record-source" title="${escapeHtml(r.Source || "")}">${escapeHtml(r.Source || "")}</span></td>
         <td><span class="download-record-status ${status.className}"><i class="fa-solid ${status.icon}"></i>${status.label}</span></td>
         <td class="download-record-time" title="${escapeHtml(time)}">${escapeHtml(time)}</td>
+        <td class="download-record-actions-col">${reveal}</td>
       </tr>`;
     }
 
@@ -6205,7 +6256,7 @@ async function clearDownloadRecords() {
     const listEl = document.getElementById("download-records-list");
     const paginationEl = document.getElementById("download-records-pagination");
     if (countEl) countEl.textContent = "已清空";
-    if (listEl) listEl.innerHTML = '<div class="download-records-empty"><div><i class="fa-regular fa-clock"></i><br>暂无下载记录</div></div>';
+    if (listEl) listEl.innerHTML = '<div class="download-records-empty"><div><i class="fa-solid fa-download"></i><br>暂无下载记录</div></div>';
     if (paginationEl) paginationEl.innerHTML = "";
     activeDownloadRecordsPage = 1;
   } catch (err) {

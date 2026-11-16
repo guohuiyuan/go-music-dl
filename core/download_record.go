@@ -25,6 +25,7 @@ type DownloadRecord struct {
 	Source    string    `gorm:"size:64;not null"`
 	Status    string    `gorm:"size:32;not null;index"`
 	Error     string    `gorm:"size:1024"`
+	RelPath   string    `gorm:"size:1024"`
 	CreatedAt time.Time `gorm:"autoCreateTime;index"`
 }
 
@@ -68,11 +69,12 @@ func SaveDownloadRecordWithRelPath(name, artist, source, status, errStr, relPath
 	artist = cleanDownloadRecordText(artist)
 	relPath = cleanDownloadRelPath(relPath)
 	record := DownloadRecord{
-		Name:   name,
-		Artist: artist,
-		Source: cleanDownloadRecordText(source),
-		Status: cleanDownloadRecordText(status),
-		Error:  cleanDownloadRecordText(errStr),
+		Name:    name,
+		Artist:  artist,
+		Source:  cleanDownloadRecordText(source),
+		Status:  cleanDownloadRecordText(status),
+		Error:   cleanDownloadRecordText(errStr),
+		RelPath: relPath,
 	}
 
 	return configDB.Transaction(func(tx *gorm.DB) error {
@@ -160,6 +162,31 @@ func GetDownloadRecordPage(page, pageSize int) ([]DownloadRecord, int64, error) 
 	var records []DownloadRecord
 	err := configDB.Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error
 	return records, total, err
+}
+
+// GetDownloadRecord returns one user-visible history row by its stable database ID.
+func GetDownloadRecord(id uint) (DownloadRecord, error) {
+	if err := initDownloadRecordTable(); err != nil {
+		return DownloadRecord{}, err
+	}
+	var record DownloadRecord
+	err := configDB.Where("id = ?", id).First(&record).Error
+	return record, err
+}
+
+// ResolveDownloadRecordRelPath returns the file path recorded with the history
+// row, falling back to the durable de-duplication index for records created by
+// older versions that did not persist RelPath directly.
+func ResolveDownloadRecordRelPath(record DownloadRecord) (string, error) {
+	if relPath := cleanDownloadRelPath(record.RelPath); relPath != "" {
+		return relPath, nil
+	}
+	index, err := LoadDownloadDedupSet()
+	if err != nil {
+		return "", err
+	}
+	_, relPath, _ := lookupSongKey(&model.Song{Name: record.Name, Artist: record.Artist}, index)
+	return cleanDownloadRelPath(relPath), nil
 }
 
 // ClearDownloadRecords clears only the history displayed in the UI. The durable
@@ -425,8 +452,14 @@ func DownloadWithDedupCheck(song *model.Song, outDir string, withCover, withLyri
 func DownloadWithDedupCheckWithTemplate(song *model.Song, outDir string, withCover, withLyrics bool, filenameTemplate string, dedupSet DownloadDedupIndex) (*DownloadedSong, error) {
 	key := SongKey(song)
 	if IsSongStillDownloaded(song, dedupSet, outDir) {
-		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusSkipped, "")
-		return &DownloadedSong{Skipped: true, Filename: key}, nil
+		_, relPath, _ := lookupSongKey(song, dedupSet)
+		relPath = cleanDownloadRelPath(relPath)
+		_ = SaveDownloadRecordWithRelPath(song.Name, song.Artist, song.Source, DownloadStatusSkipped, "", relPath)
+		savedPath := ""
+		if relPath != "" {
+			savedPath = filepath.Join(DownloadDirOrDefault(outDir), filepath.FromSlash(relPath))
+		}
+		return &DownloadedSong{Skipped: true, Filename: key, SavedPath: savedPath}, nil
 	}
 
 	var (

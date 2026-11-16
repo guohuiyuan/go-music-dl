@@ -1589,6 +1589,8 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		})
 	})
 
+	configAPI.POST("/api/downloads/records/:id/reveal", revealDownloadRecordFile)
+
 	configAPI.DELETE("/api/downloads/records", func(c *gin.Context) {
 		if err := core.ClearDownloadRecords(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

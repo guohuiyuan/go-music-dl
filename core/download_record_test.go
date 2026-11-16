@@ -94,6 +94,57 @@ func TestGetDownloadRecordPageReturnsStablePagesAndTotal(t *testing.T) {
 	}
 }
 
+func TestDownloadRecordPersistsFileRelPath(t *testing.T) {
+	newDownloadDedupTestDB(t)
+
+	if err := SaveDownloadRecordWithRelPath("Song", "Artist", "qq", DownloadStatusSuccess, "", `Artist\Song.flac`); err != nil {
+		t.Fatalf("SaveDownloadRecordWithRelPath: %v", err)
+	}
+	records, err := GetDownloadRecords()
+	if err != nil {
+		t.Fatalf("GetDownloadRecords: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("records = %#v, want one record", records)
+	}
+	record, err := GetDownloadRecord(records[0].ID)
+	if err != nil {
+		t.Fatalf("GetDownloadRecord: %v", err)
+	}
+	if record.RelPath != "Artist/Song.flac" {
+		t.Fatalf("RelPath = %q, want normalized relative path", record.RelPath)
+	}
+	relPath, err := ResolveDownloadRecordRelPath(record)
+	if err != nil {
+		t.Fatalf("ResolveDownloadRecordRelPath: %v", err)
+	}
+	if relPath != record.RelPath {
+		t.Fatalf("resolved RelPath = %q, want %q", relPath, record.RelPath)
+	}
+}
+
+func TestDownloadRecordResolvesLegacyRelPathFromDedupIndex(t *testing.T) {
+	newDownloadDedupTestDB(t)
+
+	if err := SaveDownloadRecord("Legacy Song", "Artist", "qq", DownloadStatusSuccess, ""); err != nil {
+		t.Fatalf("SaveDownloadRecord: %v", err)
+	}
+	if err := SaveDownloadDedupEntry("Legacy Song", "Artist", "Artist/Legacy Song.flac"); err != nil {
+		t.Fatalf("SaveDownloadDedupEntry: %v", err)
+	}
+	records, err := GetDownloadRecords()
+	if err != nil || len(records) != 1 {
+		t.Fatalf("GetDownloadRecords: records=%#v err=%v", records, err)
+	}
+	relPath, err := ResolveDownloadRecordRelPath(records[0])
+	if err != nil {
+		t.Fatalf("ResolveDownloadRecordRelPath: %v", err)
+	}
+	if relPath != "Artist/Legacy Song.flac" {
+		t.Fatalf("resolved legacy RelPath = %q", relPath)
+	}
+}
+
 // 文件被删掉（含在 NAS 后台直接删）以后，这首歌不能再被判成「已下载」，否则再点
 // 下载只会返回「跳过」。
 func TestDeletedDownloadFileStopsBeingSkipped(t *testing.T) {

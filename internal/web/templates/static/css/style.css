@@ -2054,20 +2054,31 @@ body.vg-open .aplayer.aplayer-fixed {
 .utility-modal-page-status { min-width: 76px; color: #64748b; font-size: 12px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .utility-modal-footer, .download-records-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
 .download-records-modal { max-width: 760px; }
-.download-records-table { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.download-records-table { width: 100%; min-width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 13px; }
 .download-records-table th { position: sticky; top: 0; z-index: 1; padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-align: left; white-space: nowrap; }
 .download-records-table td { padding: 10px 12px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
+.download-records-table th:nth-child(1) { width: 23%; }
+.download-records-table th:nth-child(2) { width: 16%; }
+.download-records-table th:nth-child(3) { width: 9%; }
+.download-records-table th:nth-child(4) { width: 13%; }
+.download-records-table th:nth-child(5) { width: 24%; }
+.download-records-table th:nth-child(6) { width: 96px; }
 .download-records-table tbody tr:last-child td { border-bottom: none; }
 .download-records-table tbody tr { transition: background 0.16s ease; }
 .download-records-table tbody tr:hover { background: #f8fafc; }
-.download-record-name { max-width: 205px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main); font-weight: 700; }
-.download-record-artist { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-sub); }
+.download-record-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main); font-weight: 700; }
+.download-record-artist { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-sub); }
 .download-record-source { color: var(--primary-deep); font-size: 12px; font-weight: 700; }
 .download-record-status { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 58px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .download-record-status.is-success { background: var(--primary-faint); color: var(--primary-deep); }
 .download-record-status.is-skipped { background: #fffbeb; color: #a16207; }
 .download-record-status.is-failed { background: #fff1f2; color: #be123c; }
-.download-record-time { color: var(--text-sub); font-size: 12px; text-align: right; white-space: nowrap; }
+.download-record-time { overflow: hidden; color: var(--text-sub); font-size: 12px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.download-record-actions-col { width: 96px; text-align: right !important; }
+.download-record-reveal { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 5px 9px; border: 1px solid color-mix(in srgb, var(--primary-color) 24%, #e2e8f0); border-radius: 9px; background: var(--primary-faint); color: var(--primary-deep); font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background-color 0.16s ease, border-color 0.16s ease; }
+.download-record-reveal:hover:not(:disabled) { background: var(--primary-soft); border-color: var(--primary-light); }
+.download-record-reveal:disabled { cursor: wait; opacity: 0.65; }
+.download-record-unavailable { color: #94a3b8; }
 .download-records-empty, .download-records-error { display: grid; place-items: center; min-height: 180px; padding: 20px; text-align: center; color: var(--text-sub); font-size: 13px; }
 .download-records-empty i { margin-bottom: 8px; color: #94a3b8; font-size: 22px; }
 .download-records-error { color: #be123c; background: #fffafb; }
@@ -3013,8 +3024,15 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     .utility-modal-pagination { margin-top: 10px; }
     .download-records-table th, .download-records-table td { padding: 9px 8px; }
     .download-records-table th:nth-child(2), .download-records-table td:nth-child(2), .download-records-table th:nth-child(3), .download-records-table td:nth-child(3) { display: none; }
-    .download-record-name { max-width: 130px; }
+    .download-records-table th:nth-child(5), .download-records-table td:nth-child(5) { display: none; }
+    .download-records-table th:nth-child(1), .download-records-table td:nth-child(1) { width: auto; }
+    .download-records-table th:nth-child(4), .download-records-table td:nth-child(4) { width: 76px; }
+    .download-records-table th:nth-child(6), .download-records-table td:nth-child(6) { width: 42px; }
+    .download-record-name { max-width: 100%; }
     .download-record-time { font-size: 11px; }
+    .download-record-actions-col { width: 42px; }
+    .download-action-label { display: none; }
+    .download-record-reveal { width: 30px; padding: 0; }
     .playback-history-item { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 8px; padding: 9px; }
     .playback-history-cover { width: 38px; height: 38px; }
     .duplicate-content { max-height: min(390px, 48vh); }
@@ -3163,9 +3181,12 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
 .queue-task-action { display:flex; flex-direction:column; align-items:flex-end; gap:7px; flex-shrink:0; }
 .queue-task-buttons { display:flex; align-items:center; gap:6px; }
 .queue-task-buttons .btn-pill { min-height:30px; padding:5px 10px; font-size:11px; }
+.queue-reveal-button { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; background:var(--primary-faint); color:var(--primary-deep); border-color:color-mix(in srgb, var(--primary-color) 24%, #e2e8f0); }
+.queue-reveal-button:hover:not(:disabled) { background:var(--primary-soft); border-color:var(--primary-light); }
+.queue-reveal-button:disabled { cursor:wait; opacity:.65; }
 .queue-delete-button { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0; border:1px solid #fecdd3; border-radius:9px; background:#fff1f2; color:#be123c; font-size:12px; cursor:pointer; transition:background-color .16s, border-color .16s; }
 .queue-delete-button:hover { background:#ffe4e6; border-color:#fda4af; }
-.queue-toolbar button:focus-visible, .queue-task-buttons button:focus-visible, .batch-download-confirm button:focus-visible { outline:2px solid var(--primary-strong); outline-offset:3px; }
+.queue-toolbar button:focus-visible, .queue-task-buttons button:focus-visible, .download-record-reveal:focus-visible, .batch-download-confirm button:focus-visible { outline:2px solid var(--primary-strong); outline-offset:3px; }
 .batch-download-confirm button[value="cancel"] { background:#f8fafc; color:#475569; border-color:#e2e8f0; }
 .batch-download-confirm button[value="cancel"]:hover { background:#f1f5f9; border-color:#cbd5e1; }
 .batch-download-confirm .utility-modal-actions { flex-wrap:wrap; }

@@ -139,6 +139,16 @@ func (q *DownloadQueue) List(page, size int, status string) ([]DownloadTask, int
 	return tasks, total, counts, err
 }
 
+// Get returns one visible queue task by ID.
+func (q *DownloadQueue) Get(id uint) (DownloadTask, error) {
+	var task DownloadTask
+	if id == 0 {
+		return task, gorm.ErrRecordNotFound
+	}
+	err := q.db.Where("id = ? AND removed = ?", id, false).First(&task).Error
+	return task, err
+}
+
 func (q *DownloadQueue) Retry(id uint) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()

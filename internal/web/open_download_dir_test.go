@@ -254,11 +254,11 @@ func TestOpenDownloadDirectoryUIEntries(t *testing.T) {
 		t.Fatalf("read app.js: %v", err)
 	}
 
-	if strings.Count(string(indexContent), `onclick="openDownloadDirectory()"`) != 1 {
-		t.Fatal("index.html should expose exactly one open-download-directory toolbar entry")
+	if strings.Count(string(indexContent), `onclick="openDownloadDirectory()"`) != 0 {
+		t.Fatal("index.html should not expose a standalone open-download-directory toolbar entry")
 	}
-	if strings.Count(string(modalsContent), `onclick="openDownloadDirectory()"`) != 2 {
-		t.Fatal("settings and download history should each expose an open-download-directory entry")
+	if strings.Count(string(modalsContent), `onclick="openDownloadDirectory()"`) != 1 {
+		t.Fatal("settings should retain exactly one open-download-directory entry")
 	}
 	appJS := string(appContent)
 	for _, want := range []string{

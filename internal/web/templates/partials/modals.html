@@ -324,7 +324,7 @@
                     <p class="setting-hint">会清理歌名、歌手和专辑中的零宽字符，并把繁体转为简体。下载去重始终做该归一化，避免“久石让 / 久石讓”重复下载。</p>
                 </div>
                 <button type="button" class="cookie-item setting-item setting-link-row" onclick="openDownloadRecordsModal()">
-                    <span class="setting-link-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                    <span class="setting-link-icon"><i class="fa-solid fa-download"></i></span>
                     <span class="setting-link-body">
                         <span class="setting-link-title">下载记录</span>
                         <span class="setting-link-desc">查看下载任务历史（成功 / 跳过 / 失败）</span>
@@ -583,7 +583,7 @@
     <div class="modal utility-modal download-records-modal">
         <div class="modal-header">
             <div>
-                <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载管理</h3>
+                <h3><i class="fa-solid fa-download"></i> 下载管理</h3>
                 <p class="download-records-subtitle">任务自动保存，重启后继续；中断歌曲会重新下载。</p>
             </div>
             <div class="modal-close" onclick="closeDownloadRecordsModal()"><i class="fa-solid fa-xmark"></i></div>
@@ -614,9 +614,6 @@
             <div class="utility-modal-toolbar download-records-toolbar">
                 <span id="download-records-count" class="utility-modal-count download-records-count">加载中...</span>
                 <div class="utility-modal-actions download-records-actions">
-                    <button type="button" class="btn-pill" onclick="openDownloadDirectory()">
-                        <i class="fa-solid fa-folder-open"></i> 打开目录
-                    </button>
                     <button type="button" class="btn-pill" onclick="openLocalMusicPage()">
                         <i class="fa-solid fa-folder-plus"></i> 本地音乐
                     </button>

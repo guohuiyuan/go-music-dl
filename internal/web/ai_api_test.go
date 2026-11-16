@@ -73,6 +73,7 @@ func TestAIIndexUsesExistingRoutesAndOnlyPlayerControls(t *testing.T) {
 		"GET /music/api/downloads/queue",
 		"POST /music/api/downloads/queue",
 		"POST /music/api/downloads/queue/container",
+		"POST /music/api/downloads/records/{id}/reveal",
 		"GET /music/api/ai/player/state",
 		"GET /music/api/ai/player/events",
 		"POST /music/api/ai/player/play",

@@ -62,10 +62,14 @@ func TestBatchDownloadEnqueuesDurableTasks(t *testing.T) {
 		`id="download-records-button"`,
 		`class="rt-btn rt-btn-download-records"`,
 		`aria-label="下载管理"`,
+		`<i class="fa-solid fa-download"></i>`,
 	} {
 		if !strings.Contains(indexHTML, want) {
 			t.Fatalf("download records entry missing %q", want)
 		}
+	}
+	if strings.Contains(indexHTML, `fa-clock-rotate-left`) {
+		t.Fatal("download management entry should use the download icon instead of the history icon")
 	}
 
 	styleContent, err := templateFS.ReadFile("templates/static/css/style.css")

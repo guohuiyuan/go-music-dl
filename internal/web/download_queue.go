@@ -109,6 +109,9 @@ func RegisterDownloadQueueRoutes(api *gin.RouterGroup, queue *core.DownloadQueue
 			err = queue.Retry(uint(id))
 		case "cancel":
 			err = queue.Cancel(uint(id))
+		case "reveal":
+			revealQueuedDownloadFile(c, queue, uint(id))
+			return
 		default:
 			c.Status(404)
 			return
