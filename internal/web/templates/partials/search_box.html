@@ -30,16 +30,9 @@
             <button type="submit" class="search-btn" title="搜索" aria-label="搜索"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
         </div>
 
-        <div class="quick-actions" style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap;">
-            <button type="button" class="btn-pill btn-pill-primary" onclick="goToRecommend()"
-                style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); border: none; box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4); justify-content:center;">
+        <div class="quick-actions" aria-label="快捷入口">
+            <button type="button" class="btn-pill btn-pill-recommend" onclick="goToRecommend()">
                 <i class="fa-solid fa-fire"></i> 每日推荐歌单
-            </button>
-            <button type="button" class="btn-pill btn-pill-fav" onclick="openCollectionManager()">
-                <i class="fa-solid fa-folder-open"></i> 本地歌单
-            </button>
-            <button type="button" class="btn-pill btn-pill-fav" onclick="openLocalMusicPage()">
-                <i class="fa-solid fa-music"></i> 本地音乐
             </button>
             <button type="button" class="btn-pill btn-pill-category" onclick="goToPlaylistCategories()">
                 <i class="fa-solid fa-table-cells-large"></i> 歌单分类
@@ -50,6 +43,12 @@
             <button type="button" class="btn-pill btn-pill-mine" onclick="goToUserPlaylists()">
                 <i class="fa-solid fa-heart"></i> 我的歌单
             </button>
+            <button type="button" class="btn-pill btn-pill-fav" onclick="openCollectionManager()">
+                <i class="fa-solid fa-folder-open"></i> 本地歌单
+            </button>
+            <button type="button" class="btn-pill btn-pill-fav" onclick="openLocalMusicPage()">
+                <i class="fa-solid fa-music"></i> 本地音乐
+            </button>
         </div>
 
         {{ if .Error }}
@@ -58,6 +57,7 @@
         </div>
         {{ end }}
 
+        {{ if and (ne .SearchType "local_music") (eq .ColID "") (not .IsLocalColPage) }}
         <div class="source-selector" id="source-selector">
             <div class="source-header">
                 <button type="button" class="source-collapse-btn" onclick="toggleSourceSelector()" aria-expanded="true" aria-controls="source-grid">
@@ -92,6 +92,7 @@
                 {{ end }}
             </div>
         </div>
+        {{ end }}
     </form>
 </div>
 {{end}}

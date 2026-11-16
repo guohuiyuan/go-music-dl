@@ -44,19 +44,19 @@ const DEFAULT_AUDIO_QUALITY_OPTIONS = Object.freeze([
   { value: "preview", label: "试听片段", format: "m4a", bitrate: 0, vip: false },
 ]);
 const AUDIO_QUALITY_SOURCES = Object.freeze([
-  "qq",
   "netease",
+  "qq",
   "kugou",
   "kuwo",
   "migu",
   "soda",
-  "qianqian",
   "apple",
   "spotify",
-  "fivesing",
-  "jamendo",
+  "qianqian",
   "joox",
   "bilibili",
+  "fivesing",
+  "jamendo",
 ]);
 const AUDIO_QUALITY_SOURCE_LABELS = Object.freeze({
   qq: "QQ 音乐",
@@ -551,23 +551,44 @@ function audioQualityOptionText(option) {
   );
 }
 
+function orderedAudioQualitySources() {
+  const container = document.getElementById("setting-audio-quality-sources");
+  const configured = String(container?.dataset.sourceOrder || "")
+    .split(",")
+    .map((source) => source.trim().toLowerCase())
+    .filter(Boolean);
+  const candidates = [
+    ...configured,
+    ...AUDIO_QUALITY_SOURCES,
+    ...Object.keys(audioQualityChoices),
+    ...Object.keys(audioQualityOptions),
+  ];
+  const seen = new Set();
+  return candidates.filter((source) => {
+    if (
+      !source ||
+      seen.has(source) ||
+      source === LOCAL_MUSIC_SOURCE ||
+      source === LEGACY_LOCAL_MUSIC_SOURCE
+    ) {
+      return false;
+    }
+    seen.add(source);
+    return true;
+  });
+}
+
 function populateAudioQualityDefaults(preferred) {
   const container = document.getElementById("setting-audio-quality-sources");
   const preferredDefaults = normalizeAudioQualityDefaults(preferred);
   const currentDefaults = normalizeAudioQualityDefaults(
     webSettings.audioQualityDefaults,
   );
-  const extraSources = [
-    ...new Set([
-      ...Object.keys(audioQualityChoices),
-      ...Object.keys(audioQualityOptions),
-    ]),
-  ].filter((source) => !AUDIO_QUALITY_SOURCES.includes(source));
   const result = {};
   if (!container) return {...currentDefaults, ...preferredDefaults};
 
   container.replaceChildren();
-  for (const source of [...AUDIO_QUALITY_SOURCES, ...extraSources]) {
+  for (const source of orderedAudioQualitySources()) {
     const hasRuntimeChoices = Object.prototype.hasOwnProperty.call(
       audioQualityChoices,
       source,
@@ -4202,11 +4223,17 @@ function localMusicSongFromTrack(track) {
   };
 }
 
-function renderLocalMusicPageCardBase(track) {
+function renderLocalMusicPageCardBase(track, options = {}) {
   const song = localMusicSongFromTrack(track);
   const extraJSON = serializeSongExtra(song.extra);
   const album = song.album || "";
   const cover = song.cover || "";
+  const revealButton = options.showReveal
+    ? `<button type="button" class="btn-circle btn-dl btn-reveal-local" title="打开文件目录"
+                        aria-label="打开文件目录：${escapeHTML(song.name)}" onclick="revealLocalMusicFileFromButton(this)">
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>`
+    : "";
   const coverHTML = cover
     ? `<img src="${escapeHTML(cover)}" alt="${escapeHTML(song.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/150?text=Music'">`
     : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:24px;">♪</div><img src="https://via.placeholder.com/150?text=Music" style="display:none;">`;
@@ -4250,6 +4277,7 @@ function renderLocalMusicPageCardBase(track) {
                 <button type="button" class="btn-circle btn-play" title="播放" onclick="playAllAndJumpTo(this)">
                     <i class="fa-solid fa-play"></i>
                 </button>
+                ${revealButton}
                 <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单" onclick="openAddToCollectionModal(this)">
                     <i class="fa-regular fa-heart"></i>
                 </button>
@@ -4273,16 +4301,7 @@ function renderLocalMusicPageCardBase(track) {
 }
 
 function renderLocalMusicPageCard(track) {
-  const song = localMusicSongFromTrack(track);
-  const revealButton = `
-                <button type="button" class="btn-circle btn-dl btn-reveal-local" title="打开文件目录"
-                        aria-label="打开文件目录：${escapeHTML(song.name)}" onclick="revealLocalMusicFileFromButton(this)">
-                    <i class="fa-solid fa-folder-open"></i>
-                </button>`;
-  return renderLocalMusicPageCardBase(track).replace(
-    '<div class="actions">',
-    `<div class="actions">${revealButton}`,
-  );
+  return renderLocalMusicPageCardBase(track, {showReveal: true});
 }
 
 function ensureLocalMusicPaginationBar() {

@@ -1108,7 +1108,9 @@ func OpenBrowser(url string) {
 }
 
 func GetAllSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "soda", "bilibili", "apple", "spotify", "local"}
+	// UI surfaces share this order: catalog/download coverage first, then
+	// quality-capable and niche sources, with local files last.
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "soda", "apple", "spotify", "qianqian", "joox", "bilibili", "fivesing", "jamendo", "local"}
 }
 
 func GetPlaylistSourceNames() []string {

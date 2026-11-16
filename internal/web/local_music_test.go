@@ -93,7 +93,7 @@ func waitForLocalMusicScanRefresh(t *testing.T) {
 	}
 }
 
-func TestSearchBoxTemplateShowsLocalMusicEntryNextToCollections(t *testing.T) {
+func TestSearchBoxTemplateKeepsFlatOnlineThenLocalEntryOrder(t *testing.T) {
 	content, err := templateFS.ReadFile("templates/partials/search_box.html")
 	if err != nil {
 		t.Fatalf("ReadFile(search_box.html): %v", err)
@@ -112,8 +112,8 @@ func TestSearchBoxTemplateShowsLocalMusicEntryNextToCollections(t *testing.T) {
 	if strings.Index(html, `onclick="openLocalMusicPage()"`) < strings.Index(html, `onclick="openCollectionManager()"`) {
 		t.Fatal("local music entry should be placed to the right of custom collection entry")
 	}
-	if strings.Index(html, `onclick="goToPlaylistCategories()"`) < strings.Index(html, `onclick="openLocalMusicPage()"`) {
-		t.Fatal("playlist categories entry should be placed to the right of local music entry")
+	if strings.Index(html, `onclick="goToPlaylistCategories()"`) > strings.Index(html, `onclick="openLocalMusicPage()"`) {
+		t.Fatal("online entries should stay before local entries")
 	}
 	if !strings.Contains(html, "本地音乐") {
 		t.Fatal("search box missing local music label")
@@ -344,12 +344,14 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 	playIndex := strings.Index(body, `class="btn-circle btn-play"`)
 	revealIndex := strings.Index(body, `onclick="revealLocalMusicFileFromButton(this)"`)
 	favIndex := strings.Index(body, `onclick="openAddToCollectionModal(this)"`)
+	moreIndex := strings.Index(body, `class="btn-circle action-more-toggle"`)
 	lyricIndex := strings.Index(body, `class="btn-circle btn-dl btn-lyric"`)
 	coverIndex := strings.Index(body, `class="btn-circle btn-dl btn-cover"`)
 	deleteIndex := strings.Index(body, `onclick="deleteLocalMusicFromButton(this)"`)
 	if playIndex < 0 || playIndex >= revealIndex || revealIndex >= favIndex ||
-		favIndex >= lyricIndex || lyricIndex >= coverIndex || coverIndex >= deleteIndex {
-		t.Fatalf("local music page action order mismatch: play=%d reveal=%d fav=%d lyric=%d cover=%d delete=%d", playIndex, revealIndex, favIndex, lyricIndex, coverIndex, deleteIndex)
+		favIndex >= moreIndex || moreIndex >= lyricIndex ||
+		lyricIndex >= coverIndex || coverIndex >= deleteIndex {
+		t.Fatalf("local music page action order mismatch: play=%d reveal=%d fav=%d more=%d lyric=%d cover=%d delete=%d", playIndex, revealIndex, favIndex, moreIndex, lyricIndex, coverIndex, deleteIndex)
 	}
 }
 
@@ -442,8 +444,9 @@ func TestLocalMusicRevealFrontendUsesIDOnly(t *testing.T) {
 	}
 	appJS := string(appContent)
 	for _, want := range []string{
-		"function renderLocalMusicPageCardBase(track)",
+		"function renderLocalMusicPageCardBase(track, options = {})",
 		"function renderLocalMusicPageCard(track)",
+		"{showReveal: true}",
 		"function revealLocalMusicFileFromButton(button)",
 		"`${API_ROOT}/local_music/reveal?id=${encodeURIComponent(id)}`",
 		`class="btn-circle btn-dl btn-reveal-local"`,
@@ -451,6 +454,24 @@ func TestLocalMusicRevealFrontendUsesIDOnly(t *testing.T) {
 		if !strings.Contains(appJS, want) {
 			t.Fatalf("local music reveal frontend missing %q", want)
 		}
+	}
+
+	start := strings.Index(appJS, "function renderLocalMusicPageCardBase(")
+	if start < 0 {
+		t.Fatal("local music card renderer is missing")
+	}
+	end := strings.Index(appJS[start:], "\nfunction renderLocalMusicPageCard(")
+	if end < 0 {
+		t.Fatal("local music card renderer boundary is missing")
+	}
+	renderer := appJS[start : start+end]
+	playIndex := strings.Index(renderer, `class="btn-circle btn-play"`)
+	revealIndex := strings.Index(renderer, `${revealButton}`)
+	favoriteIndex := strings.Index(renderer, `class="btn-circle btn-fav"`)
+	moreIndex := strings.Index(renderer, `class="btn-circle action-more-toggle"`)
+	if playIndex < 0 || playIndex >= revealIndex || revealIndex >= favoriteIndex ||
+		favoriteIndex >= moreIndex {
+		t.Fatalf("dynamic local music action order mismatch: play=%d reveal=%d favorite=%d more=%d", playIndex, revealIndex, favoriteIndex, moreIndex)
 	}
 }
 
@@ -525,11 +546,13 @@ func TestManualCollectionLocalSongRendersLocalActionOrder(t *testing.T) {
 	revealIndex := strings.Index(card, `onclick="revealLocalMusicFileFromButton(this)"`)
 	switchIndex := strings.Index(card, `class="btn-circle btn-switch"`)
 	removeIndex := strings.Index(card, `removeSongFromCollection`)
+	moreIndex := strings.Index(card, `class="btn-circle action-more-toggle"`)
 	lyricIndex := strings.Index(card, `class="btn-circle btn-dl btn-lyric"`)
 	coverIndex := strings.Index(card, `class="btn-circle btn-dl btn-cover"`)
 	if playIndex < 0 || playIndex >= revealIndex || revealIndex >= switchIndex ||
-		switchIndex >= removeIndex || removeIndex >= lyricIndex || lyricIndex >= coverIndex {
-		t.Fatalf("manual collection local song action order mismatch: play=%d reveal=%d switch=%d remove=%d lyric=%d cover=%d", playIndex, revealIndex, switchIndex, removeIndex, lyricIndex, coverIndex)
+		switchIndex >= removeIndex || removeIndex >= moreIndex ||
+		moreIndex >= lyricIndex || lyricIndex >= coverIndex {
+		t.Fatalf("manual collection local song action order mismatch: play=%d reveal=%d switch=%d remove=%d more=%d lyric=%d cover=%d", playIndex, revealIndex, switchIndex, removeIndex, moreIndex, lyricIndex, coverIndex)
 	}
 }
 

@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http/httptest"
 	"strings"
@@ -796,6 +797,176 @@ func TestPaginationTemplatesExposeShortcutMetadata(t *testing.T) {
 		}
 		if !strings.Contains(html, `data-shortcut-hint="PgUp / PgDn"`) {
 			t.Fatalf("%s missing pagination shortcut hint", path)
+		}
+	}
+}
+
+func TestQuickActionsUseFlatOnlineThenLocalOrder(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.SetHTMLTemplate(newTestTemplate(t))
+	router.GET(RoutePrefix, func(c *gin.Context) {
+		renderIndex(c, nil, nil, "", []string{"netease"}, "", "song", "", "", "", false, "", nil)
+	})
+
+	req := httptest.NewRequest("GET", RoutePrefix, nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	body := rec.Body.String()
+	if strings.Contains(body, `data-quick-group=`) ||
+		strings.Contains(body, `quick-action-group`) {
+		t.Fatal("quick actions must render as one flat row")
+	}
+
+	order := []string{
+		`onclick="goToRecommend()"`,
+		`onclick="goToPlaylistCategories()"`,
+		`onclick="goToTopLists()"`,
+		`onclick="goToUserPlaylists()"`,
+		`onclick="openCollectionManager()"`,
+		`onclick="openLocalMusicPage()"`,
+	}
+	previous := -1
+	for _, marker := range order {
+		index := strings.Index(body, marker)
+		if index < 0 {
+			t.Fatalf("quick action %q is missing", marker)
+		}
+		if index <= previous {
+			t.Fatalf("quick action order is inconsistent at %q", marker)
+		}
+		previous = index
+	}
+}
+
+func TestSourceSelectorHiddenOnLocalPages(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.SetHTMLTemplate(newTestTemplate(t))
+	router.GET(RoutePrefix, func(c *gin.Context) {
+		switch c.Query("page") {
+		case "local_music":
+			renderIndex(c, nil, nil, "", nil, "", "local_music", "", "", "", false, "", nil)
+		case "my_collections":
+			renderIndex(c, nil, nil, "", nil, "", "playlist", "", "", "", true, "", nil)
+		case "collection":
+			renderIndex(c, nil, nil, "", nil, "", "song", "", "local-1", "Local", false, collectionKindManual, nil)
+		default:
+			renderIndex(c, nil, nil, "", []string{"netease"}, "", "song", "", "", "", false, "", nil)
+		}
+	})
+
+	assertSourceSelector := func(path string, want bool) {
+		t.Helper()
+		req := httptest.NewRequest("GET", RoutePrefix+path, nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != 200 {
+			t.Fatalf("%s status = %d, want 200", path, rec.Code)
+		}
+		hasSelector := strings.Contains(rec.Body.String(), `id="source-selector"`)
+		if hasSelector != want {
+			t.Fatalf("%s source selector presence = %v, want %v", path, hasSelector, want)
+		}
+	}
+
+	assertSourceSelector("", true)
+	assertSourceSelector("?page=local_music", false)
+	assertSourceSelector("?page=my_collections", false)
+	assertSourceSelector("?page=collection", false)
+}
+
+func TestSourceOrderIsConsistentAcrossSettings(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.SetHTMLTemplate(newTestTemplate(t))
+	router.GET(RoutePrefix, func(c *gin.Context) {
+		renderIndex(c, nil, nil, "", []string{"netease"}, "", "song", "", "", "", false, "", nil)
+	})
+
+	req := httptest.NewRequest("GET", RoutePrefix, nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	order := []string{
+		"netease",
+		"qq",
+		"kugou",
+		"kuwo",
+		"migu",
+		"soda",
+		"apple",
+		"spotify",
+		"qianqian",
+		"joox",
+		"bilibili",
+		"fivesing",
+		"jamendo",
+		"local",
+	}
+	body := rec.Body.String()
+	surfaces := []struct {
+		name      string
+		marker    string
+		sourceIDs []string
+	}{
+		{
+			name:      "search",
+			marker:    `name="sources" value="%s"`,
+			sourceIDs: order,
+		},
+		{
+			name:      "cookies",
+			marker:    `id="cookie-%s"`,
+			sourceIDs: order[:len(order)-1],
+		},
+	}
+	for _, surface := range surfaces {
+		previous := -1
+		for _, source := range surface.sourceIDs {
+			marker := fmt.Sprintf(surface.marker, source)
+			index := strings.Index(body, marker)
+			if index < 0 {
+				t.Fatalf("%s source %q is missing", surface.name, source)
+			}
+			if index <= previous {
+				t.Fatalf("%s source order is inconsistent at %q", surface.name, source)
+			}
+			previous = index
+		}
+	}
+
+	wantQualityOrder := fmt.Sprintf(
+		`data-source-order="%s"`,
+		strings.Join(order, ","),
+	)
+	if !strings.Contains(body, wantQualityOrder) {
+		t.Fatalf("download settings source order is missing %q", wantQualityOrder)
+	}
+}
+
+func TestPlayerVolumeIconUsesCenteredLineBoxFreeLayout(t *testing.T) {
+	cssContent, err := templateFS.ReadFile("templates/static/css/style.css")
+	if err != nil {
+		t.Fatalf("ReadFile(style.css): %v", err)
+	}
+	css := string(cssContent)
+	for _, want := range []string{
+		".aplayer .aplayer-time .aplayer-volume-wrap .aplayer-icon {\n    line-height: 0;\n}",
+		".aplayer .aplayer-time .aplayer-volume-wrap .aplayer-icon svg {\n    display: block;\n}",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("style.css missing centered volume icon rule %q", want)
 		}
 	}
 }

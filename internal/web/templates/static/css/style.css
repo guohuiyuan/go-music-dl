@@ -104,6 +104,15 @@ input[type="password"]:focus { border-color: var(--primary-color); background: #
     border: 1px solid #fed7d7; text-align: center; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 
+.quick-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
 .source-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #edf2f7; gap: 12px; }
 .source-title { font-weight: 700; color: var(--text-sub); font-size: 0.9rem; }
 .source-collapse-btn { background: none; border: none; padding: 0; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: inherit; font: inherit; }
@@ -581,6 +590,8 @@ body.batch-mode .song-card { padding-left: 10px; }
 .btn-pill:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(0.8); }
 .btn-pill-primary { background: var(--primary-color); color: white; }
 .btn-pill-primary:hover { background: var(--primary-strong); transform: translateY(-1px); }
+.btn-pill-recommend { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4); color: white; }
+.btn-pill-recommend:hover { filter: brightness(1.03); transform: translateY(-2px); }
 .btn-pill-fav { background: linear-gradient(135deg, #f68084 0%, #f68084 100%); box-shadow: 0 4px 15px rgba(246, 128, 132, 0.4); color: white; }
 .btn-pill-fav:hover { filter: brightness(1.05); transform: translateY(-2px); }
 .btn-pill-category { background: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%); box-shadow: 0 4px 15px rgba(99, 102, 241, 0.28); color: white; text-decoration: none; }
@@ -2892,6 +2903,8 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     h1 { font-size: 1.8rem; margin-bottom: 20px; }
     .input-group { margin-bottom: 15px; flex-direction: column; }
     .search-btn { width: 100%; height: 44px; }
+    .quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+    .quick-actions .btn-pill { width: 100%; min-width: 0; justify-content: center; padding: 8px 7px; font-size: 12px; white-space: nowrap; }
     .source-grid { grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 8px; }
     .source-card { padding: 8px 4px; min-height: 40px; justify-content: center; }
     .source-name { font-size: 12px; }
@@ -3320,6 +3333,12 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
     padding: 0 !important;
     display: grid !important;
     place-items: center;
+}
+.aplayer .aplayer-time .aplayer-volume-wrap .aplayer-icon {
+    line-height: 0;
+}
+.aplayer .aplayer-time .aplayer-volume-wrap .aplayer-icon svg {
+    display: block;
 }
 .aplayer .aplayer-time {
     display: flex;
