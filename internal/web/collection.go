@@ -410,14 +410,14 @@ func loadImportedCollectionSongs(collection *Collection) ([]model.Song, error) {
 		if externalID != "" {
 			if fn := albumDetailFuncProvider(source); fn != nil {
 				if songs, err := fn(externalID); err == nil && len(songs) > 0 {
-					return ensureSongSource(songs, source), nil
+					return ensureCollectionAlbumArtist(ensureSongSource(songs, source), collection.Creator), nil
 				}
 			}
 		}
 		if link != "" {
 			if fn := parseAlbumFuncProvider(source); fn != nil {
 				if _, songs, err := fn(link); err == nil {
-					return ensureSongSource(songs, source), nil
+					return ensureCollectionAlbumArtist(ensureSongSource(songs, source), collection.Creator), nil
 				}
 			}
 		}
@@ -446,6 +446,23 @@ func ensureSongSource(songs []model.Song, source string) []model.Song {
 		if strings.TrimSpace(songs[i].Source) == "" {
 			songs[i].Source = source
 		}
+	}
+	return songs
+}
+
+func ensureCollectionAlbumArtist(songs []model.Song, albumArtist string) []model.Song {
+	albumArtist = strings.TrimSpace(albumArtist)
+	if albumArtist == "" {
+		return songs
+	}
+	for i := range songs {
+		if strings.TrimSpace(songs[i].Extra["album_artist"]) != "" {
+			continue
+		}
+		if songs[i].Extra == nil {
+			songs[i].Extra = make(map[string]string)
+		}
+		songs[i].Extra["album_artist"] = albumArtist
 	}
 	return songs
 }

@@ -16,6 +16,7 @@ func TestBuildDownloadFilenameUsesTemplate(t *testing.T) {
 		Name:   "没地址的信",
 		Artist: "阮俊霖",
 		Album:  "专辑/测试",
+		Extra:  map[string]string{"album_artist": "群星/合辑"},
 	}
 
 	tests := []struct {
@@ -43,6 +44,12 @@ func TestBuildDownloadFilenameUsesTemplate(t *testing.T) {
 			want:     filepath.Join("阮俊霖", "专辑_测试", "没地址的信 - 阮俊霖.flac"),
 		},
 		{
+			name:     "album artist token uses source metadata and sanitizes subdirectory",
+			template: "{album_artist}/{artist}/{name}",
+			ext:      "flac",
+			want:     filepath.Join("群星_合辑", "阮俊霖", "没地址的信.flac"),
+		},
+		{
 			name:     "path traversal segments are ignored",
 			template: "../{artist}/./{name}.{ext}",
 			ext:      "m4a",
@@ -62,6 +69,19 @@ func TestBuildDownloadFilenameUsesTemplate(t *testing.T) {
 				t.Fatalf("BuildDownloadFilename() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestBuildDownloadFilenameAlbumArtistFallsBackToArtist(t *testing.T) {
+	song := &model.Song{
+		Name:   "没地址的信",
+		Artist: "阮俊霖",
+		Extra:  map[string]string{"albumArtist": "  "},
+	}
+	got := BuildDownloadFilename(song, "mp3", "{album_artist} - {name}")
+	want := "阮俊霖 - 没地址的信.mp3"
+	if got != want {
+		t.Fatalf("BuildDownloadFilename() = %q, want %q", got, want)
 	}
 }
 

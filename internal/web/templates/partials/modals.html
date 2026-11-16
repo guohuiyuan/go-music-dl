@@ -267,7 +267,7 @@
                 <div class="cookie-item">
                     <label for="setting-download-filename-template">音乐文件名模板</label>
                     <input type="text" id="setting-download-filename-template" placeholder="{artist} - {name}">
-                    <p class="setting-hint" style="margin-left: 0;">支持 <code>{name}</code>、<code>{artist}</code>、<code>{album}</code>、<code>{source}</code>、<code>{id}</code>、<code>{ext}</code>。未写 <code>{ext}</code> 时会自动追加扩展名；可用 <code>/</code> 或 <code>\</code> 创建相对子目录，例如 <code>{artist}/{album}/{name} - {artist}.{ext}</code>。</p>
+                    <p class="setting-hint" style="margin-left: 0;">支持 <code>{name}</code>、<code>{artist}</code>、<code>{album_artist}</code>、<code>{album}</code>、<code>{source}</code>、<code>{id}</code>、<code>{ext}</code>。专辑艺人不可用时自动使用普通艺人；未写 <code>{ext}</code> 时会自动追加扩展名；可用 <code>/</code> 或 <code>\</code> 创建相对子目录，例如 <code>{album_artist}/{album}/{name} - {artist}.{ext}</code>。</p>
                 </div>
                 <div class="cookie-item">
                     <label for="setting-download-tip-duration">下载提示显示时长</label>

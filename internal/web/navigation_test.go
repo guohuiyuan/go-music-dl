@@ -485,6 +485,7 @@ func TestSettingsModalIncludesDownloadDirPresets(t *testing.T) {
 		`setting-link-title`,
 		`setting-link-chevron`,
 		`{album}`,
+		`{album_artist}`,
 		`{source}`,
 		`{ext}`,
 		`PC 默认：data/downloads`,

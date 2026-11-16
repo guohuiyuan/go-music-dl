@@ -1363,6 +1363,9 @@ func normalizeCoverMime(coverMime string) string {
 	if strings.Contains(coverMime, "webp") {
 		return "image/webp"
 	}
+	if strings.Contains(coverMime, "avif") {
+		return "image/avif"
+	}
 	if strings.Contains(coverMime, "gif") {
 		return "image/gif"
 	}
@@ -1774,17 +1777,21 @@ func embedAudioMetadataByFFmpeg(audioData []byte, ext, title, artist, album, lyr
 	inPath := inFile.Name()
 	defer os.Remove(inPath)
 	if _, err := inFile.Write(audioData); err != nil {
-		inFile.Close()
+		_ = inFile.Close()
 		return nil, err
 	}
-	inFile.Close()
+	if err := inFile.Close(); err != nil {
+		return nil, err
+	}
 
 	outFile, err := os.CreateTemp("", "gomusicdl-out-*"+"."+ext)
 	if err != nil {
 		return nil, err
 	}
 	outPath := outFile.Name()
-	outFile.Close()
+	if err := outFile.Close(); err != nil {
+		return nil, err
+	}
 	defer os.Remove(outPath)
 
 	args := []string{"-y", "-hide_banner", "-loglevel", "error", "-i", inPath}
@@ -1792,10 +1799,7 @@ func embedAudioMetadataByFFmpeg(audioData []byte, ext, title, artist, album, lyr
 	hasCover := len(coverData) > 0
 	coverPath := ""
 	if hasCover {
-		coverExt := ".jpg"
-		if strings.Contains(coverMime, "png") {
-			coverExt = ".png"
-		}
+		coverExt := ffmpegCoverFileExtension(coverMime)
 		coverFile, err := os.CreateTemp("", "gomusicdl-cover-*"+coverExt)
 		if err != nil {
 			return nil, err
@@ -1803,25 +1807,29 @@ func embedAudioMetadataByFFmpeg(audioData []byte, ext, title, artist, album, lyr
 		coverPath = coverFile.Name()
 		defer os.Remove(coverPath)
 		if _, err := coverFile.Write(coverData); err != nil {
-			coverFile.Close()
+			_ = coverFile.Close()
 			return nil, err
 		}
-		coverFile.Close()
+		if err := coverFile.Close(); err != nil {
+			return nil, err
+		}
 		args = append(args, "-i", coverPath)
 	}
 
 	if hasCover {
 		args = append(args, "-map", "0:a:0", "-map", "1:v:0")
 	} else {
-		args = append(args, "-map", "0")
+		args = append(args, "-map", "0:a:0")
 	}
 	args = append(args, "-map_metadata", "0")
 
 	if hasCover {
 		args = append(args, "-c:a", "copy")
-		args = append(args, "-c:v", "copy", "-disposition:v:0", "attached_pic", "-metadata:s:v:0", "title=Album cover", "-metadata:s:v:0", "comment=Cover (front)")
+		// MP4 only accepts a limited set of attached-picture codecs. Soda can
+		// return WebP/AVIF covers, so normalize every non-MP3 cover to MJPEG.
+		args = append(args, "-c:v", "mjpeg", "-pix_fmt", "yuvj420p", "-disposition:v:0", "attached_pic", "-metadata:s:v:0", "title=Album cover", "-metadata:s:v:0", "comment=Cover (front)")
 	} else {
-		args = append(args, "-c", "copy")
+		args = append(args, "-c:a", "copy")
 	}
 
 	if title != "" {
@@ -1839,6 +1847,11 @@ func embedAudioMetadataByFFmpeg(audioData []byte, ext, title, artist, album, lyr
 
 	if ext == "mp3" {
 		args = append(args, "-id3v2_version", "3", "-write_id3v1", "1")
+	}
+	// The .m4a suffix makes FFmpeg choose the ipod muxer, which rejects FLAC.
+	// Soda lossless streams are FLAC inside MP4, so force the general MP4 muxer.
+	if ext == "m4a" {
+		args = append(args, "-f", "mp4")
 	}
 
 	args = append(args, outPath)
@@ -1858,4 +1871,19 @@ func embedAudioMetadataByFFmpeg(audioData []byte, ext, title, artist, album, lyr
 	}
 
 	return finalData, nil
+}
+
+func ffmpegCoverFileExtension(coverMime string) string {
+	switch normalizeCoverMime(coverMime) {
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	case "image/avif":
+		return ".avif"
+	case "image/gif":
+		return ".gif"
+	default:
+		return ".jpg"
+	}
 }

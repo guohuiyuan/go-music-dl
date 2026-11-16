@@ -108,6 +108,50 @@ func TestDownloadWholeAlbumAndImportedLocalAlbum(t *testing.T) {
 		t.Fatal(total, err)
 	}
 }
+
+func TestDownloadWholeAlbumCarriesCreatorAsAlbumArtist(t *testing.T) {
+	r, q := setupContainerTests(t)
+	original := albumDetailFuncProvider
+	t.Cleanup(func() { albumDetailFuncProvider = original })
+	albumDetailFuncProvider = func(string) func(string) ([]model.Song, error) {
+		return func(id string) ([]model.Song, error) {
+			return []model.Song{
+				{ID: id + "-1", Source: "qq", Name: "Track 1", Artist: "Guest One"},
+				{ID: id + "-2", Source: "qq", Name: "Track 2", Artist: "Guest Two", Extra: map[string]string{"album_artist": "Explicit Album Artist"}},
+			}, nil
+		}
+	}
+
+	w := containerRequest(r, "/api/downloads/queue/container", downloadContainerRequest{
+		RequestID: "album-artist",
+		Kind:      collectionContentAlbum,
+		ID:        "album-artist-1",
+		Source:    "qq",
+		Creator:   "Collection Album Artist",
+	})
+	if w.Code != http.StatusAccepted {
+		t.Fatal(w.Code, w.Body.String())
+	}
+
+	tasks, _, _, err := q.List(1, 50, "")
+	if err != nil || len(tasks) != 2 {
+		t.Fatalf("tasks=%#v err=%v", tasks, err)
+	}
+	got := make(map[string]string, len(tasks))
+	for _, task := range tasks {
+		var input core.DownloadTaskInput
+		if err := json.Unmarshal([]byte(task.Payload), &input); err != nil {
+			t.Fatalf("decode task payload: %v", err)
+		}
+		got[input.Song.Name] = input.Song.Extra["album_artist"]
+	}
+	if got["Track 1"] != "Collection Album Artist" {
+		t.Fatalf("Track 1 album artist = %q", got["Track 1"])
+	}
+	if got["Track 2"] != "Explicit Album Artist" {
+		t.Fatalf("Track 2 should preserve explicit album artist, got %q", got["Track 2"])
+	}
+}
 func TestDownloadManualCollectionSkipsLocalAudioAndIncludesAllPages(t *testing.T) {
 	r, q := setupContainerTests(t)
 	col := Collection{Name: "Manual"}
@@ -335,20 +379,31 @@ func TestDeleteCollectionRollsBackSavedSongsOnFailure(t *testing.T) {
 }
 
 func TestWholeDownloadButtonsRenderOnCardsAndDetail(t *testing.T) {
+	appContent, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(appContent, []byte(`creator:button.dataset.creator || ""`)) {
+		t.Fatal("whole-download frontend must pass the container creator to the queue")
+	}
+
 	for _, kind := range []string{"playlist", "album"} {
 		t.Run(kind, func(t *testing.T) {
 			r, _ := setupContainerTests(t)
 			r.SetHTMLTemplate(newTestTemplate(t))
 			r.GET("/test-card", func(c *gin.Context) {
-				renderIndex(c, nil, []model.Playlist{{ID: "remote1", Source: "kuwo", Name: "Container", TrackCount: 125}}, "", []string{"kuwo"}, "", kind, "", "", "", false, "", nil)
+				renderIndex(c, nil, []model.Playlist{{ID: "remote1", Source: "kuwo", Name: "Container", Creator: "Container Artist", TrackCount: 125}}, "", []string{"kuwo"}, "", kind, "", "", "", false, "", nil)
 			})
 			r.GET("/test-detail", func(c *gin.Context) {
-				renderIndex(c, []model.Song{{ID: "s1", Source: "kuwo", Name: "Song"}}, nil, "", []string{"kuwo"}, "", kind, "", "", "", false, "", &importCollectionMeta{Enabled: true, ContentType: kind, ExternalID: "remote1", Source: "kuwo"})
+				renderIndex(c, []model.Song{{ID: "s1", Source: "kuwo", Name: "Song"}}, nil, "", []string{"kuwo"}, "", kind, "", "", "", false, "", &importCollectionMeta{Enabled: true, ContentType: kind, ExternalID: "remote1", Source: "kuwo", Creator: "Container Artist"})
 			})
 			for _, path := range []string{"/test-card", "/test-detail"} {
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
-				if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte(`data-container-kind="`+kind+`"`)) || !bytes.Contains(w.Body.Bytes(), []byte(`data-container-id="remote1"`)) {
+				if w.Code != 200 ||
+					!bytes.Contains(w.Body.Bytes(), []byte(`data-container-kind="`+kind+`"`)) ||
+					!bytes.Contains(w.Body.Bytes(), []byte(`data-container-id="remote1"`)) ||
+					!bytes.Contains(w.Body.Bytes(), []byte(`data-creator="Container Artist"`)) {
 					t.Fatal(path, w.Code, w.Body.String())
 				}
 			}

@@ -203,6 +203,7 @@ func BuildDownloadFilename(song *model.Song, ext string, filenameTemplate string
 
 	name := "Unknown"
 	artist := "Unknown"
+	albumArtist := "Unknown"
 	album := ""
 	source := ""
 	id := ""
@@ -216,35 +217,57 @@ func BuildDownloadFilename(song *model.Song, ext string, filenameTemplate string
 		if strings.TrimSpace(song.Artist) != "" {
 			artist = strings.TrimSpace(song.Artist)
 		}
+		albumArtist = downloadAlbumArtist(song)
 		album = strings.TrimSpace(song.Album)
 		source = strings.TrimSpace(song.Source)
 		id = strings.TrimSpace(song.ID)
 	}
 	name = sanitizeDownloadTemplateValue(name, "Unknown")
 	artist = sanitizeDownloadTemplateValue(artist, "Unknown")
+	albumArtist = sanitizeDownloadTemplateValue(albumArtist, "Unknown")
 	album = sanitizeDownloadTemplateValue(album, "")
 	source = sanitizeDownloadTemplateValue(source, "")
 	id = sanitizeDownloadTemplateValue(id, "")
 
 	hasExtToken := strings.Contains(template, "{ext}")
-	rendered := strings.NewReplacer(
+	replacer := strings.NewReplacer(
 		"{name}", name,
 		"{artist}", artist,
+		"{album_artist}", albumArtist,
 		"{album}", album,
 		"{source}", source,
 		"{id}", id,
 		"{ext}", ext,
-	).Replace(template)
+	)
+	rendered := replacer.Replace(template)
 	rendered = strings.TrimSpace(rendered)
 	if rendered == "" {
 		rendered = strings.TrimSpace(DefaultDownloadFilenameTemplate)
-		rendered = strings.NewReplacer("{name}", name, "{artist}", artist, "{album}", album, "{source}", source, "{id}", id, "{ext}", ext).Replace(rendered)
+		rendered = replacer.Replace(rendered)
 	}
 	if !hasExtToken && ext != "" {
 		rendered += "." + ext
 	}
 
 	return sanitizeDownloadRelativePath(rendered)
+}
+
+func downloadAlbumArtist(song *model.Song) string {
+	if song == nil {
+		return ""
+	}
+	for _, key := range []string{
+		"album_artist",
+		"albumArtist",
+		"albumartist",
+		"album-artist",
+		"album artist",
+	} {
+		if value := strings.TrimSpace(song.Extra[key]); value != "" {
+			return value
+		}
+	}
+	return strings.TrimSpace(song.Artist)
 }
 
 func sanitizeDownloadRelativePath(name string) string {

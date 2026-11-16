@@ -21,6 +21,7 @@ import (
 var (
 	openDownloadDirectory         = launchOpenDownloadDirectory
 	openDownloadFile              = launchOpenDownloadFile
+	revealDownloadFileInShell     = revealDownloadFileNative
 	openDownloadDirectorySettings = core.GetWebSettings
 	errDownloadPathOutsideRoot    = errors.New("download file is outside the download directory")
 )
@@ -53,6 +54,9 @@ func launchOpenDownloadDirectory(path string) error {
 }
 
 func launchOpenDownloadFile(path string) error {
+	if handled, err := revealDownloadFileInShell(path); handled {
+		return err
+	}
 	command, err := openDownloadFileCommand(runtime.GOOS, path)
 	if err != nil {
 		return err

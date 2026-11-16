@@ -2,9 +2,11 @@ package core
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/dhowden/tag"
@@ -199,5 +201,136 @@ func TestEmbedSongMetadataPreservesFLACMetadataWhenAddingAlbum(t *testing.T) {
 	}
 	if metadata.Genre() != "Jazz" {
 		t.Fatalf("metadata genre = %q, want preserved Jazz", metadata.Genre())
+	}
+}
+
+func TestEmbedSongMetadataSupportsFLACInMP4AndWebPCover(t *testing.T) {
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not available")
+	}
+	ffprobePath, err := exec.LookPath("ffprobe")
+	if err != nil {
+		t.Skip("ffprobe not available")
+	}
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "soda-lossless.mp4")
+	createAudio := exec.Command(
+		ffmpegPath,
+		"-y",
+		"-hide_banner",
+		"-loglevel",
+		"error",
+		"-f",
+		"lavfi",
+		"-i",
+		"anullsrc=r=44100:cl=stereo",
+		"-t",
+		"0.2",
+		"-c:a",
+		"flac",
+		inputPath,
+	)
+	if out, err := createAudio.CombinedOutput(); err != nil {
+		t.Fatalf("ffmpeg create FLAC-in-MP4 failed: %v, output: %s", err, out)
+	}
+
+	coverPath := filepath.Join(dir, "cover.webp")
+	createCover := exec.Command(
+		ffmpegPath,
+		"-y",
+		"-hide_banner",
+		"-loglevel",
+		"error",
+		"-f",
+		"lavfi",
+		"-i",
+		"color=c=red:s=32x32",
+		"-frames:v",
+		"1",
+		coverPath,
+	)
+	if out, err := createCover.CombinedOutput(); err != nil {
+		t.Fatalf("ffmpeg create WebP cover failed: %v, output: %s", err, out)
+	}
+
+	audioData, err := os.ReadFile(inputPath)
+	if err != nil {
+		t.Fatalf("ReadFile(audio): %v", err)
+	}
+	coverData, err := os.ReadFile(coverPath)
+	if err != nil {
+		t.Fatalf("ReadFile(cover): %v", err)
+	}
+
+	embedded, err := EmbedSongMetadata(
+		audioData,
+		&model.Song{
+			Name:   "最真的梦 (女声深情版)",
+			Artist: "七分可可",
+			Album:  "最真的梦 (女声深情版)",
+			Ext:    "m4a",
+		},
+		"[00:01.00]test lyric",
+		coverData,
+		"image/webp",
+	)
+	if err != nil {
+		t.Fatalf("EmbedSongMetadata() error = %v", err)
+	}
+	if len(embedded) < 8 || !bytes.Equal(embedded[4:8], []byte("ftyp")) {
+		t.Fatalf("embedded data is not an MP4 container, prefix=%x", embedded[:min(16, len(embedded))])
+	}
+
+	outputPath := filepath.Join(dir, "embedded.m4a")
+	if err := os.WriteFile(outputPath, embedded, 0o600); err != nil {
+		t.Fatalf("WriteFile(embedded): %v", err)
+	}
+	probe, err := exec.Command(
+		ffprobePath,
+		"-v",
+		"error",
+		"-show_entries",
+		"stream=codec_name,codec_type:format_tags=title,artist,album,lyrics",
+		"-of",
+		"json",
+		outputPath,
+	).CombinedOutput()
+	if err != nil {
+		t.Fatalf("ffprobe failed: %v, output: %s", err, probe)
+	}
+
+	var metadata struct {
+		Streams []struct {
+			CodecName string `json:"codec_name"`
+			CodecType string `json:"codec_type"`
+		} `json:"streams"`
+		Format struct {
+			Tags map[string]string `json:"tags"`
+		} `json:"format"`
+	}
+	if err := json.Unmarshal(probe, &metadata); err != nil {
+		t.Fatalf("decode ffprobe JSON: %v", err)
+	}
+	codecs := make(map[string]string, len(metadata.Streams))
+	for _, stream := range metadata.Streams {
+		codecs[stream.CodecType] = stream.CodecName
+	}
+	if codecs["audio"] != "flac" {
+		t.Fatalf("audio codec = %q, want flac; streams=%#v", codecs["audio"], metadata.Streams)
+	}
+	if codecs["video"] != "mjpeg" {
+		t.Fatalf("cover codec = %q, want mjpeg; streams=%#v", codecs["video"], metadata.Streams)
+	}
+	for key, want := range map[string]string{
+		"title":  "最真的梦 (女声深情版)",
+		"artist": "七分可可",
+		"album":  "最真的梦 (女声深情版)",
+		"lyrics": "[00:01.00]test lyric",
+	} {
+		if got := strings.TrimSpace(metadata.Format.Tags[key]); got != want {
+			t.Fatalf("format tag %s = %q, want %q; tags=%#v", key, got, want, metadata.Format.Tags)
+		}
 	}
 }

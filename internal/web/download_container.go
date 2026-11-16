@@ -17,6 +17,7 @@ type downloadContainerRequest struct {
 	ID        string `json:"id"`
 	Source    string `json:"source"`
 	Link      string `json:"link"`
+	Creator   string `json:"creator"`
 	Embed     bool   `json:"embed"`
 }
 
@@ -51,7 +52,14 @@ func loadDownloadContainerSongs(req downloadContainerRequest) ([]model.Song, err
 		if source == "" || isLocalMusicSource(source) || strings.TrimSpace(req.ID) == "" {
 			return nil, fmt.Errorf("缺少平台或歌单/专辑 ID")
 		}
-		collection := &Collection{Kind: collectionKindImported, ContentType: req.Kind, Source: source, ExternalID: req.ID, Link: req.Link}
+		collection := &Collection{
+			Kind:        collectionKindImported,
+			ContentType: req.Kind,
+			Source:      source,
+			ExternalID:  req.ID,
+			Link:        req.Link,
+			Creator:     strings.TrimSpace(req.Creator),
+		}
 		return loadImportedCollectionSongs(collection)
 	default:
 		return nil, fmt.Errorf("不支持的下载类型")

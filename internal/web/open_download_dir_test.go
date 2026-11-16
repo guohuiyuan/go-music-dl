@@ -209,6 +209,33 @@ func TestOpenDownloadDirectoryReportsLauncherFailure(t *testing.T) {
 	}
 }
 
+func TestLaunchOpenDownloadFileUsesNativeSelectionWhenAvailable(t *testing.T) {
+	original := revealDownloadFileInShell
+	t.Cleanup(func() {
+		revealDownloadFileInShell = original
+	})
+
+	var openedPath string
+	revealDownloadFileInShell = func(path string) (bool, error) {
+		openedPath = path
+		return true, nil
+	}
+	path := filepath.Join(t.TempDir(), "Artist", "Song with spaces.m4a")
+	if err := launchOpenDownloadFile(path); err != nil {
+		t.Fatalf("launchOpenDownloadFile: %v", err)
+	}
+	if openedPath != path {
+		t.Fatalf("native reveal path = %q, want %q", openedPath, path)
+	}
+
+	revealDownloadFileInShell = func(string) (bool, error) {
+		return true, errors.New("shell selection failed")
+	}
+	if err := launchOpenDownloadFile(path); err == nil || !strings.Contains(err.Error(), "shell selection failed") {
+		t.Fatalf("native reveal error = %v, want propagated failure", err)
+	}
+}
+
 func TestOpenDownloadDirectoryCommand(t *testing.T) {
 	tests := []struct {
 		goos    string

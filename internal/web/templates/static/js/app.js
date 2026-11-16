@@ -11255,7 +11255,7 @@ async function downloadWholeCollection(button) {
     const response = await fetch(`${API_ROOT}/api/downloads/queue/container`, {
       method: "POST",
       headers: {"Content-Type":"application/json", "X-Requested-With":"XMLHttpRequest"},
-      body: JSON.stringify({request_id:createDownloadRequestID(),kind:button.dataset.containerKind,id:button.dataset.containerId,source:button.dataset.containerSource || "",link:button.dataset.containerLink || "",embed:!!webSettings.embedDownload}),
+      body: JSON.stringify({request_id:createDownloadRequestID(),kind:button.dataset.containerKind,id:button.dataset.containerId,source:button.dataset.containerSource || "",link:button.dataset.containerLink || "",creator:button.dataset.creator || "",embed:!!webSettings.embedDownload}),
     });
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error || "加入队列失败");
