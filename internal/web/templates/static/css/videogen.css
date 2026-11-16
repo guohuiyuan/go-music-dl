@@ -419,7 +419,8 @@
 /* === 替换原本的 .vg-volume-wrapper，改为整合控制栏 === */
 .vg-playback-row {
     display: flex; align-items: center; justify-content: center; gap: 4px;
-    width: 100%; margin-top: 15px; color: rgba(255,255,255,0.8);
+    flex-wrap: wrap; row-gap: 8px;
+    width: 100%; min-width: 0; margin-top: 15px; color: rgba(255,255,255,0.8);
 }
 .vg-ctrl-icon {
     cursor: pointer; transition: all 0.2s; font-size: 16px;
@@ -451,6 +452,7 @@
     align-items: center;
     gap: 6px;
     margin-left: 6px;
+    flex: 0 0 auto;
 }
 .vg-track-action {
     width: 30px;
@@ -488,7 +490,7 @@
 /* 手机端防拥挤适配 */
 @media (max-width: 768px) {
     .vg-vol-group { margin-left: 10px; padding-left: 10px; }
-    .vg-vol-group input[type="range"] { width: 60px; }
+    .vg-vol-group input[type="range"] { width: clamp(52px, 16vw, 60px); }
     .vg-play-center { margin: 0 5px; }
     .vg-track-actions { gap: 4px; margin-left: 2px; }
     .vg-track-action { width: 28px; height: 28px; }

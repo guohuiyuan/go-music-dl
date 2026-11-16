@@ -1076,27 +1076,60 @@
 
       favoriteCurrent: function() {
           const song = this.data;
-          if (song && typeof window.openAddToCollectionForSong === 'function') {
-              window.openAddToCollectionForSong(song);
+          if (!song?.id || !song?.source) {
+              if (typeof window.showToast === 'function') {
+                  window.showToast('无法收藏', '当前没有可收藏的歌曲。', 'error', 4000);
+              }
+              return;
           }
+          if (typeof window.openAddToCollectionForSong !== 'function') {
+              if (typeof window.showToast === 'function') {
+                  window.showToast('无法收藏', '收藏功能尚未加载，请刷新页面后重试。', 'error', 4000);
+              }
+              return;
+          }
+          window.openAddToCollectionForSong(song);
+      },
+
+      downloadCurrent: async function(event) {
+          if (event) {
+              event.preventDefault();
+              event.stopPropagation();
+          }
+          const download = document.getElementById('vg-download-button');
+          if (!download || download.getAttribute('aria-disabled') === 'true') {
+              if (typeof window.showToast === 'function') {
+                  window.showToast('无法下载', '当前没有可下载的歌曲。', 'error', 4000);
+              }
+              return false;
+          }
+          if (typeof window.handleDownloadClick === 'function') {
+              await window.handleDownloadClick(download);
+          } else if (download.href) {
+              window.open(download.href, '_blank', 'noopener');
+          }
+          return false;
       },
 
       syncTrackActions: function(songData) {
           const song = songData || this.data;
           const favorite = document.getElementById('vg-favorite-button');
           const download = document.getElementById('vg-download-button');
+          const canFavorite = Boolean(song?.id && song?.source);
           if (favorite) {
-              favorite.disabled = !song;
-              favorite.setAttribute('aria-disabled', String(!song));
+              favorite.disabled = !canFavorite;
+              favorite.setAttribute('aria-disabled', String(!canFavorite));
               favorite.title = song ? '收藏当前歌曲' : '当前没有可收藏的歌曲';
               favorite.setAttribute('aria-label', favorite.title);
           }
           if (!download) return;
+          download.onclick = (event) => this.downloadCurrent(event);
           const canDownload = Boolean(
-              song &&
+              song?.id &&
+              song?.source &&
               typeof window.buildDownloadURL === 'function' &&
-              typeof isLocalMusicSourceValue === 'function' &&
-              !isLocalMusicSourceValue(song.source)
+              typeof window.isLocalMusicSourceValue === 'function' &&
+              !window.isLocalMusicSourceValue(song.source)
           );
           if (canDownload) {
               download.href = window.buildDownloadURL(
@@ -1106,8 +1139,8 @@
                   song.artist,
                   song.album,
                   song.cover,
-                  typeof serializeSongExtra === 'function'
-                      ? serializeSongExtra(song.extra)
+                  typeof window.serializeSongExtra === 'function'
+                      ? window.serializeSongExtra(song.extra)
                       : ''
               );
               download.title = '下载当前歌曲';
