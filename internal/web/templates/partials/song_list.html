@@ -263,6 +263,10 @@
                 {{ end }}
 
                 {{ if $isLocalMusicPage }}
+                <button type="button" class="btn-circle btn-dl btn-reveal-local" title="打开文件目录"
+                        aria-label="打开文件目录：{{.Name}}" onclick="revealLocalMusicFileFromButton(this)">
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>
                 <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单"
                         onclick="openAddToCollectionModal(this)">
                     <i class="fa-regular fa-heart"></i>
@@ -306,6 +310,12 @@
                 {{ end }}
 
                 {{ if not $isLocalMusicPage }}
+                {{ if $isLocalSong }}
+                <button type="button" class="btn-circle btn-dl btn-reveal-local" title="打开文件目录"
+                        aria-label="打开文件目录：{{.Name}}" onclick="revealLocalMusicFileFromButton(this)">
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>
+                {{ end }}
                 {{ if or (not $isLocalSong) (ne $.ColID "") }}
                 <button type="button" class="btn-circle btn-switch" title="换源"
                         onclick="switchSource(this)">

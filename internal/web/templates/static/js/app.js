@@ -4202,7 +4202,7 @@ function localMusicSongFromTrack(track) {
   };
 }
 
-function renderLocalMusicPageCard(track) {
+function renderLocalMusicPageCardBase(track) {
   const song = localMusicSongFromTrack(track);
   const extraJSON = serializeSongExtra(song.extra);
   const album = song.album || "";
@@ -4270,6 +4270,19 @@ function renderLocalMusicPageCard(track) {
             </div>
         </li>
     `;
+}
+
+function renderLocalMusicPageCard(track) {
+  const song = localMusicSongFromTrack(track);
+  const revealButton = `
+                <button type="button" class="btn-circle btn-dl btn-reveal-local" title="打开文件目录"
+                        aria-label="打开文件目录：${escapeHTML(song.name)}" onclick="revealLocalMusicFileFromButton(this)">
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>`;
+  return renderLocalMusicPageCardBase(track).replace(
+    '<div class="actions">',
+    `<div class="actions">${revealButton}`,
+  );
 }
 
 function ensureLocalMusicPaginationBar() {
@@ -6087,6 +6100,48 @@ async function revealDownloadFile(kind, id) {
       button.disabled = false;
       button.removeAttribute("aria-busy");
     }
+  }
+}
+
+async function revealLocalMusicFileFromButton(button) {
+  const card = button?.closest(".song-card");
+  const id = String(card?.dataset.id || "").trim();
+  if (!id || button?.disabled) return;
+
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try {
+    const response = await fetch(
+      `${API_ROOT}/local_music/reveal?id=${encodeURIComponent(id)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: "{}",
+      },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.error) {
+      throw new Error(payload.error || "当前环境无法定位本地音乐文件");
+    }
+    showToast(
+      "已在文件管理器中定位",
+      payload.path || card?.dataset.name || "本地音乐",
+      "success",
+      3500,
+    );
+  } catch (error) {
+    showToast(
+      "无法打开文件目录",
+      String(error?.message || error),
+      "error",
+      6000,
+    );
+  } finally {
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
   }
 }
 

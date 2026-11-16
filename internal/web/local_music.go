@@ -276,6 +276,7 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 			"scanned_at":   scannedAt,
 		})
 	})
+	api.POST("/local_music/reveal", revealLocalMusicFile)
 
 	localMusicCoverHandler := func(c *gin.Context) {
 		track, err := localMusicTrackByID(c.Query("id"))
@@ -680,6 +681,43 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 			"failed":    failed,
 		})
 	})
+}
+
+func revealLocalMusicFile(c *gin.Context) {
+	if !allowLocalDownloadOpen(c) {
+		return
+	}
+
+	id := strings.TrimSpace(c.Query("id"))
+	if id == "" || len(id) > 4096 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid local music id"})
+		return
+	}
+	if _, err := decodeLocalMusicID(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid local music id"})
+		return
+	}
+
+	track, err := localMusicTrackByID(id)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "local music file no longer exists"})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "local music file not found"})
+		return
+	}
+
+	target, err := resolveDownloadFile(localMusicDownloadDir(), track.absPath)
+	if err != nil {
+		writeRevealDownloadFileError(c, err)
+		return
+	}
+	if err := openDownloadFile(target); err != nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "path": target})
 }
 
 func isLocalMusicSource(source string) bool {

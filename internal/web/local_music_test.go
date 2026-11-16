@@ -122,6 +122,21 @@ func TestSearchBoxTemplateShowsLocalMusicEntryNextToCollections(t *testing.T) {
 		t.Fatal("search box missing playlist categories label")
 	}
 
+	indexContent, err := templateFS.ReadFile("templates/pages/index.html")
+	if err != nil {
+		t.Fatalf("ReadFile(index.html): %v", err)
+	}
+	if strings.Contains(string(indexContent), `onclick="openLocalMusicPage()"`) {
+		t.Fatal("right toolbar should not duplicate the local music entry")
+	}
+	modalsContent, err := templateFS.ReadFile("templates/partials/modals.html")
+	if err != nil {
+		t.Fatalf("ReadFile(modals.html): %v", err)
+	}
+	if strings.Contains(string(modalsContent), `onclick="openLocalMusicPage()"`) {
+		t.Fatal("utility modals should not duplicate the local music entry")
+	}
+
 	playlistGrid, err := templateFS.ReadFile("templates/partials/playlist_grid.html")
 	if err != nil {
 		t.Fatalf("ReadFile(playlist_grid.html): %v", err)
@@ -292,11 +307,13 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 		`class="tag tag-local"`,
 		`>本地</span>`,
 		`class="btn-circle btn-play"`,
+		`class="btn-circle btn-dl btn-reveal-local"`,
 		`class="btn-circle btn-dl btn-lyric"`,
 		`class="btn-circle btn-dl btn-cover"`,
 		`class="btn-circle btn-delete-local"`,
 		`class="btn-circle btn-fav"`,
 		`onclick="deleteLocalMusicFromButton(this)"`,
+		`onclick="revealLocalMusicFileFromButton(this)"`,
 		`onclick="openAddToCollectionModal(this)"`,
 		`/local_music/cover?id=`,
 	}
@@ -325,12 +342,115 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 	}
 
 	playIndex := strings.Index(body, `class="btn-circle btn-play"`)
+	revealIndex := strings.Index(body, `onclick="revealLocalMusicFileFromButton(this)"`)
 	favIndex := strings.Index(body, `onclick="openAddToCollectionModal(this)"`)
 	lyricIndex := strings.Index(body, `class="btn-circle btn-dl btn-lyric"`)
 	coverIndex := strings.Index(body, `class="btn-circle btn-dl btn-cover"`)
 	deleteIndex := strings.Index(body, `onclick="deleteLocalMusicFromButton(this)"`)
-	if !(playIndex < favIndex && favIndex < lyricIndex && lyricIndex < coverIndex && coverIndex < deleteIndex) {
-		t.Fatalf("local music page action order mismatch: play=%d fav=%d lyric=%d cover=%d delete=%d", playIndex, favIndex, lyricIndex, coverIndex, deleteIndex)
+	if playIndex < 0 || playIndex >= revealIndex || revealIndex >= favIndex ||
+		favIndex >= lyricIndex || lyricIndex >= coverIndex || coverIndex >= deleteIndex {
+		t.Fatalf("local music page action order mismatch: play=%d reveal=%d fav=%d lyric=%d cover=%d delete=%d", playIndex, revealIndex, favIndex, lyricIndex, coverIndex, deleteIndex)
+	}
+}
+
+func TestRevealLocalMusicFileSelectsSavedFile(t *testing.T) {
+	initCollectionDBForTest(t)
+
+	downloadDir := t.TempDir()
+	withLocalMusicDownloadDir(t, downloadDir)
+	audioPath := filepath.Join(downloadDir, "Artist", "Song.mp3")
+	if err := os.MkdirAll(filepath.Dir(audioPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(audioPath, []byte("not a real mp3"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	id := encodeLocalMusicID(filepath.Join("Artist", "Song.mp3"))
+	var openedPath string
+	withOpenDownloadFileLauncher(t, func(path string) error {
+		openedPath = path
+		return nil
+	})
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	RegisterLocalMusicRoutes(router.Group(RoutePrefix))
+	target := "http://127.0.0.1:8083" + RoutePrefix + "/local_music/reveal?id=" + url.QueryEscape(id)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, newRevealDownloadRequest(target))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if openedPath != audioPath {
+		t.Fatalf("opened path = %q, want %q", openedPath, audioPath)
+	}
+}
+
+func TestRevealLocalMusicFileOnlyAllowsLoopback(t *testing.T) {
+	initCollectionDBForTest(t)
+	withLocalMusicDownloadDir(t, t.TempDir())
+
+	launches := 0
+	withOpenDownloadFileLauncher(t, func(string) error {
+		launches++
+		return nil
+	})
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	RegisterLocalMusicRoutes(router.Group(RoutePrefix))
+	target := "http://127.0.0.1:8083" + RoutePrefix + "/local_music/reveal?id=" + url.QueryEscape(encodeLocalMusicID("Song.mp3"))
+	tests := []struct {
+		name   string
+		mutate func(*http.Request)
+	}{
+		{
+			name: "remote address",
+			mutate: func(request *http.Request) {
+				request.RemoteAddr = "192.0.2.20:53142"
+			},
+		},
+		{
+			name: "forwarded request",
+			mutate: func(request *http.Request) {
+				request.Header.Set("X-Forwarded-For", "198.51.100.12")
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := newRevealDownloadRequest(target)
+			test.mutate(request)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("status = %d, want %d, body=%s", response.Code, http.StatusForbidden, response.Body.String())
+			}
+		})
+	}
+	if launches != 0 {
+		t.Fatalf("unsafe requests opened a file manager %d times", launches)
+	}
+}
+
+func TestLocalMusicRevealFrontendUsesIDOnly(t *testing.T) {
+	appContent, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appJS := string(appContent)
+	for _, want := range []string{
+		"function renderLocalMusicPageCardBase(track)",
+		"function renderLocalMusicPageCard(track)",
+		"function revealLocalMusicFileFromButton(button)",
+		"`${API_ROOT}/local_music/reveal?id=${encodeURIComponent(id)}`",
+		`class="btn-circle btn-dl btn-reveal-local"`,
+	} {
+		if !strings.Contains(appJS, want) {
+			t.Fatalf("local music reveal frontend missing %q", want)
+		}
 	}
 }
 
@@ -388,6 +508,7 @@ func TestManualCollectionLocalSongRendersLocalActionOrder(t *testing.T) {
 
 	required := []string{
 		`class="btn-circle btn-play"`,
+		`class="btn-circle btn-dl btn-reveal-local"`,
 		`class="btn-circle btn-switch"`,
 		`removeSongFromCollection`,
 		`class="btn-circle btn-dl btn-lyric"`,
@@ -401,12 +522,14 @@ func TestManualCollectionLocalSongRendersLocalActionOrder(t *testing.T) {
 	}
 
 	playIndex := strings.Index(card, `class="btn-circle btn-play"`)
+	revealIndex := strings.Index(card, `onclick="revealLocalMusicFileFromButton(this)"`)
 	switchIndex := strings.Index(card, `class="btn-circle btn-switch"`)
 	removeIndex := strings.Index(card, `removeSongFromCollection`)
 	lyricIndex := strings.Index(card, `class="btn-circle btn-dl btn-lyric"`)
 	coverIndex := strings.Index(card, `class="btn-circle btn-dl btn-cover"`)
-	if !(playIndex < switchIndex && switchIndex < removeIndex && removeIndex < lyricIndex && lyricIndex < coverIndex) {
-		t.Fatalf("manual collection local song action order mismatch: play=%d switch=%d remove=%d lyric=%d cover=%d", playIndex, switchIndex, removeIndex, lyricIndex, coverIndex)
+	if playIndex < 0 || playIndex >= revealIndex || revealIndex >= switchIndex ||
+		switchIndex >= removeIndex || removeIndex >= lyricIndex || lyricIndex >= coverIndex {
+		t.Fatalf("manual collection local song action order mismatch: play=%d reveal=%d switch=%d remove=%d lyric=%d cover=%d", playIndex, revealIndex, switchIndex, removeIndex, lyricIndex, coverIndex)
 	}
 }
 

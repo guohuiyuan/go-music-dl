@@ -440,6 +440,16 @@ func aiEndpointCatalog(basePath string) []aiEndpoint {
 		},
 		{
 			Group:       "library",
+			Method:      http.MethodPost,
+			Path:        basePath + "/local_music/reveal",
+			Description: "Existing route to reveal one indexed local music file in the host file manager. Available only to a loopback client.",
+			Params:      map[string]string{"id": "required local music id"},
+			Returns:     "json",
+			Write:       true,
+			Auth:        writeAuth,
+		},
+		{
+			Group:       "library",
 			Method:      http.MethodGet,
 			Path:        basePath + "/collections",
 			Description: "Existing local collection list.",
@@ -772,6 +782,7 @@ Playback and downloads:
 
 Library and health:
 - Local music: GET %[1]s/local_music?offset=0&limit=50
+- Reveal one local music file: POST %[1]s/local_music/reveal?id=... (loopback clients only)
 - Local collections: GET %[1]s/collections
 - Collection songs: GET %[1]s/collections/{id}/songs
 - Health: GET %[1]s/healthz
