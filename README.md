@@ -8,11 +8,26 @@
 
 Go Music DL 是一个多平台音乐搜索与下载工具，支持 **Web**、**TUI** 和**桌面端**，覆盖单曲、歌单、专辑、排行榜与本地音乐。它同时暴露了一套 AI 可调用的接口——**AI 可以直接操控你正开着的网页播放器**，点歌、切歌、暂停、调音量都不用你动手，详见 [AI / Agent 调用](#ai--agent-调用)。
 
+## 下载安装
+
+推荐优先下载与操作系统和 CPU 架构匹配的桌面版。Rust 桌面版与 Go 桌面版均可使用，不确定时优先选择 Rust 桌面版。所有下载项也可在
+[GitHub Releases](https://github.com/guohuiyuan/go-music-dl/releases/latest) 查看和选择。
+
+| 平台 | 推荐下载 | 其它版本 |
+| --- | --- | --- |
+| Windows x64 | [Rust 桌面版](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-windows-amd64.zip) | [Go 桌面版](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-go_windows_amd64.zip) · [Rust ARM64](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-windows-arm64.zip) · [Rust 32 位](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-windows-386.zip) · [CLI x64](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/go-music-dl_windows_amd64.zip) |
+| macOS Apple Silicon | [DMG 安装包](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-macos-arm64.dmg) | [PKG 安装包](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-macos-arm64.pkg) · [Go 桌面版](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-go_darwin_arm64.tar.gz) · [CLI](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/go-music-dl_darwin_arm64.tar.gz) |
+| macOS Intel | [DMG 安装包](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-macos-amd64.dmg) | [PKG 安装包](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-macos-amd64.pkg) · [Go 桌面版](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-go_darwin_amd64.tar.gz) · [CLI](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/go-music-dl_darwin_amd64.tar.gz) |
+| Linux x64 | [AppImage](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-linux-amd64.AppImage) | [DEB](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-linux-amd64.deb) · [RPM](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-rust-linux-amd64.rpm) · [Go 桌面版](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-desktop-go_linux_amd64.tar.gz) · [CLI](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/go-music-dl_linux_amd64.tar.gz) |
+| Android ARM64 | [推荐 APK](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl_arm64-v8a.apk) | [全 ABI 兼容 APK](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl.apk) · [x86_64 模拟器 APK](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl_x86_64.apk) |
+| iOS | [未签名 IPA](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-ios-unsigned.ipa) | [SHA-256 校验文件](https://github.com/guohuiyuan/go-music-dl/releases/latest/download/music-dl-ios-unsigned.ipa.sha256) |
+
+Android 用户优先选择 `arm64-v8a` APK，只有分片 APK 无法安装时再使用全 ABI 兼容包。
+iOS 的 `unsigned IPA` 不能直接安装，需要使用 SideStore、AltStore 或自己的开发者证书重签。
+
 ## 🚀 快速开始
 
 ### 桌面端 / 移动端
-
-从 [Releases](https://github.com/guohuiyuan/go-music-dl/releases) 下载对应安装包：
 
 - Windows / Linux / macOS：从 Releases 下载 `music-dl-desktop-rust` 或 `music-dl-desktop-go` 对应平台包，解压后直接运行。
 - Android：优先下载 `music-dl_arm64-v8a.apk`，已内置 FFmpeg，无需额外安装。
