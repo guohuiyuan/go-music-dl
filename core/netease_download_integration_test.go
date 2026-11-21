@@ -32,6 +32,7 @@ func TestDownloadNeteaseFLACWithCookieRegression(t *testing.T) {
 		Source: "netease",
 		Name:   "Netease FLAC Regression",
 		Artist: "Netease",
+		Extra:  map[string]string{"quality": "lossless"},
 	}, false, false)
 	if err != nil {
 		t.Fatalf("DownloadSongData returned error: %v", err)

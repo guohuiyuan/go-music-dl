@@ -108,8 +108,12 @@ func (m *CookieManager) Save() {
 
 func (m *CookieManager) Get(source string) string {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.cookies[source]
+	value := m.cookies[source]
+	m.mu.RUnlock()
+	if strings.EqualFold(strings.TrimSpace(source), "netease") {
+		return withNeteaseClientIdentity(value)
+	}
+	return value
 }
 
 func (m *CookieManager) SetAll(c map[string]string) {
