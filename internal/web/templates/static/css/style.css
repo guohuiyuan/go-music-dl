@@ -3207,6 +3207,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
 .queue-status-downloading { color:var(--primary-deep); font-weight:700; }
 .queue-status-failed { color:#b91c1c; }
 .queue-status-success { color:var(--primary-deep); }
+.queue-status-warning { color:#b45309; font-weight:700; }
 .queue-badge { position:absolute; top:-5px; right:-7px; background:var(--primary-deep); color:#fff; border-radius:12px; font-size:10px; min-width:20px; padding:2px 4px; line-height:16px; }
 .queue-badge[hidden], #download-history-panel[hidden], #download-queue-panel[hidden] { display:none; }
 @media (max-width:600px) { .queue-overview { align-items:flex-start; flex-direction:column; gap:4px; } .queue-toolbar { gap:10px; } .queue-toolbar-actions { flex-wrap:wrap; } }
