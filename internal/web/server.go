@@ -355,7 +355,7 @@ func filterSongsForDisplay(songs []model.Song, settings core.WebSettings) []mode
 
 	filtered := make([]model.Song, 0, len(songs))
 	for _, song := range songs {
-		if settings.FilterShortTracks && song.Duration > 0 && song.Duration < shortPreviewFilterSeconds {
+		if settings.FilterShortTracks && songIsPreview(song) {
 			continue
 		}
 		if settings.FilterVersionKeywords && len(keywords) > 0 {
@@ -374,6 +374,26 @@ func filterSongsForDisplay(songs []model.Song, settings core.WebSettings) []mode
 		filtered = append(filtered, song)
 	}
 	return filtered
+}
+
+// songIsPreview reports whether a song is only available as a preview. Some
+// providers expose the full track duration while limiting playback to a
+// VIP-gated sample, so duration alone is not sufficient.
+func songIsPreview(song model.Song) bool {
+	if song.Duration > 0 && song.Duration <= shortPreviewFilterSeconds {
+		return true
+	}
+	return songHasTrueExtra(song, "preview_only") ||
+		songHasTrueExtra(song, "only_vip_playable")
+}
+
+func songHasTrueExtra(song model.Song, key string) bool {
+	value, ok := song.Extra[key]
+	if !ok {
+		return false
+	}
+	enabled, err := strconv.ParseBool(strings.TrimSpace(value))
+	return err == nil && enabled
 }
 
 func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist, q string, selected []string, errMsg string, searchType string, playlistLink string, colID string, colName string, isLocalColPage bool, collectionKind string, importCollection *importCollectionMeta) {
