@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/guohuiyuan/go-music-dl/internal/safefetch"
 	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 	"github.com/guohuiyuan/music-lib/soda"
@@ -76,7 +77,12 @@ func downloadSongDataWithTemplate(song *model.Song, withCover, fetchLyrics, embe
 	var coverData []byte
 	var coverMime string
 	if withCover && strings.TrimSpace(normalized.Cover) != "" {
-		coverData, coverMime, _ = FetchBytesWithMime(normalized.Cover, normalized.Source)
+		coverData, coverMime, _ = safefetch.FetchImage(
+			normalized.Cover,
+			playbackUserAgent(normalized.Source),
+			playbackReferer(normalized.Source),
+			safefetch.DefaultMaxImageBytes,
+		)
 	}
 
 	finalData := audioData

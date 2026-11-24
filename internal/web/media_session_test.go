@@ -128,16 +128,16 @@ func TestCoverProxyReturnsInlineImage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	imageBytes := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02, 0x03, 0x04}
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "image/png")
-		_, _ = w.Write(imageBytes)
-	}))
-	defer upstream.Close()
+	oldFetch := fetchCoverImage
+	fetchCoverImage = func(rawURL, source string) ([]byte, string, error) {
+		return imageBytes, "image/png", nil
+	}
+	t.Cleanup(func() { fetchCoverImage = oldFetch })
 
 	router := gin.New()
 	RegisterMusicRoutes(router.Group(RoutePrefix), router.Group(RoutePrefix))
 
-	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/cover_proxy?url="+url.QueryEscape(upstream.URL), nil)
+	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/cover_proxy?url="+url.QueryEscape("https://cdn.example/cover.png"), nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -149,6 +149,9 @@ func TestCoverProxyReturnsInlineImage(t *testing.T) {
 	}
 	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=21600" {
 		t.Fatalf("Cache-Control = %q, want public, max-age=21600", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
 	}
 	if !bytes.Equal(rec.Body.Bytes(), imageBytes) {
 		t.Fatal("cover_proxy returned unexpected body")

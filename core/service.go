@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -840,6 +841,42 @@ func GetOriginalLink(source, id, typeStr string) string {
 	return ""
 }
 
+// sourceCookieHostSuffixes 限定各音源的 Cookie 只能发往对应平台的域名。
+// 播放直链或封面地址可能来自 CDN，但绝不能把登录 Cookie 带到任意外部主机。
+var sourceCookieHostSuffixes = map[string][]string{
+	"apple":    {"apple.com"},
+	"bilibili": {"bilibili.com", "bilivideo.com", "bilivideo.cn", "biliapi.net", "hdslb.com"},
+	"fivesing": {"5sing.com", "kugou.com"},
+	"jamendo":  {"jamendo.com", "jamendo.net"},
+	"joox":     {"joox.com", "jooxcdn.com"},
+	"kugou":    {"kugou.com", "kugou.net", "kgimg.com"},
+	"kuwo":     {"kuwo.cn", "kuwo.com", "kwcdn.com"},
+	"migu":     {"migu.cn", "migumusic.com", "12530.com"},
+	"netease":  {"163.com", "126.net", "127.net", "netease.com"},
+	"qianqian": {"taihe.com", "91q.com", "baidu.com", "bdstatic.com", "bdimg.com"},
+	"qq":       {"qq.com", "qqmusic.qq.com", "tencentmusic.com", "gtimg.cn", "qpic.cn"},
+	"soda":     {"douyin.com", "douyinvod.com", "douyinpic.com", "douyinstatic.com", "qishui.com", "bytecdn.cn", "bytecdntp.com", "pstatp.com", "byteimg.com", "snssdk.com", "ibytedtos.com"},
+}
+
+func sourceCookieHostAllowed(source, host string) bool {
+	source = strings.ToLower(strings.TrimSpace(source))
+	host = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
+	if source == "" || host == "" || net.ParseIP(host) != nil {
+		return false
+	}
+	for _, suffix := range sourceCookieHostSuffixes[source] {
+		if host == suffix || strings.HasSuffix(host, "."+suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// SourceReferer 返回该音源请求使用的 Referer；没有时返回空串。
+func SourceReferer(source string) string {
+	return playbackReferer(source)
+}
+
 func BuildSourceRequest(method, urlStr, source, rangeHeader string) (*http.Request, error) {
 	req, err := http.NewRequest(method, urlStr, nil)
 	if err != nil {
@@ -862,7 +899,7 @@ func BuildSourceRequest(method, urlStr, source, rangeHeader string) (*http.Reque
 	if source == "qq" {
 		req.Header.Set("Referer", "http://y.qq.com")
 	}
-	if cookie := CM.Get(source); cookie != "" && source != "spotify" {
+	if cookie := CM.Get(source); cookie != "" && source != "spotify" && sourceCookieHostAllowed(source, req.URL.Hostname()) {
 		req.Header.Set("Cookie", cookie)
 	}
 	return req, nil

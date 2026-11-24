@@ -1484,24 +1484,32 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 	api.POST("/download_lrc", downloadLRCHandler)
 
 	downloadCoverHandler := func(c *gin.Context) {
-		u := c.Query("url")
+		u := strings.TrimSpace(c.Query("url"))
 		if u == "" {
+			c.Status(http.StatusBadRequest)
 			return
 		}
 		saveLocal := wantsSaveLocal(c)
 		if saveLocal && !allowSaveLocalRequest(c) {
 			return
 		}
-		resp, err := utils.Get(u, utils.WithHeader("User-Agent", core.UA_Common))
-		if err == nil {
-			filename := fmt.Sprintf("%s - %s.jpg", c.Query("name"), c.Query("artist"))
-			if saveLocal {
-				saveWebAssetResponse(c, filename, resp)
-				return
+		data, contentType, err := fetchCoverImage(u, "")
+		if err != nil {
+			if errors.Is(err, errUnsafeCoverURL) {
+				c.Status(http.StatusBadRequest)
+			} else {
+				c.Status(http.StatusBadGateway)
 			}
-			setDownloadHeader(c, filename)
-			c.Data(200, "image/jpeg", resp)
+			return
 		}
+		filename := fmt.Sprintf("%s - %s%s", c.Query("name"), c.Query("artist"), coverFileExtension(contentType))
+		if saveLocal {
+			saveWebAssetResponse(c, filename, data)
+			return
+		}
+		setDownloadHeader(c, filename)
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Data(200, contentType, data)
 	}
 	api.GET("/download_cover", downloadCoverHandler)
 	api.POST("/download_cover", downloadCoverHandler)
@@ -1513,16 +1521,18 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			return
 		}
 
-		data, contentType, err := core.FetchBytesWithMime(u, strings.TrimSpace(c.Query("source")))
-		if err != nil || len(data) == 0 {
-			c.Status(http.StatusBadGateway)
+		data, contentType, err := fetchCoverImage(u, strings.TrimSpace(c.Query("source")))
+		if err != nil {
+			if errors.Is(err, errUnsafeCoverURL) {
+				c.Status(http.StatusBadRequest)
+			} else {
+				c.Status(http.StatusBadGateway)
+			}
 			return
-		}
-		if contentType == "" {
-			contentType = "image/jpeg"
 		}
 
 		c.Header("Cache-Control", "public, max-age=21600")
+		c.Header("X-Content-Type-Options", "nosniff")
 		c.Data(http.StatusOK, contentType, data)
 	})
 
