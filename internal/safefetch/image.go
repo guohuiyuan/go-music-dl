@@ -66,7 +66,7 @@ func FetchImage(rawURL, userAgent, referer string, maxBytes int64) ([]byte, stri
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", fmt.Errorf("upstream status: %d", resp.StatusCode)
 	}
