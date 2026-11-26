@@ -2187,7 +2187,75 @@ function initSourceSelectorCollapse(root = document) {
   applySourceSelectorCollapsed(selector, collapsed);
 }
 
+let searchShortcutBound = false;
+function ensureSearchFocusShortcut() {
+  if (searchShortcutBound) return;
+  searchShortcutBound = true;
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key !== "/" ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      isEditableElement(event.target)
+    ) {
+      return;
+    }
+    const openModal = document.querySelector(
+      '.modal-overlay.is-open, .modal-overlay[style*="display: flex"], .modal-overlay[style*="display:flex"], #vg-modal.active',
+    );
+    if (openModal) return;
+    const input = document.getElementById("search-keyword");
+    if (!input) return;
+    event.preventDefault();
+    input.focus();
+    input.select();
+  });
+}
+
+function spawnBrandNotes(anchor) {
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+  const rect = anchor.getBoundingClientRect();
+  const glyphs = ["♪", "♫", "♬"];
+  const offsets = [
+    { x: -24, dx: "-18px", dy: "-38px", rot: "-18deg" },
+    { x: 0, dx: "4px", dy: "-46px", rot: "10deg" },
+    { x: 24, dx: "22px", dy: "-34px", rot: "20deg" },
+  ];
+  offsets.forEach((cfg, idx) => {
+    const el = document.createElement("span");
+    el.className = "brand-floating-note";
+    el.textContent = glyphs[idx % glyphs.length];
+    el.style.left = `${rect.left + rect.width / 2 + cfg.x}px`;
+    el.style.top = `${rect.top + 6}px`;
+    el.style.setProperty("--note-dx", cfg.dx);
+    el.style.setProperty("--note-dy", cfg.dy);
+    el.style.setProperty("--note-rot", cfg.rot);
+    document.body.appendChild(el);
+    window.setTimeout(() => el.remove(), 820);
+  });
+}
+
+function bindBrandTitleInteraction(root = document) {
+  const scope = root && typeof root.querySelectorAll === "function" ? root : document;
+  scope.querySelectorAll(".brand-title-link").forEach((link) => {
+    if (link.dataset.brandBound === "1") return;
+    link.dataset.brandBound = "1";
+    link.addEventListener("click", () => {
+      link.classList.remove("is-bouncing");
+      void link.offsetWidth;
+      link.classList.add("is-bouncing");
+      spawnBrandNotes(link);
+      window.setTimeout(() => link.classList.remove("is-bouncing"), 560);
+    });
+  });
+}
+
 function bindSearchForm(root = document) {
+  bindBrandTitleInteraction(root);
+  ensureSearchFocusShortcut();
   const searchForm = root.querySelector("#search-form");
   if (!searchForm) return;
 
@@ -2835,6 +2903,29 @@ function navigateBack() {
   void navigateTo(API_ROOT + "/");
 }
 
+let navProgressTimer = null;
+function startNavProgress() {
+  const bar = document.getElementById("nav-progress-bar");
+  if (!bar) return;
+  if (navProgressTimer) {
+    clearTimeout(navProgressTimer);
+    navProgressTimer = null;
+  }
+  bar.classList.remove("is-done");
+  void bar.offsetWidth;
+  bar.classList.add("is-active");
+}
+function finishNavProgress() {
+  const bar = document.getElementById("nav-progress-bar");
+  if (!bar) return;
+  bar.classList.remove("is-active");
+  bar.classList.add("is-done");
+  navProgressTimer = setTimeout(() => {
+    bar.classList.remove("is-done");
+    navProgressTimer = null;
+  }, 360);
+}
+
 async function navigateTo(url, options = {}) {
   let targetURL;
   try {
@@ -2857,6 +2948,7 @@ async function navigateTo(url, options = {}) {
 
   const controller = new AbortController();
   navigationAbortController = controller;
+  startNavProgress();
 
   try {
     const response = await fetch(targetURL.toString(), {
@@ -2932,6 +3024,7 @@ async function navigateTo(url, options = {}) {
   } finally {
     if (navigationAbortController === controller) {
       navigationAbortController = null;
+      finishNavProgress();
     }
   }
 }

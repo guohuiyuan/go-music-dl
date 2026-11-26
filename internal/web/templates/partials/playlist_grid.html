@@ -31,7 +31,7 @@
         {{ $editable := playlistExtraValue . "editable" }}
         <div class="playlist-card" onclick="navigateTo('{{ $detailURL }}')">
             <div class="playlist-cover" onclick="event.stopPropagation(); navigateTo('{{ $detailURL }}')">
-                <img src="{{ .Cover }}" loading="lazy" onerror="this.src='https://via.placeholder.com/400?text=Cover'">
+                <img src="{{ .Cover }}" loading="lazy" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 240%22%3E%3Crect width=%22240%22 height=%22240%22 fill=%22%23eef2f5%22/%3E%3Ccircle cx=%22120%22 cy=%22120%22 r=%2264%22 fill=%22none%22 stroke=%22%23cbd5e1%22 stroke-width=%223%22/%3E%3Ccircle cx=%22120%22 cy=%22120%22 r=%2220%22 fill=%22%2310b981%22/%3E%3C/svg%3E'">
                 <span class="tag {{ if eq .Source "local" }}tag-local{{ else }}tag-src{{ end }}" style="position:absolute; top:5px; right:5px; margin:0; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                     {{ if eq .Source "local" }}
                         {{ if eq $collectionKind "imported" }}外部导入{{ else }}自建歌单{{ end }}

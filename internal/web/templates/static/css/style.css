@@ -2330,12 +2330,6 @@ body.vg-open .aplayer.aplayer-fixed {
 
 /* 🌟 Sakana 蒜苗看板娘容器控制 - 移到右侧 */
 
-    background: var(--primary-color);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(var(--primary-rgb), 0.3);
-}
-
 .aplayer.aplayer-fixed { z-index: 10000 !important; }
 
 .aplayer.aplayer-fixed .playmode-toggle-btn {
@@ -3646,4 +3640,422 @@ html[data-theme="dark"] .queue-secondary-action {
         display: none !important;
     }
     .right-toolbar .rt-btn { width: 38px; height: 38px; }
+}
+
+/* ==========================================================================
+   Homepage Micro-Interactions & Subpage Style Alignment
+   ========================================================================== */
+
+/* Top thin AJAX navigation progress indicator (invisible at rest) */
+.nav-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 12000;
+    pointer-events: none;
+    background: var(--primary-gradient);
+    box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.5);
+    transform-origin: left center;
+    transform: scaleX(0);
+    opacity: 0;
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
+}
+.nav-progress-bar.is-active {
+    opacity: 1;
+    transform: scaleX(0.75);
+}
+.nav-progress-bar.is-done {
+    opacity: 0;
+    transform: scaleX(1);
+    transition: transform 0.16s ease-out, opacity 0.24s ease 0.1s;
+}
+
+/* Interactive music-dl brand title (keeps original appearance, adds lively hover & click feedback) */
+.brand-title {
+    position: relative;
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    -webkit-text-fill-color: currentColor;
+}
+.brand-title-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 4px 14px;
+    border-radius: 14px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.22s ease, box-shadow 0.22s ease;
+}
+.brand-title-link::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 2px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--primary-gradient);
+    transform: scaleX(0);
+    opacity: 0;
+    transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
+}
+.brand-title-link:hover {
+    transform: translateY(-2px);
+    background: rgba(var(--primary-rgb), 0.08);
+    box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.14);
+}
+.brand-title-link:hover::after {
+    transform: scaleX(1);
+    opacity: 0.85;
+}
+.brand-title-link:active {
+    transform: translateY(0) scale(0.96);
+}
+.brand-title-link:focus-visible {
+    outline: 3px solid rgba(var(--primary-rgb), 0.28);
+    outline-offset: 4px;
+}
+.brand-note {
+    display: inline-block;
+    -webkit-text-fill-color: initial;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.brand-title-link:hover .brand-note {
+    transform: rotate(-12deg) scale(1.14);
+}
+.brand-text {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.brand-title-link.is-bouncing {
+    animation: brandTitlePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.brand-title-link.is-bouncing .brand-note {
+    animation: brandNoteDance 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes brandTitlePop {
+    0% { transform: scale(1); }
+    35% { transform: scale(0.93); }
+    72% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+@keyframes brandNoteDance {
+    0% { transform: rotate(0deg) scale(1); }
+    35% { transform: rotate(-18deg) translateY(-4px) scale(1.22); }
+    70% { transform: rotate(12deg) translateY(-1px) scale(1.08); }
+    100% { transform: rotate(0deg) scale(1); }
+}
+.brand-floating-note {
+    position: fixed;
+    z-index: 12001;
+    pointer-events: none;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--primary-color);
+    text-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.35);
+    animation: brandFloatNote 0.78s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes brandFloatNote {
+    0% {
+        opacity: 0;
+        transform: translate(0, 4px) scale(0.6) rotate(0deg);
+    }
+    20% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(var(--note-dx, 0px), var(--note-dy, -36px)) scale(1.15) rotate(var(--note-rot, 14deg));
+    }
+}
+
+/* Tactile press micro-feedback on homepage & shared controls */
+.search-btn:active:not(:disabled),
+.quick-actions .btn-pill:active:not(:disabled),
+.source-card:active,
+.btn-circle:active:not(:disabled),
+.type-option:active {
+    transform: scale(0.96);
+}
+.source-card:hover {
+    border-color: rgba(var(--primary-rgb), 0.45);
+    transform: translateY(-1px);
+}
+.source-checkbox:disabled + .source-card:hover,
+.source-checkbox:disabled + .source-card:active {
+    transform: none;
+    border-color: #e2e8f0;
+}
+
+/* Align subpage primary buttons & controls with homepage theme accent */
+.ctrl-btn.primary {
+    background: var(--primary-faint);
+    color: var(--primary-deep);
+    border: 1px solid var(--primary-border);
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.18s ease, box-shadow 0.2s ease;
+}
+.ctrl-btn.primary:hover:not(:disabled) {
+    background: var(--primary-soft);
+    border-color: var(--primary-light);
+    color: var(--primary-deep);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.15);
+}
+.ctrl-btn.primary:active:not(:disabled) {
+    transform: scale(0.97);
+}
+.ctrl-btn.primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.song-sort-control,
+.page-size-control {
+    background: var(--primary-faint);
+    border-color: var(--primary-border);
+}
+.song-sort-control:hover,
+.page-size-control:hover {
+    background: var(--primary-soft);
+}
+.song-sort-control .sort-dir-btn {
+    border-color: var(--primary-border);
+}
+.song-card.playing-active {
+    background: var(--primary-faint);
+}
+
+/* Align detail, list, local music, pagination & empty states with homepage glass cards */
+.detail-back-button {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow);
+}
+.list-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 16px;
+    padding: 13px 16px;
+}
+.list-header .result-count i {
+    color: var(--primary-color);
+}
+.cover-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-faint) 0%, #eef2f5 100%);
+    color: var(--primary-color);
+    font-size: 24px;
+}
+.pagination-bar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 16px;
+    padding: 10px 16px;
+    box-shadow: var(--shadow);
+}
+.no-results {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+}
+.local-music-page-hint {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+}
+
+/* Align Playlist, Category, Toplist & Recommend pages with homepage card feel */
+.category-current-bar {
+    border-radius: 20px;
+}
+.playlist-card,
+.toplist-card {
+    border: 2px solid transparent;
+}
+.playlist-card:hover,
+.toplist-card:hover {
+    border-color: rgba(var(--primary-rgb), 0.28);
+    box-shadow: var(--shadow-active);
+}
+.playlist-cover,
+.toplist-cover {
+    overflow: hidden;
+}
+.playlist-cover img,
+.toplist-cover img {
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.playlist-card:hover .playlist-cover img,
+.toplist-card:hover .toplist-cover img {
+    transform: scale(1.05);
+}
+.category-chip:active {
+    transform: scale(0.96);
+}
+
+/* Align Auth page & Modals with homepage polish */
+.auth-brand {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.auth-brand:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+.auth-brand:active {
+    transform: scale(0.97);
+}
+.modal {
+    animation: modalSoftIn 0.18s ease-out;
+}
+@keyframes modalSoftIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+.btn-save {
+    border-radius: 50px;
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-save:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.03);
+    box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.36);
+}
+.btn-save:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Dark theme parity for subpages, auth page, pagination, empty states & modals */
+html[data-theme="dark"] :is(
+    .list-header,
+    .category-current-bar,
+    .pagination-bar,
+    .no-results,
+    .local-music-page-hint,
+    .auth-card,
+    .app-toast,
+    .local-music-item,
+    .collection-item,
+    .player-speed-menu
+) {
+    background-color: #111827 !important;
+    border-color: #253247 !important;
+    color: var(--text-main);
+}
+html[data-theme="dark"] :is(
+    .category-source-tabs,
+    .category-chip,
+    .category-source-empty,
+    .pagination-shortcut-hint,
+    .local-music-dir,
+    .local-music-hint,
+    .qr-login-status
+) {
+    background-color: #172235;
+    border-color: #2c3b52;
+    color: var(--text-main);
+}
+html[data-theme="dark"] .category-source-tab.is-active {
+    background: #111827;
+    color: var(--primary-light);
+}
+html[data-theme="dark"] .category-chip:hover {
+    background: rgba(var(--primary-rgb), 0.16);
+    border-color: var(--primary-color);
+    color: var(--primary-light);
+}
+html[data-theme="dark"] .ctrl-btn.primary,
+html[data-theme="dark"] .song-list-tools-trigger,
+html[data-theme="dark"] .container-download-button {
+    background: rgba(var(--primary-rgb), 0.14);
+    border-color: rgba(var(--primary-rgb), 0.32);
+    color: var(--primary-light);
+}
+html[data-theme="dark"] .ctrl-btn.primary:hover:not(:disabled),
+html[data-theme="dark"] .song-list-tools-trigger:hover,
+html[data-theme="dark"] .container-download-button:hover:not(:disabled) {
+    background: rgba(var(--primary-rgb), 0.22);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+html[data-theme="dark"] .song-card.playing-active {
+    background-color: rgba(var(--primary-rgb), 0.15) !important;
+    border-color: var(--primary-color) !important;
+}
+html[data-theme="dark"] .settings-panel-hint,
+html[data-theme="dark"] .auth-field-hint {
+    background: rgba(var(--primary-rgb), 0.12);
+    border-color: rgba(var(--primary-rgb), 0.3);
+    color: #a7f3d0;
+}
+html[data-theme="dark"] .cookie-capture-guide,
+html[data-theme="dark"] .qr-login-sms {
+    background: rgba(59, 130, 246, 0.14);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #bfdbfe;
+}
+html[data-theme="dark"] .cookie-capture-guide kbd {
+    background: #0f172a;
+    border-color: #3b82f6;
+    color: #dbeafe;
+}
+html[data-theme="dark"] .qr-login-frame {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-color: rgba(var(--primary-rgb), 0.32);
+    box-shadow: inset 0 0 0 8px #0f172a, 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .qr-login-loading {
+    background: rgba(15, 23, 42, 0.92);
+}
+html[data-theme="dark"] .duplicate-group {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+html[data-theme="dark"] .duplicate-row {
+    background: #172235;
+}
+html[data-theme="dark"] .duplicate-group-title {
+    color: #fcd34d;
+}
+html[data-theme="dark"] .playback-history-item {
+    border-color: #253247;
+}
+html[data-theme="dark"] .playback-history-item:hover {
+    background: #172235;
+}
+html[data-theme="dark"] .cover-fallback {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .brand-title-link.is-bouncing,
+    .brand-title-link.is-bouncing .brand-note,
+    .brand-floating-note,
+    .modal {
+        animation: none !important;
+    }
 }

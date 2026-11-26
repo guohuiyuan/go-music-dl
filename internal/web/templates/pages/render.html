@@ -8,13 +8,41 @@
     <link rel="stylesheet" href="{{.Root}}/vendor/fontawesome/css/all.min.css">
     <style>
         :root {
-            /* 换成新的翠绿色渐变 */
+            --primary-color: #10b981;
+            --primary-rgb: 16, 185, 129;
             --primary-gradient: linear-gradient(135deg, #34d399 0%, #059669 100%);
+            --render-card-bg: rgba(255, 255, 255, 0.95);
+            --render-text: #2d3748;
+            --render-sub: #718096;
+            --render-border: rgba(255, 255, 255, 0.55);
+            --render-track: #e2e8f0;
+        }
+        html[data-theme="dark"] {
+            --render-card-bg: rgba(17, 24, 39, 0.9);
+            --render-text: #e5edf7;
+            --render-sub: #94a3b8;
+            --render-border: #253247;
+            --render-track: rgba(255, 255, 255, 0.12);
         }
         body { 
-            margin: 0; padding: 0; font-family: -apple-system, sans-serif;
-            background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: center;
-            min-height: 100dvh; overflow: hidden; box-sizing: border-box;
+            margin: 0; padding: 24px 16px;
+            font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #eef2f5;
+            background-image:
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%),
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            background-size: 100% 600px;
+            background-repeat: no-repeat;
+            color: var(--render-text); display: flex; align-items: center; justify-content: center;
+            min-height: 100dvh; overflow-x: hidden; box-sizing: border-box;
+        }
+        html[data-theme="dark"] body {
+            background-color: #08111f;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(var(--primary-rgb), 0.2) 0, transparent 48%),
+                radial-gradient(at 60% 0%, rgba(30, 64, 175, 0.2) 0, transparent 52%),
+                radial-gradient(at 100% 0%, rgba(126, 34, 206, 0.16) 0, transparent 46%);
         }
         /* 模糊动态背景，呼应主界面毛玻璃风格 */
         .bg-layer {
@@ -23,32 +51,32 @@
             transform: scale(1.2);
         }
         .container { 
-            background: rgba(30, 41, 59, 0.65); backdrop-filter: blur(20px);
-            padding: 40px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-            width: 90%; max-width: 540px; text-align: center; border: 1px solid rgba(255,255,255,0.1);
+            background: var(--render-card-bg); backdrop-filter: blur(12px);
+            padding: 36px; border-radius: 20px; box-shadow: 0 14px 36px rgba(15, 23, 42, 0.14);
+            width: 90%; max-width: 540px; text-align: center; border: 1px solid var(--render-border);
             box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
         }
-        h2 { margin-top: 0; font-weight: 800; font-size: clamp(20px, 5vw, 26px); color: #f8fafc; }
+        h2 { margin-top: 0; font-weight: 800; font-size: clamp(20px, 5vw, 26px); color: var(--render-text); }
         .progress-bar { 
-            width: 100%; height: 10px; background: rgba(0,0,0,0.5); 
-            border-radius: 5px; margin: 25px 0; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+            width: 100%; height: 10px; background: var(--render-track); 
+            border-radius: 999px; margin: 22px 0; overflow: hidden;
         }
         .progress-fill { height: 100%; background: var(--primary-gradient); width: 0%; transition: width 0.1s linear; }
-        .status-text { color: #cbd5e1; font-size: clamp(12px, 3.5vw, 14px); margin-bottom: 5px; font-weight: 500; }
+        .status-text { color: var(--render-sub); font-size: clamp(12px, 3.5vw, 14px); margin-bottom: 5px; font-weight: 500; }
         
         .spinner { 
-            display: inline-block; width: 45px; height: 45px; border: 3px solid rgba(255,255,255,0.1); 
-            border-left-color: #10b981; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; 
+            display: inline-block; width: 44px; height: 44px; border: 3px solid var(--render-track); 
+            border-left-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 18px; 
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         
         .btn { 
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             padding: 12px 35px; background: var(--primary-gradient); color: #fff; 
-            text-decoration: none; border-radius: 30px; font-size: 16px; font-weight: bold; 
-            margin-top: 20px; box-shadow: 0 4px 15px rgba(16,185,129,0.4); transition: transform 0.2s; 
+            text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: bold; 
+            margin-top: 20px; box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.35); transition: transform 0.2s, box-shadow 0.2s; 
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16,185,129,0.6); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(var(--primary-rgb), 0.45); }
         
         .preview-wrapper { 
             margin-top: 25px; border-radius: 12px; overflow: hidden; 
@@ -100,6 +128,17 @@
     <script>
         window.API_ROOT = "{{.Root}}";
         window.isRenderWorker = true;
+        try {
+            if (window.opener && window.opener.document) {
+                const srcRoot = window.opener.document.documentElement;
+                const dstRoot = document.documentElement;
+                if (srcRoot.dataset.theme) dstRoot.dataset.theme = srcRoot.dataset.theme;
+                ["--primary-color", "--primary-rgb", "--primary-gradient"].forEach((prop) => {
+                    const val = srcRoot.style.getPropertyValue(prop);
+                    if (val) dstRoot.style.setProperty(prop, val);
+                });
+            }
+        } catch (_) {}
         // 从触发页面 (opener) 获取歌曲数据
         if (window.opener && window.opener.__vgRenderData) {
             window.renderData = window.opener.__vgRenderData;
