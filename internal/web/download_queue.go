@@ -138,11 +138,13 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 		if err != nil {
 			return core.DownloadTaskResult{}, err
 		}
-		outcome := core.DownloadTaskResult{Status: core.DownloadStatusSuccess, Path: result.SavedPath, Warning: result.Warning}
+		remoteDir := strings.Trim(strings.TrimSpace(settings.WebDAVDir), "/")
+		remoteDisplay := "WebDAV:" + remoteDir + "/" + result.Filename
 		if result.Skipped {
-			outcome.Status = core.DownloadStatusSkipped
+			outcome := core.DownloadTaskResult{Status: core.DownloadStatusSkipped, Path: "", Warning: result.Warning}
 			return outcome, nil
 		}
+		outcome := core.DownloadTaskResult{Status: core.DownloadStatusSuccess, Path: "", Warning: strings.TrimSpace(remoteDisplay + " " + result.Warning)}
 		return outcome, nil
 	}
 	result, err := core.DownloadWithDedupCheckWithTemplate(&song, input.Directory, input.Embed, input.Embed, input.FilenameTemplate, index)

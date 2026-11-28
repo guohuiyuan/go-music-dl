@@ -93,10 +93,6 @@ func uploadBytesToWebDAV(settings WebSettings, filename string, data []byte) err
 	return nil
 }
 
-// webDAVOnlyFetcher allows tests to stub the audio download step so the
-// WebDAV-only path can be exercised without hitting real music sources.
-var webDAVOnlyFetcher = DownloadSongDataWithTemplate
-
 func DownloadSongToWebDAVOnly(song *model.Song, withCover, withLyrics bool, filenameTemplate string, dedupSet DownloadDedupIndex) (*DownloadedSong, error) {
 	settings := GetWebSettings()
 	if !WebDAVConfigured(settings) {
@@ -123,7 +119,7 @@ func DownloadSongToWebDAVOnly(song *model.Song, withCover, withLyrics bool, file
 		}
 		return &DownloadedSong{Skipped: true, Filename: probeName, Warning: "WebDAV 云端已存在 " + probeName + "，跳过；如需重传请先删除云端同名文件"}, nil
 	}
-	result, err := webDAVOnlyFetcher(song, withCover, withLyrics, filenameTemplate)
+	result, err := DownloadSongDataWithTemplate(song, withCover, withLyrics, filenameTemplate)
 	if err != nil {
 		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusFailed, err.Error())
 		return nil, err
