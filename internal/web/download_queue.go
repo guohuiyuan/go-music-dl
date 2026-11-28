@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
@@ -161,6 +162,11 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 	if core.WebDAVConfigured(settings) {
 		if err := core.UploadSongToWebDAV(settings, result.Filename, result.Data); err != nil {
 			outcome.Warning += " WebDAV: " + err.Error()
+		} else if strings.TrimSpace(result.Lyric) != "" && settings.DownloadLyricsToLocal {
+			lrcName := strings.TrimSuffix(result.Filename, path.Ext(result.Filename)) + ".lrc"
+			if err := core.UploadLyricToWebDAV(settings, lrcName, result.Lyric); err != nil {
+				outcome.Warning += " WebDAV lyric: " + err.Error()
+			}
 		}
 	}
 	return outcome, nil

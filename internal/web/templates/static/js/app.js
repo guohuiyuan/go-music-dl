@@ -819,7 +819,30 @@ function bindWebDAVSettingEvents() {
   toggle.addEventListener("change", () => {
     const fields = document.getElementById("webdav-settings-fields");
     if (fields) fields.style.display = toggle.checked ? "block" : "none";
+    syncDownloadTargetHint();
   });
+  const localToggle = document.getElementById("setting-download-to-local");
+  if (localToggle && localToggle.dataset.bound !== "1") {
+    localToggle.dataset.bound = "1";
+    localToggle.addEventListener("change", syncDownloadTargetHint);
+  }
+}
+
+function syncDownloadTargetHint() {
+  const localToggle = document.getElementById("setting-download-to-local");
+  const hint = document.getElementById("download-target-hint");
+  if (!hint) return;
+  const local = localToggle ? localToggle.checked : true;
+  const webdav = webSettings.webdavEnabled;
+  if (!local && !webdav) {
+    hint.textContent = "当前配置：两个开关均关闭，下载将回落到本地目录保存。";
+  } else if (!local && webdav) {
+    hint.textContent = "当前配置：仅上传 WebDAV，不写入本地磁盘。";
+  } else if (local && webdav) {
+    hint.textContent = "当前配置：保存到本地目录，并同步上传 WebDAV。";
+  } else {
+    hint.textContent = "当前配置：仅保存到本地目录。";
+  }
 }
 
 function floatingLyricsEnabled() {
@@ -1471,6 +1494,7 @@ function applyWebSettings(settings) {
   if (webdavDirInput) {
     webdavDirInput.value = webSettings.webdavDir;
   }
+  syncDownloadTargetHint();
   const sodaSignerUrlInput = document.getElementById("setting-soda-signer-url");
   if (sodaSignerUrlInput) {
     sodaSignerUrlInput.value = webSettings.sodaSignerUrl;

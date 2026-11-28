@@ -40,6 +40,15 @@ func UploadSongToWebDAV(settings WebSettings, filename string, data []byte) erro
 	return uploadBytesToWebDAV(settings, filename, data)
 }
 
+// UploadLyricToWebDAV uploads a standardized .lrc sidecar alongside the audio.
+func UploadLyricToWebDAV(settings WebSettings, filename string, lyric string) error {
+	content := StandardLRCForExport(lyric)
+	if content == "" {
+		content = lyric
+	}
+	return uploadBytesToWebDAV(settings, filename, []byte(content))
+}
+
 func uploadBytesToWebDAV(settings WebSettings, filename string, data []byte) error {
 	if !WebDAVConfigured(settings) {
 		return nil
