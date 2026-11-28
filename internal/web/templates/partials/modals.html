@@ -334,12 +334,21 @@
                     <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
                 </button>
                 <div class="cookie-item setting-item">
+                    <label class="setting-toggle" for="setting-download-to-local">
+                        <input type="checkbox" id="setting-download-to-local">
+                        <span class="setting-switch" aria-hidden="true"></span>
+                        <span class="setting-toggle-text">下载到本地目录</span>
+                    </label>
+                    <p class="setting-hint">关闭且已启用 WebDAV 时，音频只在内存中下载并直接上传到 WebDAV，不写本地磁盘。</p>
+                    <p class="setting-hint" id="download-target-hint" style="margin-left: 0;"></p>
+                </div>
+                <div class="cookie-item setting-item">
                     <label class="setting-toggle" for="setting-webdav-enabled">
                         <input type="checkbox" id="setting-webdav-enabled">
                         <span class="setting-switch" aria-hidden="true"></span>
                         <span class="setting-toggle-text">下载时同步到 WebDAV</span>
                     </label>
-                    <p class="setting-hint">保存到本地目录或浏览器下载时，同时上传到已配置的 WebDAV。</p>
+                    <p class="setting-hint">已配置 WebDAV 且关闭“下载到本地”时，下载直接上传到 WebDAV；开启时本地保存并同步上传。</p>
                 </div>
                 <div id="webdav-settings-fields" style="display: none;">
                     <div class="cookie-item">
