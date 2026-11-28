@@ -315,13 +315,51 @@ func audioQualityFallbackOrder(song *model.Song, requestedQuality string) ([]mod
 		for _, fallback := range choices[index:] {
 			order = append(order, fallback.Value)
 		}
-		return order, nil
+		return preferCompatibleFallbackQualities(song.Source, order), nil
 	}
 	return nil, fmt.Errorf(
 		"audio quality %s is not supported by source %s",
 		normalized,
 		song.Source,
 	)
+}
+
+// neteaseImmersiveOnlyQualities are NetEase's codec-specific 3D tiers. They are
+// not a higher rung of the fidelity ladder: NetEase serves them as Audio Vivid
+// (MP4/av3a) streams, which common desktop and mobile players cannot decode.
+// Falling back to them turns an ordinary "best quality" download into a file
+// that opens as "corrupted audio", so they must only be used on explicit
+// request.
+var neteaseImmersiveOnlyQualities = map[model.AudioQuality]bool{
+	model.AudioQualityVivid: true,
+	model.AudioQualityAtmos: true,
+}
+
+// preferCompatibleFallbackQualities keeps the requested tier first and moves
+// AV3A-only immersive tiers behind the playable fidelity ladder. This keeps a
+// master/lossless request from silently producing an unplayable M4A when the
+// requested tier is missing from a particular track.
+func preferCompatibleFallbackQualities(source string, order []model.AudioQuality) []model.AudioQuality {
+	if len(order) < 2 || !strings.EqualFold(strings.TrimSpace(source), "netease") {
+		return order
+	}
+	playable := make([]model.AudioQuality, 0, len(order)-1)
+	immersive := make([]model.AudioQuality, 0, 2)
+	for _, quality := range order[1:] {
+		if neteaseImmersiveOnlyQualities[quality] {
+			immersive = append(immersive, quality)
+			continue
+		}
+		playable = append(playable, quality)
+	}
+	if len(immersive) == 0 {
+		return order
+	}
+	preferred := make([]model.AudioQuality, 0, len(order))
+	preferred = append(preferred, order[0])
+	preferred = append(preferred, playable...)
+	preferred = append(preferred, immersive...)
+	return preferred
 }
 
 func resolveWithAudioQualityFallback[T any](
