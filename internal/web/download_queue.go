@@ -131,6 +131,20 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 	}
 	song := input.Song
 	resolveLegacyDedupForSong(index, &song)
+	settings := core.GetWebSettings()
+	if core.WebDAVConfigured(settings) && !settings.DownloadToLocal {
+		// WebDAV 直传模式：音频在内存中下载后直接 PUT 到 WebDAV，不落本地磁盘。
+		result, err := core.DownloadSongToWebDAVOnly(&song, input.Embed, input.Embed, input.FilenameTemplate, index)
+		if err != nil {
+			return core.DownloadTaskResult{}, err
+		}
+		outcome := core.DownloadTaskResult{Status: core.DownloadStatusSuccess, Path: result.SavedPath, Warning: result.Warning}
+		if result.Skipped {
+			outcome.Status = core.DownloadStatusSkipped
+			return outcome, nil
+		}
+		return outcome, nil
+	}
 	result, err := core.DownloadWithDedupCheckWithTemplate(&song, input.Directory, input.Embed, input.Embed, input.FilenameTemplate, index)
 	if err != nil {
 		return core.DownloadTaskResult{}, err
@@ -141,7 +155,7 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 		return outcome, nil
 	}
 	indexSavedLocalMusicFile(result, input.Directory)
-	settings := core.GetWebSettings()
+	settings = core.GetWebSettings()
 	if core.WebDAVConfigured(settings) {
 		if err := core.UploadSongToWebDAV(settings, result.Filename, result.Data); err != nil {
 			outcome.Warning += " WebDAV: " + err.Error()

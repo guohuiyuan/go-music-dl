@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/guohuiyuan/music-lib/model"
 )
 
 const (
@@ -89,6 +91,94 @@ func uploadBytesToWebDAV(settings WebSettings, filename string, data []byte) err
 	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return nil
+}
+
+// webDAVOnlyFetcher allows tests to stub the audio download step so the
+// WebDAV-only path can be exercised without hitting real music sources.
+var webDAVOnlyFetcher = DownloadSongDataWithTemplate
+
+func DownloadSongToWebDAVOnly(song *model.Song, withCover, withLyrics bool, filenameTemplate string, dedupSet DownloadDedupIndex) (*DownloadedSong, error) {
+	settings := GetWebSettings()
+	if !WebDAVConfigured(settings) {
+		return nil, errors.New("webdav not configured")
+	}
+	key := SongKey(song)
+	// 先查 WebDAV 云端是否已存在该文件（而不是沿用本地下载记录）：
+	// 本地已有不代表云端已有，反之亦然。下载前不知道最终扩展名（由音质决定），
+	// 因此按常见音频扩展名逐个探测。
+	probeBase := BuildDownloadFilename(song, "", filenameTemplate)
+	probeName := ""
+	if strings.TrimSpace(probeBase) != "" {
+		for _, ext := range []string{".flac", ".mp3", ".m4a", ".wav", ".ogg", ".wma"} {
+			if webDAVFileExists(settings, probeBase+ext) {
+				probeName = probeBase + ext
+				break
+			}
+		}
+	}
+	if probeName != "" {
+		_ = SaveDownloadRecordWithRelPath(song.Name, song.Artist, song.Source, DownloadStatusSkipped, "", "")
+		if dedupSet != nil {
+			dedupSet[key] = ""
+		}
+		return &DownloadedSong{Skipped: true, Filename: probeName, Warning: "WebDAV 云端已存在 " + probeName + "，跳过；如需重传请先删除云端同名文件"}, nil
+	}
+	result, err := webDAVOnlyFetcher(song, withCover, withLyrics, filenameTemplate)
+	if err != nil {
+		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusFailed, err.Error())
+		return nil, err
+	}
+	if err := UploadSongToWebDAV(settings, result.Filename, result.Data); err != nil {
+		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusFailed, "webdav: "+err.Error())
+		return result, err
+	}
+	if strings.TrimSpace(result.Lyric) != "" && settings.DownloadLyricsToLocal {
+		lrcName := strings.TrimSuffix(result.Filename, path.Ext(result.Filename)) + ".lrc"
+		lrcContent := StandardLRCForExport(result.Lyric)
+		if lrcContent == "" {
+			lrcContent = result.Lyric
+		}
+		if lrcErr := uploadBytesToWebDAV(settings, lrcName, []byte(lrcContent)); lrcErr != nil {
+			result.Warning = strings.TrimSpace(result.Warning + " WebDAV lyric: " + lrcErr.Error())
+		}
+	}
+	_ = SaveDownloadRecordWithRelPath(song.Name, song.Artist, song.Source, DownloadStatusSuccess, "", "")
+	if dedupSet != nil {
+		dedupSet[key] = ""
+	}
+	result.SavedPath = ""
+	return result, nil
+}
+
+// webDAVFileExists probes the remote WebDAV server for an existing file.
+// The probe uses the configured audio-quality default when the filename has no
+// extension yet, trying the common quality variants used by downloads.
+func webDAVFileExists(settings WebSettings, filename string) bool {
+	base, err := parseWebDAVBaseURL(settings.WebDAVURL)
+	if err != nil {
+		return false
+	}
+	rel, err := webDAVRemoteRelativePath(settings, filename)
+	if err != nil {
+		return false
+	}
+	target := *base
+	target.Path = strings.TrimRight(base.Path, "/") + "/" + rel
+	target.RawQuery = ""
+	target.Fragment = ""
+
+	req, err := http.NewRequest(http.MethodHead, target.String(), nil)
+	if err != nil {
+		return false
+	}
+	req.SetBasicAuth(settings.WebDAVUsername, settings.WebDAVPassword)
+	resp, err := webDAVHTTPClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices
 }
 
 func parseWebDAVBaseURL(raw string) (*url.URL, error) {

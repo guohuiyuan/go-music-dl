@@ -249,6 +249,9 @@ function normalizeWebSettings(raw) {
   if (typeof raw.webdavEnabled === "boolean") {
     next.webdavEnabled = raw.webdavEnabled;
   }
+  if (typeof raw.downloadToLocal === "boolean") {
+    next.downloadToLocal = raw.downloadToLocal;
+  }
   if (typeof raw.webdavUrl === "string" && raw.webdavUrl.trim() !== "") {
     next.webdavUrl = raw.webdavUrl.trim();
   }
@@ -1425,6 +1428,12 @@ function applyWebSettings(settings) {
   const embedToggle = document.getElementById("setting-embed-download");
   if (embedToggle) {
     embedToggle.checked = webSettings.embedDownload;
+  }
+  const downloadToLocalToggle = document.getElementById(
+    "setting-download-to-local",
+  );
+  if (downloadToLocalToggle) {
+    downloadToLocalToggle.checked = webSettings.downloadToLocal;
   }
   const downloadLyricsToggle = document.getElementById(
     "setting-download-lyrics-to-local",
@@ -6915,6 +6924,9 @@ async function saveCookies() {
         ?.checked,
       downloadLyricsToLocal: !!document.getElementById(
         "setting-download-lyrics-to-local",
+      )?.checked,
+      downloadToLocal: !!document.getElementById(
+        "setting-download-to-local",
       )?.checked,
       downloadDir: document.getElementById("setting-download-dir")?.value || "",
       downloadFilenameTemplate:
