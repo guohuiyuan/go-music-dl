@@ -438,6 +438,9 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	topListCurrent, _ := c.Get("TopListCurrent")
 
 	settings := core.GetWebSettings()
+	if settings.FilterShortTracks {
+		songs = markPreviewSongs(songs)
+	}
 	songs = filterSongsForDisplay(songs, settings)
 	defaultPageSize := settings.WebPageSize
 	if defaultPageSize <= 0 {
