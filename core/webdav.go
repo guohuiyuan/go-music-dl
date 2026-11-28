@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/guohuiyuan/music-lib/model"
 )
 
 const (
@@ -36,6 +38,15 @@ func UploadSongToWebDAV(settings WebSettings, filename string, data []byte) erro
 		return errors.New("empty webdav upload filename")
 	}
 	return uploadBytesToWebDAV(settings, filename, data)
+}
+
+// UploadLyricToWebDAV uploads a standardized .lrc sidecar alongside the audio.
+func UploadLyricToWebDAV(settings WebSettings, filename string, lyric string) error {
+	content := StandardLRCForExport(lyric)
+	if content == "" {
+		content = lyric
+	}
+	return uploadBytesToWebDAV(settings, filename, []byte(content))
 }
 
 func uploadBytesToWebDAV(settings WebSettings, filename string, data []byte) error {
@@ -89,6 +100,107 @@ func uploadBytesToWebDAV(settings WebSettings, filename string, data []byte) err
 	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return nil
+}
+
+func DownloadSongToWebDAVOnly(song *model.Song, withCover, withLyrics bool, filenameTemplate string, dedupSet DownloadDedupIndex) (*DownloadedSong, error) {
+	settings := GetWebSettings()
+	if !WebDAVConfigured(settings) {
+		return nil, errors.New("webdav not configured")
+	}
+	key := SongKey(song)
+	// 直传成功的文件用 "webdav:" 前缀的伪路径标记，与本地下载记录区分开：
+	// 切回本地下载模式时 IsSongStillDownloaded 检查磁盘文件不存在会回收记录，
+	// 不会因空 relPath 被误判为「已下载」而静默跳过。
+	const cloudRelPrefix = "webdav:"
+	probeBase := BuildDownloadFilename(song, "", filenameTemplate)
+	probeName := ""
+	probeWarning := ""
+	cloudRel := cloudRelPrefix
+	if strings.TrimSpace(probeBase) != "" {
+		for _, ext := range []string{".flac", ".mp3", ".m4a", ".wav", ".ogg", ".wma"} {
+			probe := probeBase + ext
+			exists, err := webDAVFileExists(settings, probe)
+			if err != nil {
+				// 探测失败（认证/网络等）：跳过去重并附警告，避免静默重复上传
+				probeWarning = "WebDAV 去重探测失败: " + err.Error()
+				break
+			}
+			if exists {
+				probeName = probe
+				cloudRel = cloudRelPrefix + probe
+				break
+			}
+		}
+	}
+	if probeName != "" {
+		_ = SaveDownloadRecordWithRelPath(song.Name, song.Artist, song.Source, DownloadStatusSkipped, "", cloudRel)
+		if dedupSet != nil {
+			dedupSet[key] = cloudRel
+		}
+		return &DownloadedSong{Skipped: true, Filename: probeName, Warning: "WebDAV 云端已存在 " + probeName + "，跳过；如需重传请先删除云端同名文件"}, nil
+	}
+	result, err := DownloadSongDataWithTemplate(song, withCover, withLyrics, filenameTemplate)
+	if err != nil {
+		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusFailed, err.Error())
+		return nil, err
+	}
+	if err := UploadSongToWebDAV(settings, result.Filename, result.Data); err != nil {
+		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusFailed, "webdav: "+err.Error())
+		return result, err
+	}
+	if strings.TrimSpace(result.Lyric) != "" && settings.DownloadLyricsToLocal {
+		lrcName := strings.TrimSuffix(result.Filename, path.Ext(result.Filename)) + ".lrc"
+		if lrcErr := UploadLyricToWebDAV(settings, lrcName, result.Lyric); lrcErr != nil {
+			result.Warning = strings.TrimSpace(result.Warning + " WebDAV lyric: " + lrcErr.Error())
+		}
+	}
+	result.Warning = strings.TrimSpace(probeWarning + " " + result.Warning)
+	_ = SaveDownloadRecordWithRelPath(song.Name, song.Artist, song.Source, DownloadStatusSuccess, "", cloudRelPrefix+result.Filename)
+	if dedupSet != nil {
+		dedupSet[key] = cloudRelPrefix + result.Filename
+	}
+	result.SavedPath = ""
+	return result, nil
+}
+
+// webDAVFileExists probes the remote WebDAV server for an existing file.
+// Returns an error when the probe itself fails (auth, network, unexpected status),
+// so callers can distinguish "not exists" from "cannot tell".
+func webDAVFileExists(settings WebSettings, filename string) (bool, error) {
+	base, err := parseWebDAVBaseURL(settings.WebDAVURL)
+	if err != nil {
+		return false, err
+	}
+	rel, err := webDAVRemoteRelativePath(settings, filename)
+	if err != nil {
+		return false, err
+	}
+	target := *base
+	target.Path = strings.TrimRight(base.Path, "/") + "/" + rel
+	target.RawQuery = ""
+	target.Fragment = ""
+
+	req, err := http.NewRequest(http.MethodHead, target.String(), nil)
+	if err != nil {
+		return false, err
+	}
+	req.SetBasicAuth(settings.WebDAVUsername, settings.WebDAVPassword)
+	resp, err := webDAVHTTPClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	switch {
+	case resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices:
+		return true, nil
+	case resp.StatusCode == http.StatusNotFound:
+		// 405 说明服务器禁用了 HEAD 方法，视为探测失败而不是"文件不存在"，
+		// 否则会静默重复上传（与去重探测失败的兜底语义保持一致）。
+		return false, nil
+	default:
+		return false, fmt.Errorf("webdav probe %s: status %s", filename, resp.Status)
+	}
 }
 
 func parseWebDAVBaseURL(raw string) (*url.URL, error) {

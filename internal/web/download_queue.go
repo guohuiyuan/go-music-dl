@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
@@ -51,13 +52,18 @@ func RegisterDownloadQueueRoutes(api *gin.RouterGroup, queue *core.DownloadQueue
 			return
 		}
 		settings := core.GetWebSettings()
+		// 直传模式下队列里没有本地路径可显示，用云端位置作为任务的展示目录
+		taskDirectory := core.DownloadDirOrDefault(settings.DownloadDir)
+		if core.WebDAVConfigured(settings) && !settings.DownloadToLocal {
+			taskDirectory = "WebDAV:" + strings.Trim(strings.TrimSpace(settings.WebDAVDir), "/")
+		}
 		inputs := make([]core.DownloadTaskInput, 0, len(req.Songs))
 		for _, s := range req.Songs {
 			if strings.TrimSpace(s.ID) == "" || strings.TrimSpace(s.Source) == "" || isLocalMusicSource(s.Source) {
 				c.JSON(400, gin.H{"error": "歌曲缺少 ID 或音源，或属于本地音乐"})
 				return
 			}
-			inputs = append(inputs, core.DownloadTaskInput{Song: model.Song{ID: s.ID, Source: s.Source, Name: s.Name, Artist: s.Artist, Album: s.Album, Cover: s.Cover, Extra: parseSongExtraQuery(s.Extra)}, Directory: core.DownloadDirOrDefault(settings.DownloadDir), FilenameTemplate: settings.DownloadFilenameTemplate, Embed: s.Embed})
+			inputs = append(inputs, core.DownloadTaskInput{Song: model.Song{ID: s.ID, Source: s.Source, Name: s.Name, Artist: s.Artist, Album: s.Album, Cover: s.Cover, Extra: parseSongExtraQuery(s.Extra)}, Directory: taskDirectory, FilenameTemplate: settings.DownloadFilenameTemplate, Embed: s.Embed})
 		}
 		added, err := queue.Enqueue(req.RequestID, inputs)
 		if err != nil {
@@ -131,6 +137,22 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 	}
 	song := input.Song
 	resolveLegacyDedupForSong(index, &song)
+	settings := core.GetWebSettings()
+	if core.WebDAVConfigured(settings) && !settings.DownloadToLocal {
+		// WebDAV 直传模式：音频在内存中下载后直接 PUT 到 WebDAV，不落本地磁盘。
+		result, err := core.DownloadSongToWebDAVOnly(&song, input.Embed, input.Embed, input.FilenameTemplate, index)
+		if err != nil {
+			return core.DownloadTaskResult{}, err
+		}
+		remoteDir := strings.Trim(strings.TrimSpace(settings.WebDAVDir), "/")
+		remoteDisplay := "WebDAV:" + remoteDir + "/" + result.Filename
+		if result.Skipped {
+			outcome := core.DownloadTaskResult{Status: core.DownloadStatusSkipped, Path: remoteDisplay, Warning: result.Warning}
+			return outcome, nil
+		}
+		outcome := core.DownloadTaskResult{Status: core.DownloadStatusSuccess, Path: remoteDisplay, Warning: strings.TrimSpace(result.Warning)}
+		return outcome, nil
+	}
 	result, err := core.DownloadWithDedupCheckWithTemplate(&song, input.Directory, input.Embed, input.Embed, input.FilenameTemplate, index)
 	if err != nil {
 		return core.DownloadTaskResult{}, err
@@ -141,10 +163,19 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 		return outcome, nil
 	}
 	indexSavedLocalMusicFile(result, input.Directory)
-	settings := core.GetWebSettings()
 	if core.WebDAVConfigured(settings) {
 		if err := core.UploadSongToWebDAV(settings, result.Filename, result.Data); err != nil {
 			outcome.Warning += " WebDAV: " + err.Error()
+		} else {
+			// 本地 + 云端双写：在路径展示中补充云端位置
+			remoteDir := strings.Trim(strings.TrimSpace(settings.WebDAVDir), "/")
+			outcome.Path = "WebDAV:" + remoteDir + "/" + result.Filename + " | 本地:" + outcome.Path
+			if strings.TrimSpace(result.Lyric) != "" && settings.DownloadLyricsToLocal {
+				lrcName := strings.TrimSuffix(result.Filename, path.Ext(result.Filename)) + ".lrc"
+				if err := core.UploadLyricToWebDAV(settings, lrcName, result.Lyric); err != nil {
+					outcome.Warning += " WebDAV lyric: " + err.Error()
+				}
+			}
 		}
 	}
 	return outcome, nil

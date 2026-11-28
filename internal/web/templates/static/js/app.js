@@ -249,6 +249,9 @@ function normalizeWebSettings(raw) {
   if (typeof raw.webdavEnabled === "boolean") {
     next.webdavEnabled = raw.webdavEnabled;
   }
+  if (typeof raw.downloadToLocal === "boolean") {
+    next.downloadToLocal = raw.downloadToLocal;
+  }
   if (typeof raw.webdavUrl === "string" && raw.webdavUrl.trim() !== "") {
     next.webdavUrl = raw.webdavUrl.trim();
   }
@@ -816,7 +819,49 @@ function bindWebDAVSettingEvents() {
   toggle.addEventListener("change", () => {
     const fields = document.getElementById("webdav-settings-fields");
     if (fields) fields.style.display = toggle.checked ? "block" : "none";
+    syncDownloadTargetHint();
   });
+  const localToggle = document.getElementById("setting-download-to-local");
+  if (localToggle && localToggle.dataset.bound !== "1") {
+    localToggle.dataset.bound = "1";
+    localToggle.addEventListener("change", syncDownloadTargetHint);
+  }
+  const webdavUrlInput = document.getElementById("setting-webdav-url");
+  if (webdavUrlInput && webdavUrlInput.dataset.bound !== "1") {
+    webdavUrlInput.dataset.bound = "1";
+    webdavUrlInput.addEventListener("input", syncDownloadTargetHint);
+  }
+}
+
+function syncDownloadTargetHint() {
+  const localToggle = document.getElementById("setting-download-to-local");
+  const hint = document.getElementById("download-target-hint");
+  if (!hint) return;
+  // 优先本地：不允许“下载到本地”与“WebDAV”同时关闭
+  const local = localToggle ? localToggle.checked : true;
+  const webdavToggle = document.getElementById("setting-webdav-enabled");
+  const webdavEnabled = webdavToggle ? webdavToggle.checked : false;
+  const webdavUrlInput = document.getElementById("setting-webdav-url");
+  const webdavUrl = webdavUrlInput ? webdavUrlInput.value.trim() : "";
+  if (!local && !webdavEnabled) {
+    // 防呆：本地关 + WebDAV 关 => 强制打开本地
+    if (localToggle) localToggle.checked = true;
+    hint.textContent = "已自动开启“下载到本地目录”：本地与云端不能同时关闭。";
+    return;
+  }
+  const webdav = webdavEnabled && webdavUrl !== "";
+  if (!local && !webdav) {
+    // 本地关 + WebDAV 开但 URL 为空：配置不完整，同样回落本地
+    hint.textContent = "[注意] WebDAV 服务器地址未填写，下载将回落到本地目录保存。";
+    return;
+  }
+  if (!local && webdav) {
+    hint.textContent = "当前配置：仅上传 WebDAV，不写入本地磁盘。";
+  } else if (local && webdav) {
+    hint.textContent = "当前配置：保存到本地目录，并同步上传 WebDAV。";
+  } else {
+    hint.textContent = "当前配置：仅保存到本地目录。";
+  }
 }
 
 function floatingLyricsEnabled() {
@@ -1426,6 +1471,12 @@ function applyWebSettings(settings) {
   if (embedToggle) {
     embedToggle.checked = webSettings.embedDownload;
   }
+  const downloadToLocalToggle = document.getElementById(
+    "setting-download-to-local",
+  );
+  if (downloadToLocalToggle) {
+    downloadToLocalToggle.checked = webSettings.downloadToLocal;
+  }
   const downloadLyricsToggle = document.getElementById(
     "setting-download-lyrics-to-local",
   );
@@ -1462,6 +1513,7 @@ function applyWebSettings(settings) {
   if (webdavDirInput) {
     webdavDirInput.value = webSettings.webdavDir;
   }
+  syncDownloadTargetHint();
   const sodaSignerUrlInput = document.getElementById("setting-soda-signer-url");
   if (sodaSignerUrlInput) {
     sodaSignerUrlInput.value = webSettings.sodaSignerUrl;
@@ -6147,8 +6199,15 @@ async function loadDownloadQueue(page = downloadQueuePage) {
         const statusClass = hasWarning ? "warning" : task.Status;
         const statusLabel = hasWarning ? "下载完成，有警告" : labels[task.Status] || "未知状态";
         const action = task.Status === "waiting" ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'cancel')">取消</button>` : ["failed","canceled"].includes(task.Status) ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'retry')">重试</button>` : "";
-        const reveal = ["success","skipped"].includes(task.Status) ? `<button type="button" class="btn-pill queue-reveal-button" data-reveal-download-queue="${task.ID}" onclick="revealDownloadFile('queue',${task.ID})" title="打开文件目录" aria-label="打开文件目录：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span class="download-action-label">打开文件目录</span></button>` : "";
-        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${escapeHtml(task.Error || task.Warning || task.Path || task.Directory || "")}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(statusClass)}">${statusLabel}</span><div class="queue-task-buttons">${reveal}${action}<button type="button" class="queue-delete-button" onclick="removeDownloadQueueTask(${task.ID})" title="删除任务" aria-label="删除任务：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></div></div></article>`;
+        const reveal = ["success","skipped"].includes(task.Status) && task.Path && String(task.Path).includes("本地:") ? `<button type="button" class="btn-pill queue-reveal-button" data-reveal-download-queue="${task.ID}" onclick="revealDownloadFile('queue',${task.ID})" title="打开文件目录" aria-label="打开文件目录：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span class="download-action-label">打开文件目录</span></button>` : "";
+        const detail = task.Error || task.Warning || task.Path
+          || (task.Status === "downloading"
+            ? (webSettings.webdavEnabled && !webSettings.downloadToLocal && (webSettings.webdavUrl || "").trim() !== ""
+              ? "WebDAV:" + (webSettings.webdavDir || "") + "/…"
+              : (task.Directory || "") + "/…")
+            : task.Directory || "");
+        const detailHTML = String(detail).split(" | ").map((s) => escapeHtml(s)).join("<br>");
+        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${detailHTML}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(statusClass)}">${statusLabel}</span><div class="queue-task-buttons">${reveal}${action}<button type="button" class="queue-delete-button" onclick="removeDownloadQueueTask(${task.ID})" title="删除任务" aria-label="删除任务：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></div></div></article>`;
       }).join("") || '<div class="download-records-empty">暂无任务。选择歌曲后点击“批量下载”即可加入队列。</div>';
     }
     const pagination = document.getElementById("download-queue-pagination");
@@ -6915,6 +6974,9 @@ async function saveCookies() {
         ?.checked,
       downloadLyricsToLocal: !!document.getElementById(
         "setting-download-lyrics-to-local",
+      )?.checked,
+      downloadToLocal: !!document.getElementById(
+        "setting-download-to-local",
       )?.checked,
       downloadDir: document.getElementById("setting-download-dir")?.value || "",
       downloadFilenameTemplate:
